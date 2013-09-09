@@ -9,30 +9,22 @@
 		http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
         http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.8.0.xsd">
 
-    <camel:endpoint id="hl7listener" uri="mina:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
+    <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
+
+
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener2" uri="mina2:tcp://localhost:8889?sync=true&amp;codec=#hl7codec"/>
 
     <camel:camelContext id="camel">
         <camel:routeBuilder ref="ADTInRoute"/>
+        <camel:routeBuilder ref="ADTInJRoute"/>
     </camel:camelContext>
-
-
-    <!--<amq:broker id="broker" brokerName="myBroker" useShutdownHook="false" useJmx="true"-->
-                <!--persistent="false">-->
-        <!--<amq:transportConnectors>-->
-            <!--<amq:transportConnector name="vm" uri="vm://myBroker"/>-->
-        <!--</amq:transportConnectors>-->
-    <!--</amq:broker>-->
-
-    <!--<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">-->
-        <!--<property name="brokerURL" value="vm://myBroker?create=false&amp;waitForStart=5000"/>-->
-    <!--</bean>-->
-
-    <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec">
-        <property name="charset" value="iso-8859-1"/>
-    </bean>
-
 
     <bean id="ADTInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
 
 
+
+    <bean id="ADTInJRoute" class="com.tactix4.t4ADT.ADTInJRoute"/>
+
+    <bean id="hl7service" class="com.tactix4.t4ADT.MyHL7BusinessLogic"/>
 </beans>
