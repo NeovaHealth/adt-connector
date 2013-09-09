@@ -17,19 +17,19 @@
 
         <!--dependency versions -->
 
-        <camel-version>2.12.0.redhat-610057</camel-version>
-        <!--<camel-version>2.10.0.redhat-60024</camel-version>-->
+        <!--<camel-version>2.12.0.redhat-610057</camel-version>-->
+        <camel-version>2.10.0.redhat-60024</camel-version>
     </properties>
     <dependencies>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>2.10.2</version>
-        </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
             <version>1.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>2.9.1</version>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>ca.uhn.hapi</groupId>
             <artifactId>hapi-osgi-base</artifactId>
-            <version>2.1</version>
+            <version>1.2</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -148,7 +148,7 @@
                             ca.uhn.hl7v2.*,
                             scala,
                             org.apache.camel.scala,
-                            scala.reflect,
+                            scala.reflect.*,
                             scala.runtime,
                             scala.collection.*,
                             org.apache.camel.component.hl7,

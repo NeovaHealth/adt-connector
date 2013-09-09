@@ -1,26 +1,49 @@
 package com.tactix4.t4ADT
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
-import org.apache.camel.component.hl7.HL7.ack
 import ca.uhn.hl7v2.validation.impl.DefaultValidation
-import org.apache.camel.component.hl7.HL7.messageConformsTo
-import org.apache.camel.component.hl7.{AckExpression, AckCode}
-import ca.uhn.hl7v2.model.v23.message.ACK
 import org.apache.camel.Exchange
 import ca.uhn.hl7v2.model.Message
+import ca.uhn.hl7v2.HL7Exception
 
 /**
  * A Camel Router using the Scala DSL
  */
 class ADTInRoute extends RouteBuilder {
 
-  val hl7 = new HL7DataFormat();
+  val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
 
 
   val defaultContext = new DefaultValidation()
-  "mina2:tcp://localhost:8889?sync=true&codec=#hl7codec" ==> {
-    process((exchange: Exchange) => exchange.out = exchange.in[Message].generateACK())
+  "hl7listener" ==> {
+    unmarshal(hl7).process((exchange: Exchange) => {
+      exchange.getIn.getHeader("CamelHL7TriggerEvent").asInstanceOf[String] match {
+        //register patient
+        case "A01" =>  exchange.out = exchange.in[Message].generateACK()
+//        //update patient
+//        case "A08" =>
+//        //add person info
+//        case "A28" =>
+//        //merge patient - patient identifier list
+//        case "A40" =>
+//        //merge patient info- patient ID only
+//        case "A34" =>
+//        //admit patient
+//        case "A01" =>
+//        //cancel admit
+        case "A11" => exchange.out = exchange.in[Message].generateACK()
+//        //transfer patient
+//        case "A02" =>
+//        //cancel transfer patient
+//        case "A12" =>
+//        //discharge patient
+//        case "ADT_A03" =>
+//        //cancel discharge patient
+//        case "ADT_A13" =>
+////        //unsupported message
+        case x  => exchange.out = exchange.in[Message].generateACK("AR", new HL7Exception("unsupported message type: " + x, HL7Exception.UNSUPPORTED_MESSAGE_TYPE ))
+      }})
     .to("log:out")
     .to("mock:out")
   }
