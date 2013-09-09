@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:amq="http://activemq.apache.org/schema/core"
+
+       xsi:schemaLocation="
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+        http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.8.0.xsd">
+
+    <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
+
+
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener2" uri="mina2:tcp://localhost:8889?sync=true&amp;codec=#hl7codec"/>
+
+    <camel:camelContext id="camel">
+        <camel:routeBuilder ref="ADTInRoute"/>
+        <camel:routeBuilder ref="ADTInJRoute"/>
+    </camel:camelContext>
+
+    <bean id="ADTInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
+
+
+
+    <bean id="ADTInJRoute" class="com.tactix4.t4ADT.ADTInJRoute"/>
+
+    <bean id="hl7service" class="com.tactix4.t4ADT.MyHL7BusinessLogic"/>
+</beans>
