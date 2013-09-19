@@ -10,7 +10,7 @@
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
 
-    <camel:endpoint id="hl7listener" uri="mina:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://0.0.0.0:8888?sync=true&amp;codec=#hl7codec"/>
 
     <bean id="ADTInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
 
