@@ -75,8 +75,9 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
         //unsupported message
         case x     => exchange.out = exchange.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE ))
       }})
+    .marshal(hl7)
     .to("log:out")
-    .to("mock:out")
+    .to("rabbitmq://localhost/test?username=guest&password=guest")
   }
   /**
    * Convenience method to check for null in supplied argument
@@ -118,7 +119,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
         m <- getMessageTypeMap(messageType)
         r <- getTerserPath(m)(attribute)
         s <- checkTerser(r, attribute + " not found at terser path: " + attribute)
-      } yield r
+      } yield s
   }
 
   /**
@@ -194,7 +195,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
 
       val familyName = checkTerserPath("A01", "familyName")
       val firstName =  checkTerserPath("A01","firstName")
-      val dateTimeOfBirth = checkTerserPath("A01","dateTime").flatMap(checkDate)
+      val dateTimeOfBirth = checkTerserPath("A01","dateTimeOfBirth").flatMap(checkDate)
       val sex = checkTerserPath("A01", "sex")
 
 

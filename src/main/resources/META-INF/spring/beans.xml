@@ -50,7 +50,7 @@
     </bean>
 
     <camel:camelContext id="camel">
-        <camel:routeBuilder ref="ADTInRoute"/>
+        <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
 
     <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
