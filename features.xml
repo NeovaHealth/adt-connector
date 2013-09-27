@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<features name="Tactix4" >
+    <feature name="Tactix4 ADT" version="1.0">
+
+        <feature>camel-scala</feature>
+        <feature>camel-hl7</feature>
+        <feature>camel-mina2</feature>
+        <bundle>mvn:org.scala-lang/scala-library/2.10.2</bundle>
+        <bundle>mvn:org.scala-lang/scala-reflect/2.10.2</bundle>
+        <bundle>mvn:org.scalaz/scalaz-core_2.10/7.0.3</bundle>
+        <bundle>mvn:org.scalaz/scalaz-concurrent_2.10/7.0.3</bundle>
+        <bundle>mvn:org.scalaz/scalaz-effect_2.10/7.0.3</bundle>
+        <bundle>wrap:mvn:com.typesafe/scalalogging-slf4j_2.10/1.0.1</bundle>
+        <bundle>mvn:com.ning/async-http-client/1.7.16</bundle>
+        <bundle>wrap:mvn:net.databinder.dispatch/dispatch-core_2.10/0.11.0</bundle>
+        <bundle>mvn:joda-time/joda-time/2.3</bundle>
+        <bundle>mvn:io.netty/netty/3.6.3.Final</bundle>
+        <bundle>wrap:mvn:org.springframework.scala/spring-scala_2.10/1.0.0.RC1</bundle>
+        <bundle>mvn:com.tactix4/t4xmlrpc_2.10/1.0-SNAPSHOT</bundle>
+        <bundle>mvn:com.tactix4/t4openerp-connector_2.10/1.0-SNAPSHOT</bundle>
+        <bundle>mvn:com.tactix4/t4wardware-connector_2.10/0.0.1-SNAPSHOT</bundle>
+        <bundle>mvn:com.tactix4/t4adt_2.10/0.0.1-SNAPSHOT</bundle>
+   </feature>
+
+</features>

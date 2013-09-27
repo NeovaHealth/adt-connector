@@ -4,7 +4,7 @@ import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
 import org.apache.camel.Exchange
 import ca.uhn.hl7v2.model.Message
-import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception}
+import ca.uhn.hl7v2.{ErrorCode, AcknowledgmentCode, HL7Exception}
 import ca.uhn.hl7v2.model.v24.message._
 
 import scala.concurrent.{Future, Await}
@@ -12,15 +12,14 @@ import scala.concurrent.duration._
 import scala.concurrent.TimeoutException
 
 import com.tactix4.wardware.wardwareConnector
-import com.tactix4.openerpConnector.exception.OpenERPException
 
 import scalaz._
 import Scalaz._
 import java.io.IOException
-import java.util.Date
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import com.tactix4.t4openerp.connector.exception.OpenERPException
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -29,11 +28,19 @@ import org.joda.time.format.DateTimeFormat
  * Note: we block on the async wardwareConnector methods because the mina connection
  * is synchronous
  */
-class ADTInRoute extends RouteBuilder {
+class ADTInRoute(val terserMap: Map[String,Map[String, String]],
+                 val protocol: String,
+                 val host: String,
+                 val port: Int,
+                 val username: String,
+                 val password: String,
+                 val database: String,
+                 val dateFormat: String) extends RouteBuilder {
 
-  val dateFormat = DateTimeFormat.forPattern("yyyyMMDDHHmmSS")
 
-  val connector = new wardwareConnector("http", "localhost", 8069,"admin","admin","ww_test3")
+  val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
+
+  val connector = new wardwareConnector(protocol, host, port,username,password,database)
 
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
@@ -66,7 +73,7 @@ class ADTInRoute extends RouteBuilder {
         //cancel discharge patient
         case "A13" => exchange.out = cancelDischargePatient(message)
         //unsupported message
-        case x     => exchange.out = exchange.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, HL7Exception.UNSUPPORTED_MESSAGE_TYPE ))
+        case x     => exchange.out = exchange.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE ))
       }})
     .to("log:out")
     .to("mock:out")
@@ -76,32 +83,42 @@ class ADTInRoute extends RouteBuilder {
    * and return a [[scalaz.ValidationNel[String, T]]
    * @param s the value to check for null
    * @param failMessage the message to return if s is null
-   * @tparam T the type of the value to check for null
    * @return a [[scalaz.ValidationNel[String, T] ]]
    */
-  def nullCheck[T](s: T, failMessage: String): Validation[NonEmptyList[String], T] = {
-    s match {
-      case null       => failMessage.failNel
-      case notNull    => notNull.successNel
+  def checkTerser(s: String, failMessage: String)(implicit t: Terser): ValidationNel[String, String] = {
+    try {
+      t.get(s) match {
+        case null => failMessage.failNel
+        case notNull => notNull.successNel
+      }
     }
+    catch { case e: Exception => e.getMessage.failNel }
   }
 
   /**
-   * Convenience method to check a date for null and valid date
+   * Convenience method to check a valid date
    *
-   * @param s the date string
-   * @param failMessage the fail message to return if s is null
+   * @param date the date string
    * @return a [[scalaz.ValidationNel[String,T] ]]
    */
-  def dateCheck(s: String, failMessage: String): Validation[NonEmptyList[String], String] = {
-    s match {
-      case null       => failMessage.failNel
-      case notNull    => try {
-        (DateTime.parse(notNull,dateFormat)).toString().successNel
-      } catch {
-        case e: Exception => e.getMessage.failNel
-      }
-    }
+  def checkDate(date: String): ValidationNel[String, String] = {
+    try { (DateTime.parse(date, dateTimeFormat)).toString().successNel }
+    catch { case e: Exception => e.getMessage.failNel }
+  }
+
+  def getMessageTypeMap(messageType:String): ValidationNel[String, Map[String, String]] = {
+    terserMap.get(messageType).map(_.successNel[String]) | ("Could not find terser configuration for messages of type: "+ messageType).failNel[Map[String,String]]
+  }
+  def getTerserPath(messageTypeMap: Map[String,String])(attribute: String): ValidationNel[String, String] = {
+    messageTypeMap.get(attribute).map(_.successNel[String]) | ("Could not find attribute: " + attribute + " in terser configuration").failNel[String]
+  }
+
+  def checkTerserPath(messageType: String, attribute: String)(implicit terser: Terser): ValidationNel[String, String] = {
+      for {
+        m <- getMessageTypeMap(messageType)
+        r <- getTerserPath(m)(attribute)
+        s <- checkTerser(r, attribute + " not found at terser path: " + attribute)
+      } yield r
   }
 
   /**
@@ -120,24 +137,20 @@ class ADTInRoute extends RouteBuilder {
   def validateAndProcess[T,R](message: Message, validation: Message => ValidationNel[String, T], call: T => Future[R]): Message ={
 
     validation(message) match{
-      case Failure(f) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, HL7Exception.REQUIRED_FIELD_MISSING))
+      case Failure(f) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
       case Success(s) => {
         try{
           Await.result(call(s),2000 millis)
           message.generateACK()
         } catch {
-          case e: OpenERPException      => createNack(message, AcknowledgmentCode.AR,"OpenERP Error: " + e.getMessage)
-          case e: TimeoutException      => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("Timeout calling wardware: " + e.getMessage, HL7Exception.APPLICATION_INTERNAL_ERROR))
-          case e: InterruptedException  => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("Interrupted calling wardware: " + e.getMessage, HL7Exception.APPLICATION_INTERNAL_ERROR))
-          case e: IOException           => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("IO error calling wardware: " + e.getMessage, HL7Exception.APPLICATION_INTERNAL_ERROR))
-          case e: Throwable             => message.generateACK(AcknowledgmentCode.AR,new HL7Exception(e.getMessage, HL7Exception.APPLICATION_INTERNAL_ERROR))
+          case e: OpenERPException      => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("OpenERP Error: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: TimeoutException      => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("Timeout calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: InterruptedException  => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("Interrupted calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: IOException           => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("IO error calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: Throwable             => message.generateACK(AcknowledgmentCode.AR,new HL7Exception(e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
         }
       }
     }
-  }
-
-  def createNack(message:Message, code:AcknowledgmentCode, msg: String) = {
-    message.generateACK(code,new HL7Exception(msg, HL7Exception.APPLICATION_INTERNAL_ERROR))
   }
 
   def updatePatient(message:Message): Message = {
@@ -172,20 +185,17 @@ class ADTInRoute extends RouteBuilder {
     validateAndProcess(message, validateUpdatePersonInfo, connector.updatePersonInfo)
   }
 
+
   def admitPatient(message: Message): Message = {
 
     def validateAdmitPatientMessage(message:Message):ValidationNel[String, (String, String, String, String)] = {
 
-      val x: ADT_A01 = message.asInstanceOf[ADT_A01]
-      x.getPID.getDateTimeOfBirth.getTimeOfAnEvent.getValueAsDate
+      implicit val terser = new Terser(message)
 
-      val terser = new Terser(message)
-
-      val familyName = nullCheck(terser.get("/PID-5-1"),"no family name provided")
-      val firstName = nullCheck(terser.get("PID-5-2"),"no first name provided")
-      val dateTimeOfBirth = dateCheck(terser.get("PID-7-1"),"no dateTime of birth provided")
-      val sex = nullCheck(terser.get("PID-8"), "no sex provided")
-
+      val familyName = checkTerserPath("A01", "familyName")
+      val firstName =  checkTerserPath("A01","firstName")
+      val dateTimeOfBirth = checkTerserPath("A01","dateTime").flatMap(checkDate)
+      val sex = checkTerserPath("A01", "sex")
 
 
       (familyName |@| firstName |@| dateTimeOfBirth |@| sex) {  (_,_,_,_) }

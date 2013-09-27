@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:scala-util="http://www.springframework.org/schema/scala/util"
+       xsi:schemaLocation="
+		http://www.springframework.org/schema/util  http://www.springframework.org/schema/util/spring-util-3.0.xsd
+	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+	    http://www.springframework.org/schema/scala/util http://www.springframework.org/schema/scala/util/scala-util.xsd
+        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+
+    <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <property name="location" value="file:src/test/resources/com.tactix4.t4ADT.properties"/>
+    </bean>
+
+    <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
+        <property name="propertyEditorRegistrars">
+            <bean class="org.springframework.scala.beans.propertyeditors.ScalaEditorRegistrar"/>
+        </property>
+    </bean>
+
+    <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
+
+
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://0.0.0.0:8888?sync=true&amp;codec=#hl7codec"/>
+
+    <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:ADT_A01.properties"/>
+        </constructor-arg>
+    </bean>
+
+    <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
+        <constructor-arg name="terserMap">
+            <scala-util:map>
+                <entry key="A01" value-ref="a01map"/>
+            </scala-util:map>
+        </constructor-arg>
+        <constructor-arg name="protocol" value="${protocol}"/>
+        <constructor-arg name="host" value="${hostname}"/>
+        <constructor-arg name="port" value="${port}"/>
+        <constructor-arg name="username" value="${username}"/>
+        <constructor-arg name="password" value="${password}"/>
+        <constructor-arg name="database" value="${database}"/>
+        <constructor-arg name="dateFormat" value="${dateFormat}"/>
+    </bean>
+
+
+    <camel:camelContext id="camel">
+        <camel:routeBuilder ref="adtInRoute"/>
+    </camel:camelContext>
+
+
+</beans>

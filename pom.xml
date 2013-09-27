@@ -1,46 +1,60 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.tactix4</groupId>
-    <artifactId>t4adt</artifactId>
+    <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
-    <description>t4ADT</description>
-    <version>1.0.0</version>
-    <name>t4ADT</name>
+    <description>Tactix4 Wardware ADT</description>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>Tactix4 Wardware ADT</name>
     <organization>
         <name>com.tactix4</name>
     </organization>
+
     <properties>
         <!-- Project configurations -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!--dependency versions -->
+        <camel-version>2.12.0.redhat-610057</camel-version>
+        <scala-version>2.10.2</scala-version>
+        <hapi-version>2.1</hapi-version>
+        <scalaz-version>7.0.3</scalaz-version>
+        <wardware-connector-version>0.0.1-SNAPSHOT</wardware-connector-version>
+        <joda-time-version>2.3</joda-time-version>
+        <joda-convert-version>1.4</joda-convert-version>
+        <typesafe-config-version>1.0.2</typesafe-config-version>
 
-        <!--<camel-version>2.12.0.redhat-610057</camel-version>-->
-        <camel-version>2.10.0.redhat-60024</camel-version>
+
+        <!--plugin versions-->
+        <compiler-plugin-version>3.0</compiler-plugin-version>
+        <karaf-feature-plugin-version>2.2.8</karaf-feature-plugin-version>
+        <maven-resources-plugin-version>2.4.3</maven-resources-plugin-version>
+        <maven-bundle-plugin-version>2.2.0</maven-bundle-plugin-version>
+        <maven-scala-plugin-version>3.1.5</maven-scala-plugin-version>
+
     </properties>
+
     <dependencies>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>1.6.1</version>
-        </dependency>
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.9.1</version>
+            <version>${scala-version}</version>
         </dependency>
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.12</version>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.10</artifactId>
+            <version>1.9.2</version>
+            <scope>test</scope>
         </dependency>
-
-
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-scala</artifactId>
+            <version>${camel-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-spring</artifactId>
             <version>${camel-version}</version>
         </dependency>
         <dependency>
@@ -49,79 +63,142 @@
             <version>${camel-version}</version>
         </dependency>
         <dependency>
-            <groupId>ca.uhn.hapi</groupId>
-            <artifactId>hapi-osgi-base</artifactId>
-            <version>1.2</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-mina2</artifactId>
             <version>${camel-version}</version>
         </dependency>
+        <dependency>
+            <groupId>ca.uhn.hapi</groupId>
+            <artifactId>hapi-osgi-base</artifactId>
+            <version>${hapi-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tactix4</groupId>
+            <artifactId>t4wardware-connector_2.10</artifactId>
+            <version>${wardware-connector-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scalaz</groupId>
+            <artifactId>scalaz-core_2.10</artifactId>
+            <version>${scalaz-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe</groupId>
+            <artifactId>config</artifactId>
+            <version>${typesafe-config-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${joda-time-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.joda</groupId>
+            <artifactId>joda-convert</artifactId>
+            <version>${joda-convert-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.8.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>3.1.4.RELEASE</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <repositories>
-         <repository>
+        <repository>
             <id>apachepublicrepo</id>
-            <name>apache public repo</name>
-            <url>http://repository.apache.org/content/groups/public/</url>
-            <layout>default</layout>
-        </repository>
-        <repository>
-            <id>fusesourcerepo</id>
-            <name>fusesource repo</name>
-            <url>http://repo.fusesource.com/nexus/content/groups/public/</url>
-            <layout>default</layout>
-        </repository>
-        <repository>
-            <id>apachepublicrepo-ea</id>
             <name>apache public repo</name>
             <url>http://repository.apache.org/content/groups/ea/</url>
             <layout>default</layout>
         </repository>
         <repository>
-            <id>fusesourcerepo-ea</id>
+            <id>fusesourcerepo</id>
             <name>fusesource repo</name>
             <url>http://repo.fusesource.com/nexus/content/groups/ea/</url>
             <layout>default</layout>
         </repository>
+        <repository>
+            <id>springframeworkmilestonerepo</id>
+            <name>springframework milestone repo</name>
+            <url>http://repo.springsource.org/milestone/</url>
+            <layout>default</layout>
+        </repository>
     </repositories>
-
-    <build>
-        <defaultGoal>install</defaultGoal>
-        <plugins>
-            <!-- the Maven compiler plugin will compile Java source files -->
-            <plugin>
+    	<build>
+		<defaultGoal>install</defaultGoal>
+            <sourceDirectory>src/main/scala</sourceDirectory>
+            <testSourceDirectory>src/test/scala</testSourceDirectory>
+		<plugins>
+               <plugin>
+                <groupId>org.apache.karaf.tooling</groupId>
+                <artifactId>features-maven-plugin</artifactId>
+                <version>${karaf-feature-plugin-version}</version>
+                <executions>
+                    <execution>
+                        <id>create-kar</id>
+                        <goals>
+                            <goal>create-kar</goal>
+                        </goals>
+                        <configuration>
+                            <featuresFile>features.xml</featuresFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+               <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.5.1</version>
-                <configuration>
-                    <source>1.6</source>
-                    <target>1.6</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>2.6</version>
-                <configuration>
-                    <encoding>UTF-8</encoding>
-                </configuration>
-            </plugin>
-
-          <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.0</version>
+                <version>${compiler-plugin-version}</version>
                 <configuration>
                     <source>1.7</source>
                     <target>1.7</target>
                     <encoding>UTF-8</encoding>
                 </configuration>
-            </plugin>            <!-- the Maven Scala plugin will compile Scala source files -->
+            </plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>${maven-resources-plugin-version}</version>
+				<configuration>
+					<encoding>UTF-8</encoding>
+				</configuration>
+			</plugin>
+			<plugin>
+
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>${maven-bundle-plugin-version}</version>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
+						<Import-Package>
+                            scala,
+                            scala.*
+                            ca.uhn.hl7v2.validation.*,
+                            ca.uhn.hl7v2.*,
+                            org.apache.camel.component.hl7,
+                            com.tactix4.t4wardware.connector.*,
+                            com.ning.http.client.*,
+                            org.springframework.beans.factory.config.*,
+                            *
+                        </Import-Package>
+                        <Export-Package>
+                            com.tactix4.t4ADT
+                        </Export-Package>
+					</instructions>
+				</configuration>
+            </plugin>
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>3.1.2</version>
+                <version>${maven-scala-plugin-version}</version>
                 <executions>
                     <execution>
                         <goals>
@@ -131,71 +208,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <extensions>true</extensions>
-                <configuration>
-                    <instructions>
-                        <Bundle-SymbolicName>${pom.artifactId}</Bundle-SymbolicName>
-                        <Import-Package>
-                            org.apache.camel,
-                            org.apache.camel.scala.dsl,
-                            org.apache.camel.scala.dsl.builder,
-                            org.apache.camel.model.dataformat,
-                            org.apache.camel.model,
-                            ca.uhn.hl7v2.validation.*,
-                            ca.uhn.hl7v2.*,
-                            scala,
-                            org.apache.camel.scala,
-                            scala.reflect.*,
-                            scala.runtime,
-                            scala.collection.*,
-                            org.apache.camel.component.hl7,
-                            *
-                    </Import-Package>
-                        <Export-Package>
-                        </Export-Package>
-                    </instructions>
-                </configuration>
-            </plugin>
-            <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-eclipse-plugin</artifactId>
-        <version>2.9</version>
-        <configuration>
-          <projectnatures>
-            <projectnature>org.scala-ide.sdt.core.scalanature</projectnature>
-            <projectnature>org.eclipse.jdt.core.javanature</projectnature>
-          </projectnatures>
-          <buildcommands>
-            <buildcommand>org.scala-ide.sdt.core.scalabuilder</buildcommand>
-          </buildcommands>
-          <classpathContainers>
-            <classpathContainer>org.scala-ide.sdt.launching.SCALA_CONTAINER</classpathContainer>
-            <classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
-          </classpathContainers>
-          <excludes>
-            <exclude>org.scala-lang:scala-library</exclude>
-            <exclude>org.scala-lang:scala-compiler</exclude>
-          </excludes>
-          <sourceIncludes>
-            <sourceInclude>**/*.scala</sourceInclude>
-            <sourceInclude>**/*.java</sourceInclude>
-          </sourceIncludes>
-        </configuration>
-      </plugin>
-
-      <!-- allows the route to be run via 'mvn exec:java' -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
-        <configuration>
-          <mainClass>com.tactix4.MyRouteMain</mainClass>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
-
+        </plugins>
+	</build>
 </project>
