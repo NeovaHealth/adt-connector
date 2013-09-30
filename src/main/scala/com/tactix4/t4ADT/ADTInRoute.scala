@@ -47,11 +47,12 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
 
 
   "hl7listener" ==> {
-    unmarshal(hl7).process((exchange: Exchange) => {
+    unmarshal(hl7)
+    .process((exchange: Exchange) => {
       val message = exchange.in[Message]
       exchange.getIn.getHeader("CamelHL7TriggerEvent").asInstanceOf[String] match {
         //register patient
-//        case "A04" =>  exchange.out = exchange.in[Message].generateACK()
+        //        case "A04" =>  exchange.out = exchange.in[Message].generateACK()
         //update patient
         case "A08" => exchange.out = updatePatient(message)
         //add person info
@@ -73,11 +74,10 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
         //cancel discharge patient
         case "A13" => exchange.out = cancelDischargePatient(message)
         //unsupported message
-        case x     => exchange.out = exchange.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE ))
-      }})
-    .marshal(hl7)
-    .to("log:out")
-    .to("rabbitmq://localhost/test?username=guest&password=guest")
+        case x => exchange.out = exchange.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+      }
+    })
+    -->("rabbitMQEndpoint")
   }
   /**
    * Convenience method to check for null in supplied argument

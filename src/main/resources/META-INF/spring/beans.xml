@@ -25,6 +25,8 @@
 
     <camel:endpoint id="hl7listener" uri="mina2:tcp://0.0.0.0:8888?sync=true&amp;codec=#hl7codec"/>
 
+    <camel:endpoint id="rabbitMQEndpoint" uri="rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.exchange}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>
+
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
             <scala-util:map>
