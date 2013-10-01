@@ -50,7 +50,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
     unmarshal(hl7)
     .process((exchange: Exchange) => {
       val message = exchange.in[Message]
-      exchange.getIn.getHeader("CamelHL7TriggerEvent").asInstanceOf[String] match {
+      exchange.header("CamelHL7TriggerEvent").asInstanceOf[String] match {
         //register patient
         //        case "A04" =>  exchange.out = exchange.in[Message].generateACK()
         //update patient
