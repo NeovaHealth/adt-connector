@@ -34,20 +34,20 @@ class ADTInRouteTest extends FunSuite with ShouldMatchers with BeforeAndAfterAll
 
 
   test("read from the terserMap"){
-    assert(route.checkTerserPath("A01","firstName").isSuccess)
+    assert(route.checkAttribute("A01","firstName").isSuccess)
   }
   test("generate error on non existent message type in terserMap"){
-    route.checkTerserPath("A099","firstName").fold(
+    route.checkAttribute("A099","firstName").fold(
       l => l.head should equal ("Could not find terser configuration for messages of type: A099"),
       _ => fail("did not fail"))
   }
   test("generate error on non existent message attribute in terserMap"){
-    route.checkTerserPath("A01","middleName").fold(
+    route.checkAttribute("A01","middleName").fold(
       l => l.head should equal ("Could not find attribute: middleName in terser configuration"),
       _ => fail("did not fail"))
   }
   test("generate error on empty message attribute in terserMap"){
-    route.checkTerserPath("A01","middleName").fold(
+    route.checkAttribute("A01","middleName").fold(
       l => l.head should equal ("Could not find attribute: middleName in terser configuration"),
       _ => fail("did not fail"))
   }
@@ -59,7 +59,7 @@ class ADTInRouteTest extends FunSuite with ShouldMatchers with BeforeAndAfterAll
     )
   }
   test("generate a failure on an invalid terserPath") {
-    route.checkTerserPath("A01", "terserFail").fold(
+    route.checkAttribute("A01", "terserFail").fold(
     l => l.head should include regex "The pattern .* is not valid",
     _ => fail("did not fail")
     )
