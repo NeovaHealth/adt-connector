@@ -42,7 +42,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
   
   val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
 
-  val connector = new wardwareConnector(protocol, host, port,username,password,database)
+  lazy val connector = new wardwareConnector(protocol, host, port,username,password,database)
 
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
@@ -52,33 +52,33 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
     unmarshal(hl7)
     .process((exchange: Exchange) => {
       val message = exchange.in[Message]
-      exchange.getIn.getHeader("CamelHL7TriggerEvent").asInstanceOf[String] match {
+      exchange.in("CamelHL7TriggerEvent").asInstanceOf[String] match {
         //register patient
         //        case "A04" =>  exchange.out = exchange.in[Message].generateACK()
         //update patient
-        case "A08" => exchange.out = updatePatient(message)
+        case "A08" => exchange.in = updatePatient(message)
         //add person info / i.e. create patient
-        case "A28" => exchange.out = patientNew(message)
+        case "A28" => exchange.in = patientNew(message)
         //check....
-        case "A05" => exchange.out = patientNew(message)
+        case "A05" => exchange.in = patientNew(message)
         //merge patient - patient identifier list
-        case "A40" => exchange.out = mergePatient(message)
+        case "A40" => exchange.in = mergePatient(message)
         //update person information
-        case "A31" => exchange.out = updatePatient(message)
+        case "A31" => exchange.in = updatePatient(message)
         //admit patient
-        case "A01" => exchange.out = createVisit(message)
+        case "A01" => exchange.in = createVisit(message)
         //cancel admit
-        case "A11" => exchange.out = updateVisit(message)
+        case "A11" => exchange.in = updateVisit(message)
         //transfer patient
-        case "A02" => exchange.out = updateVisit(message)
+        case "A02" => exchange.in = updateVisit(message)
         //cancel transfer patient
-        case "A12" => exchange.out = updateVisit(message)
+        case "A12" => exchange.in = updateVisit(message)
         //discharge patient
-        case "A03" => exchange.out = updateVisit(message)
+        case "A03" => exchange.in = updateVisit(message)
         //cancel discharge patient
-        case "A13" => exchange.out = updateVisit(message)
+        case "A13" => exchange.in = updateVisit(message)
         //unsupported message
-        case x => exchange.out = message.generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+        case x => exchange.in = message.generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
       }
     })
     -->("rabbitMQEndpoint")
@@ -244,14 +244,14 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
     val requiredFields = List("identifier")
 
     //the mappings for this message type defined in a properties file
-    val requiredList: Validation[NonEmptyList[String], String] = mappings.flatMap(m => validateRequiredFields(requiredFields,m,terser).map(_.head._2))
-    val optionalList: Map[String, String] = mappings.flatMap(m => requiredList.map(rl => validateOptionalFields(getOptionalFields(m,rl.toMap), m, terser).toMap)).toOption.getOrElse(Map())
+    val requiredList: Validation[NonEmptyList[String], Map[String,String]] = mappings.flatMap(m => validateRequiredFields(requiredFields,m,terser))
+    val optionalList: Map[String, String] = mappings.flatMap(m => requiredList.map(rl => validateOptionalFields(getOptionalFields(m,rl), m, terser).toMap)).toOption.getOrElse(Map())
 
     (requiredList, optionalList) match {
       case (Failure(f), _) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
-      case (Success(s), otherArgs) =>
+      case (Success(newIdentifier), oldIdentifier) =>
         try {
-          Await.result(connector.patientMerge(s,otherArgs), 2000 millis)
+          Await.result(connector.patientMerge(newIdentifier.head._2,oldIdentifier.head._2), 2000 millis)
           message.generateACK()
         } catch {
           case e: OpenERPException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("OpenERP Error: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
