@@ -38,6 +38,8 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
                  val dateFormat: String) extends RouteBuilder {
 
 
+  var EITHER_ID: String = "either"
+  
   val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
 
   val connector = new wardwareConnector(protocol, host, port,username,password,database)
@@ -56,9 +58,9 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
         //update patient
         case "A08" => exchange.out = updatePatient(message)
         //add person info / i.e. create patient
-        case "A28" => exchange.out = createPatient(message)
+        case "A28" => exchange.out = patientNew(message)
         //check....
-        case "A05" => exchange.out = createPatient(message)
+        case "A05" => exchange.out = patientNew(message)
         //merge patient - patient identifier list
         case "A40" => exchange.out = mergePatient(message)
         //update person information
@@ -116,7 +118,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
     messageTypeMap.get(attribute).map(_.successNel[String]) | ("Could not find attribute: " + attribute + " in terser configuration").failNel[String]
   }
 
-  def checkAttribute(messageTypeMap: Map[String,String], attribute: String, terser: Terser) = {
+  def checkAttribute(messageTypeMap: Map[String,String], attribute: String, terser: Terser): Validation[NonEmptyList[String], (String, String)] = {
       for {
         r <- getTerserPath(messageTypeMap,attribute)
         s <- checkTerser(r, terser)
@@ -218,14 +220,91 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
 
   }
 
-  def createPatient(message: Message): Message = {
+  def validateRequiredFields(fields: List[String], mappings: Map[String,String], terser: Terser ) : ValidationNel[String, Map[String,String]]= {
+    fields.map(f => checkAttribute(mappings,f,terser)).sequenceU.map(_.toMap)
+  }
 
-    val r = validateMessage(message,List("patientID"))
-    r match {
+
+  def validateOptionalFields(fields: List[String], mappings: Map[String,String], terser: Terser): List[(String, String)] = {
+   fields.map(f => checkAttribute(mappings,f,terser).toOption).flatten
+  }
+  
+  def getOptionalFields(mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
+    (mappings.keySet diff requiredFields.keySet).toList
+  }
+
+  def getMappings(terser:Terser) = {
+    getMessageType(terser).flatMap(getMessageTypeMap)
+  }
+
+  def patientMerge(message:Message): Message = {
+    val terser = new Terser(message)
+    val mappings = getMappings(terser)
+
+    val requiredFields = List("identifier")
+
+    //the mappings for this message type defined in a properties file
+    val requiredList: Validation[NonEmptyList[String], String] = mappings.flatMap(m => validateRequiredFields(requiredFields,m,terser).map(_.head._2))
+    val optionalList: Map[String, String] = mappings.flatMap(m => requiredList.map(rl => validateOptionalFields(getOptionalFields(m,rl.toMap), m, terser).toMap)).toOption.getOrElse(Map())
+
+    (requiredList, optionalList) match {
       case (Failure(f), _) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
       case (Success(s), otherArgs) =>
         try {
-          Await.result(connector.patientNew(s.toMap,otherArgs), 2000 millis)
+          Await.result(connector.patientMerge(s,otherArgs), 2000 millis)
+          message.generateACK()
+        } catch {
+          case e: OpenERPException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("OpenERP Error: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: TimeoutException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("Timeout calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: InterruptedException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("Interrupted calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: IOException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("IO error calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: Throwable => message.generateACK(AcknowledgmentCode.AR, new HL7Exception(e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+        }
+    }
+
+  }
+  def patientUpdate(message: Message): Message = {
+    val terser = new Terser(message)
+    val mappings = getMappings(terser)
+
+    val requiredFields = List("identifier")
+
+    //the mappings for this message type defined in a properties file
+    val requiredList: Validation[NonEmptyList[String], Map[String, String]] = mappings.flatMap(m => validateRequiredFields(requiredFields,m,terser))
+    val optionalList: Map[String, String] = mappings.flatMap(m => requiredList.map(rl => validateOptionalFields(getOptionalFields(m,rl.toMap), m, terser).toMap)).toOption.getOrElse(Map())
+
+    (requiredList, optionalList) match {
+      case (Failure(f), _) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
+      case (Success(s), otherArgs) =>
+        try {
+          Await.result(connector.patientUpdate(s,otherArgs), 2000 millis)
+          message.generateACK()
+        } catch {
+          case e: OpenERPException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("OpenERP Error: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: TimeoutException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("Timeout calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: InterruptedException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("Interrupted calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: IOException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("IO error calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+          case e: Throwable => message.generateACK(AcknowledgmentCode.AR, new HL7Exception(e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+        }
+    }
+  }
+
+  def patientNew(message: Message): Message = {
+
+    val terser = new Terser(message)
+    val mappings = getMappings(terser)
+
+    val requiredFields = List("identifier")
+
+    //the mappings for this message type defined in a properties file
+    val requiredList: Validation[NonEmptyList[String], Map[String, String]] = mappings.flatMap(m => validateRequiredFields(requiredFields,m,terser))
+    val optionalList: Map[String, String] = mappings.flatMap(m => requiredList.map(rl => validateOptionalFields(getOptionalFields(m,rl.toMap), m, terser).toMap)).toOption.getOrElse(Map())
+
+    (requiredList, optionalList) match {
+      case (Failure(f), _) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
+      case (Success(s), otherArgs) =>
+        try {
+          Await.result(connector.patientNew(s,otherArgs), 2000 millis)
           message.generateACK()
         } catch {
           case e: OpenERPException => message.generateACK(AcknowledgmentCode.AR, new HL7Exception("OpenERP Error: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
