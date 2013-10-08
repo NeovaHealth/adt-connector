@@ -16,7 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!--dependency versions -->
-        <camel-version>2.12.0.redhat-610057</camel-version>
+        <camel-version>2.12.0</camel-version>
         <scala-version>2.10.2</scala-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.3</scalaz-version>

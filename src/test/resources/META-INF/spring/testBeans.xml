@@ -37,7 +37,7 @@
         </constructor-arg>
     </bean>
 
-    <bean id="mockOpenERP" class="com.tactix4.t4ADT.TestOpenERPRoute"/>
+    <bean id="mockOpenERP" class="com.tactix4.t4ADT.OpenERPMock"/>
 
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">

@@ -37,50 +37,59 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
                  val database: String,
                  val dateFormat: String) extends RouteBuilder {
 
-
-  var EITHER_ID: String = "either"
-  
   val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
 
   lazy val connector = new wardwareConnector(protocol, host, port,username,password,database)
 
+  val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
 
 
   "hl7listener" ==> {
     unmarshal(hl7)
-    .process((exchange: Exchange) => {
-      val message = exchange.in[Message]
-      exchange.in("CamelHL7TriggerEvent").asInstanceOf[String] match {
-        //register patient
-        //        case "A04" =>  exchange.out = exchange.in[Message].generateACK()
-        //update patient
-        case "A08" => exchange.in = updatePatient(message)
-        //add person info / i.e. create patient
-        case "A28" => exchange.in = patientNew(message)
-        //check....
-        case "A05" => exchange.in = patientNew(message)
-        //merge patient - patient identifier list
-        case "A40" => exchange.in = mergePatient(message)
-        //update person information
-        case "A31" => exchange.in = updatePatient(message)
-        //admit patient
-        case "A01" => exchange.in = createVisit(message)
-        //cancel admit
-        case "A11" => exchange.in = updateVisit(message)
-        //transfer patient
-        case "A02" => exchange.in = updateVisit(message)
-        //cancel transfer patient
-        case "A12" => exchange.in = updateVisit(message)
-        //discharge patient
-        case "A03" => exchange.in = updateVisit(message)
-        //cancel discharge patient
-        case "A13" => exchange.in = updateVisit(message)
-        //unsupported message
-        case x => exchange.in = message.generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+    choice {
+      when(_.in(triggerEventHeader) == "A08") process (e => e.in = patientUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A31") process (e => e.in = patientUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A28") process (e => e.in = patientNew(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A05") process (e => e.in = patientNew(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A40") process (e => e.in = patientMerge(e.in[Message]))
+      otherwise {
+        e:Exchange => e.in = e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + e.in(triggerEventHeader), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
       }
-    })
+
+    }
+//    .process((exchange: Exchange) => {
+//      val message = exchange.in[Message]
+//      exchange.in("CamelHL7TriggerEvent").asInstanceOf[String] match {
+//        //register patient
+//        //        case "A04" =>  exchange.out = exchange.in[Message].generateACK()
+//        //update patient
+//        case "A08" => exchange.in = patientUpdate(message)
+//        //add person info / i.e. create patient
+//        case "A28" => exchange.in = patientNew(message)
+//        //check....
+//        case "A05" => exchange.in = patientNew(message)
+//        //merge patient - patient identifier list
+//        case "A40" => exchange.in = patientMerge(message)
+//        //update person information
+//        case "A31" => exchange.in = patientUpdate(message)
+//        //admit patient
+//        case "A01" => exchange.in = createVisit(message)
+//        //cancel admit
+//        case "A11" => exchange.in = updateVisit(message)
+//        //transfer patient
+//        case "A02" => exchange.in = updateVisit(message)
+//        //cancel transfer patient
+//        case "A12" => exchange.in = updateVisit(message)
+//        //discharge patient
+//        case "A03" => exchange.in = updateVisit(message)
+//        //cancel discharge patient
+//        case "A13" => exchange.in = updateVisit(message)
+//        //unsupported message
+//        case x => exchange.in = message.generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + x, ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+//      }
+//    })
     -->("rabbitMQEndpoint")
   }
   /**
@@ -125,100 +134,13 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
       } yield (attribute,s)
   }
 
-  /**
-   * Method takes a message, a validation method, and a method that calls [[com.tactix4.wardware.wardwareConnector]]
-   * if the message passes the validation the result is passed to the wardwareConnector method,
-   * the result of which is blocked on, and an appropriate [[ca.uhn.hl7v2.model.v24.message.ACK]] is returned.
-   * If the validation fails a NACK is returned
-   * @param message the incoming message
-   * @param validation the validation required for this message
-   * @param call the call to [[com.tactix4.wardware.wardwareConnector]]
-   * @tparam T the type of successful result from the validation and the input to the wardwareConnector call
-   * @tparam R the return type of the wardwareConnector call
-   * @return a message representing an ACK or a NACK depending on the outcome of the validation or any other exceptions
-   *         that might have occured
-   */
-  def validateAndProcess[T,R](message: Message, validation: Message => ValidationNel[String, T], call: T => Future[R]): Message ={
-
-    validation(message) match{
-      case Failure(f) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
-      case Success(s) => {
-        try{
-          Await.result(call(s),2000 millis)
-          message.generateACK()
-        } catch {
-          case e: OpenERPException      => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("OpenERP Error: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
-          case e: TimeoutException      => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("Timeout calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
-          case e: InterruptedException  => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("Interrupted calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
-          case e: IOException           => message.generateACK(AcknowledgmentCode.AR,new HL7Exception("IO error calling wardware: " + e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
-          case e: Throwable             => message.generateACK(AcknowledgmentCode.AR,new HL7Exception(e.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
-        }
-      }
-    }
-  }
-
   def createVisit(m:Message) = ???
   def updateVisit(m:Message) = ???
-
-  def updatePatient(message:Message): Message = {
-    def validateUpdatePatient(message: Message): ValidationNel[String,(String,String)] ={
-      ("TODO","TODO").success
-    }
-
-    validateAndProcess(message, validateUpdatePatient, connector.updatePatient)
-  }
-
-
-  def addPersonInfo(message: Message): Message = {
-
-    def validateAddPersonInfo(message: Message): ValidationNel[String,(String,String)] ={
-      ("TODO","TODO").success
-    }
-
-    validateAndProcess(message, validateAddPersonInfo, connector.addPersonInfo)
-  }
-
-  def mergePatient(message: Message): Message = {
-    def validateMergePatient(message: Message) : ValidationNel[String, (String, String)]={
-      ("TODO","TODO").success
-    }
-    validateAndProcess(message, validateMergePatient, connector.mergePatient)
-  }
-
-  def updatePersonInfo(message: Message): Message = {
-    def validateUpdatePersonInfo(message:Message) : ValidationNel[String, (String, String)]={
-      ("TODO","TODO").success
-    }
-    validateAndProcess(message, validateUpdatePersonInfo, connector.updatePersonInfo)
-  }
 
   def getMessageType(terser: Terser):ValidationNel[String,String] = {
     checkTerser("MSH-9-2", terser)
   }
 
-  def validateMessage(message: Message, requiredFields: List[String]) :
-    (ValidationNel[String,List[(String,String)]], Map[String,String]) = {
-
-    val terser = new Terser(message)
-
-    val mtm: Validation[NonEmptyList[String], Map[String, String]] = for {
-      messageType <- getMessageType(terser) //get the message type
-      messageTypeMap <- getMessageTypeMap(messageType) // get the message type mappings
-    } yield messageTypeMap
-
-    // get all the mappings minus the supplied required fields and use as the optional fields
-    val optionalFields: Option[Set[String]] = mtm.map(_.keys.toSet diff requiredFields.toSet).toOption
-
-    val requiredList = requiredFields.map(f => mtm.flatMap(m => checkAttribute(m,f,terser))).sequenceU
-    val optionalVal = optionalFields.map(_.map(g => mtm.flatMap(m => checkAttribute(m,g,terser))))
-
-
-
-    val optionalMap = optionalVal.map(_.map(_.toOption).flatMap(x=>x).toMap).getOrElse(Map())
-
-    requiredList -> optionalMap
-
-  }
 
   def validateRequiredFields(fields: List[String], mappings: Map[String,String], terser: Terser ) : ValidationNel[String, Map[String,String]]= {
     fields.map(f => checkAttribute(mappings,f,terser)).sequenceU.map(_.toMap)
@@ -228,7 +150,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
   def validateOptionalFields(fields: List[String], mappings: Map[String,String], terser: Terser): List[(String, String)] = {
    fields.map(f => checkAttribute(mappings,f,terser).toOption).flatten
   }
-  
+
   def getOptionalFields(mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
     (mappings.keySet diff requiredFields.keySet).toList
   }
@@ -237,17 +159,22 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
     getMessageType(terser).flatMap(getMessageTypeMap)
   }
 
+  def getIdentifiers(mappings:Map[String,String],terser:Terser): ValidationNel[String, Map[String, String]] = {
+    val identifiers = validateOptionalFields(List("patientId", "otherId"),mappings, terser)
+    if(identifiers.isEmpty) "Unable To Find Identifier".failNel[Map[String,String]]
+    else identifiers.toMap.successNel[String]
+  }
+
   def patientMerge(message:Message): Message = {
     val terser = new Terser(message)
     val mappings = getMappings(terser)
 
-    val requiredFields = List("identifier")
+    val requiredFields = mappings.flatMap(m => getIdentifiers(m,terser))
 
     //the mappings for this message type defined in a properties file
-    val requiredList: Validation[NonEmptyList[String], Map[String,String]] = mappings.flatMap(m => validateRequiredFields(requiredFields,m,terser))
-    val optionalList: Map[String, String] = mappings.flatMap(m => requiredList.map(rl => validateOptionalFields(getOptionalFields(m,rl), m, terser).toMap)).toOption.getOrElse(Map())
+    val optionalList: Map[String, String] = mappings.flatMap(m => requiredFields.map(rl => validateOptionalFields(getOptionalFields(m,rl), m, terser).toMap)).toOption.getOrElse(Map())
 
-    (requiredList, optionalList) match {
+    (requiredFields, optionalList) match {
       case (Failure(f), _) => message.generateACK(AcknowledgmentCode.AE,new HL7Exception("Validation Error: " + f.toList.toString, ErrorCode.REQUIRED_FIELD_MISSING))
       case (Success(newIdentifier), oldIdentifier) =>
         try {
