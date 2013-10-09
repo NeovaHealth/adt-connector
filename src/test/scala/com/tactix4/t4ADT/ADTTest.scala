@@ -1,0 +1,43 @@
+package com.tactix4.t4ADT
+
+/**
+ * Tests the A28 and A05 patientNew route
+ * @author max@tactix4.com
+ * Date: 26/09/13
+ */
+
+
+import org.scalatest.matchers.ShouldMatchers
+import org.junit.Test
+import org.apache.camel.component.hl7.HL7MLLPCodec
+import org.apache.camel.ExchangePattern
+import org.apache.camel.test.spring.CamelSpringTestSupport
+import org.springframework.context.support.{ClassPathXmlApplicationContext, AbstractApplicationContext}
+
+class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
+
+  def createApplicationContext(): AbstractApplicationContext = {
+    new ClassPathXmlApplicationContext("META-INF/spring/testBeans.xml");
+  }
+
+  val URI:String = "mina2:tcp://localhost:8888?sync=true&codec=#hl7codec"
+
+  override def createRegistry() ={
+
+    val jndi = super.createRegistry()
+    val codec = new HL7MLLPCodec()
+    codec.setCharset("iso-8859-1")
+    jndi.bind("hl7codec", codec)
+    jndi
+  }
+
+ def sendMessageAndExpectResponse(message: String, expectedResult: String)= {
+    val resultEndpoint = getMockEndpoint("mock:rabbitmq")
+    resultEndpoint.setExpectedMessageCount(1)
+    resultEndpoint.message(0).body.equals(message) //checks that rabbitmq recieves the original adt message
+    val result = template.sendBody(URI, ExchangePattern.InOut, message).toString
+    println(result)
+    resultEndpoint.assertIsSatisfied()
+    assert(result contains expectedResult)
+  }
+}

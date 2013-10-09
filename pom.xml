@@ -49,7 +49,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-test</artifactId>
+            <artifactId>camel-test-spring</artifactId>
             <version>${camel-version}</version>
             <scope>test</scope>
         </dependency>
@@ -114,11 +114,11 @@
             <version>4.8.2</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.0.12</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>ch.qos.logback</groupId>-->
+            <!--<artifactId>logback-classic</artifactId>-->
+            <!--<version>1.0.12</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>org.apache.camel</groupId>

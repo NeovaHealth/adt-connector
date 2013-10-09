@@ -43,6 +43,9 @@
         <constructor-arg name="terserMap">
             <scala-util:map>
                 <entry key="A28" value-ref="a01map"/>
+                <entry key="A05" value-ref="a01map"/>
+                <entry key="A31" value-ref="a01map"/>
+                <entry key="A08" value-ref="a01map"/>
             </scala-util:map>
         </constructor-arg>
         <constructor-arg name="protocol" value="${protocol}"/>
