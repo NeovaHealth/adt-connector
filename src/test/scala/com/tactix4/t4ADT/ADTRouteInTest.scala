@@ -17,7 +17,7 @@ import org.junit.{Before, Test}
 import org.scalatest.{FunSuiteLike, FunSpec}
 import org.apache.camel.component.hl7.HL7MLLPCodec
 import java.util.concurrent.TimeUnit
-import org.apache.camel.{CamelContext, ExchangePattern}
+import org.apache.camel.{Producer, CamelContext, ExchangePattern}
 import org.apache.camel.scala.dsl.builder.{RouteBuilder, RouteBuilderSupport}
 
 
@@ -36,8 +36,6 @@ class ADTRouteInTest extends CamelTestSupport with ShouldMatchers{
     jndi
   }
 
-  val configPath = "src/test/resources/ADT_A01.properties"
-
   @Autowired val route :ADTInRoute  = null
 
   new TestContextManager(this.getClass).prepareTestInstance(this)
@@ -52,32 +50,30 @@ class ADTRouteInTest extends CamelTestSupport with ShouldMatchers{
 //  val patientMergeADTNo_Identifier = "MSH|^~\\&|||||20131007152356.695+0100||ADT^A28^ADT_A05|201|T|2.4\rPID|1||123456789|0123456789^AA^^JP|BROS^MARIO^^^^||19850101000000|M|||123 FAKE STREET^MARIO \\T\\ LUIGI BROS PLACE^TOADSTOOL KINGDOM^NES^A1B2C3^JP^HOME^^1234|1234|(555)555-0123^HOME^JP:1234567|||S|MSH|12345678|||||||0|||||N"
 
 
-
-
+  @Before def reset = resetMocks()
   @Test
   def testPatientNew(){
     val mock = getMockEndpoint("mock:rabbitmq")
     mock.setExpectedMessageCount(1)
+    mock.setRetainLast(1)
     mock.message(0).body.equals(patientNewADT) //checks that rabbitmq recieves the original adt message
 
-    val result = template.sendBody("mina2:tcp://0.0.0.0:8888?sync=true&codec=#hl7codec", ExchangePattern.InOut, patientNewADT).toString
-    assert(result contains "MSA|AA|201")
-
+    val result = template.sendBody("mina2:tcp://localhost:8888?sync=true&codec=#hl7codec", ExchangePattern.InOut, patientNewADT).toString
     assertMockEndpointsSatisfied()
+    assert(result contains "MSA|AA|201")
 
   }
 
   @Test
   def testPatientNewFailOne(){
-//
+
     val mock = getMockEndpoint("mock:rabbitmq")
     mock.setExpectedMessageCount(1)
     mock.message(0).body.equals(patientNewADTNo_Identity) //checks that rabbitmq recieves the original adt message
 
-    val result = template.sendBody("mina2:tcp://0.0.0.0:8888?sync=true&codec=#hl7codec", ExchangePattern.InOut, patientNewADTNo_Identity).toString
-
+    val result = template.sendBody("mina2:tcp://localhost:8888?sync=true&codec=#hl7codec", ExchangePattern.InOut, patientNewADTNo_Identity).toString
+    assertMockEndpointsSatisfied()
     assert(result contains "Required field missing")
-    mock.assertIsSatisfied()
   }
 
 
