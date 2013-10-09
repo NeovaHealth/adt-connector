@@ -31,6 +31,8 @@
 
     <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
 
+    <camel:endpoint id="rabbitMQEndpoint" uri="rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.exchange}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>
+
     <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
             <util:properties location="classpath:ADT_A01.properties"/>
