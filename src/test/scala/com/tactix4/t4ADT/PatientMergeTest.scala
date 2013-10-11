@@ -27,7 +27,7 @@ class PatientMergeTest extends ADTTest {
 
   @Test
   def testPatientMergeNo_Identifier() = {
-    sendMessageAndExpectResponse(patientMergeADTNo_Identifier, "Required field missing")
+    sendMessageAndExpectError(patientMergeADTNo_Identifier, "Required field missing")
   }
 
 

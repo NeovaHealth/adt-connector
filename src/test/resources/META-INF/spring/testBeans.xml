@@ -24,14 +24,14 @@
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
 
-    <camel:endpoint id="rabbitMQEndpoint" uri="mock:rabbitmq"/>
+    <camel:endpoint id="rabbitMQSuccess" uri="mock:rabbitMQSuccess"/>
+    <camel:endpoint id="rabbitMQFail" uri="mock:rabbitMQFail"/>
 
     <camel:endpoint id="mockOpenERPServerCommon" uri="jetty:http://localhost:${port}/xmlrpc/common"/>
     <camel:endpoint id="mockOpenERPServerObject" uri="jetty:http://localhost:${port}/xmlrpc/object"/>
 
     <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
 
-    <camel:endpoint id="rabbitMQEndpoint" uri="rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.exchange}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>
 
     <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
@@ -57,6 +57,7 @@
         <constructor-arg name="password" value="${password}"/>
         <constructor-arg name="database" value="${database}"/>
         <constructor-arg name="dateFormat" value="${dateFormat}"/>
+        <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
     </bean>
 
 

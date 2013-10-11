@@ -25,10 +25,10 @@ class PatientNewTest extends ADTTest{
   }
   @Test
   def testPatientNewNoIdentity_A28(){
-    sendMessageAndExpectResponse(patientNewADT28No_Identity, "Required field missing")
+    sendMessageAndExpectError(patientNewADT28No_Identity, "Required field missing")
   }
   @Test
   def testPatientNewNoIdentity_A05(){
-    sendMessageAndExpectResponse(patientNewADT05No_Identity, "Required field missing")
+    sendMessageAndExpectError(patientNewADT05No_Identity, "Required field missing")
   }
 }

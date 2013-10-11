@@ -32,49 +32,47 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
   terser.set("PID-5-3", null)
   terser.set("PID-7-1", "19850101000000")
   terser.set("PID-8", "M")
-  val mappings = route.getMappings(terser)
+  val mappings = route.getMappings(terser,route.terserMap)
 
 
   val testFailMessage = new ADT_A15()
   testFailMessage.initQuickstart("ADT", "A15", "P")
   val failTerser = new Terser(testFailMessage)
-  val failMappings = route.getMappings(failTerser)
+  def failMappings = route.getMappings(failTerser,route.terserMap)
 
   test("read from the terserMap"){
-    assert(mappings.flatMap(m => route.checkAttribute(m,"firstName",terser)).isSuccess)
+    route.getAttribute(mappings,"firstName",terser)
   }
   test("generate error on non existent message type in terserMap"){
-    failMappings.flatMap(m => route.checkAttribute(m,"firstName",failTerser)).fold(
-      l => l.head should equal ("Could not find terser configuration for messages of type: A15"),
-      x => fail("did not fail: " + x))
+    intercept[ADTApplicationException]{
+      route.getAttribute(failMappings,"firstName",failTerser)
+    }
   }
   test("generate error on non existent message attribute in terserMap"){
-    mappings.flatMap(m => route.checkAttribute(m,"middleName",terser)).fold(
-      l => l.head should equal ("Could not find attribute: middleName in terser configuration"),
-      _ => fail("did not fail"))
+    intercept[ADTApplicationException]{
+      route.getAttribute(mappings,"middleName",terser)
+    }
   }
   test("generate error on empty message attribute in terserMap"){
-    mappings.flatMap(m => route.checkAttribute(m,"middleName",terser)).fold(
-      l => l.head should equal ("Could not find attribute: middleName in terser configuration"),
-      _ => fail("did not fail"))
+    intercept[ADTApplicationException]{
+      route.getAttribute(mappings,"middleName",terser)
+    }
   }
   test("generate a failure on an invalid date") {
     val invalidDate = "0o8ijasdf"
-    route.checkDate(invalidDate).fold(
-    l => l.head should startWith ("Invalid format: \"" + invalidDate +"\""),
-    _ => fail("did not fail")
-    )
+    intercept[ADTFieldException]{
+    route.checkDate(invalidDate,route.dateTimeFormat)
+    }
   }
   test("parse a valid date") {
     val validDate = "20130801001000"
-    assert(route.checkDate(validDate).isSuccess)
+    route.checkDate(validDate, route.dateTimeFormat)
    }
 
   test("generate a failure on an invalid terserPath") {
-    mappings.flatMap(m => route.checkAttribute(m, "terserFail",terser)).fold(
-    l => l.head should include regex "The pattern .* is not valid",
-    _ => fail("did not fail")
-    )
+    intercept[ADTApplicationException]{
+      route.getAttribute(mappings, "terserFail",terser)
+    }
   }
 
 }
