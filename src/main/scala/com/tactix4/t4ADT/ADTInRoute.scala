@@ -15,6 +15,7 @@ import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import java.util.concurrent.TimeoutException
 import org.apache.camel.{Exchange, LoggingLevel}
+import scala.beans.BeanProperty
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -35,7 +36,11 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
                  val password: String,
                  val database: String,
                  val dateFormat: String,
-                 val timeOutMillis: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling{
+                 val timeOutMillis: Int,
+                 val redeliveryDelay: Long,
+                 val maximumRedeliveries: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling{
+
+
 
   val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
 
@@ -101,5 +106,6 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
 
   def createVisit(m:Message) = ???
   def updateVisit(m:Message) = ???
+
 
 }

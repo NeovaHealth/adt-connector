@@ -5,8 +5,7 @@ import ca.uhn.hl7v2.model.Message
 import org.apache.camel.Exchange
 import java.util.concurrent.TimeoutException
 import com.tactix4.wardware.WardwareException
-import org.apache.camel.scala.dsl.builder.RouteBuilderSupport
-import org.apache.camel.scala.dsl.{Functions, DSL}
+import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
 
 /**
@@ -15,6 +14,8 @@ import org.apache.camel.scala.Preamble
  */
 trait ADTErrorHandling extends  Preamble with DSL{
 
+  var redeliveryDelay:Int
+  var maximumRedeliveries:Int
 
   //handle missing required fields
   handle[ADTFieldException] {
@@ -23,7 +24,7 @@ trait ADTErrorHandling extends  Preamble with DSL{
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Validation Error: "  + exception.getCause.getMessage, ErrorCode.REQUIRED_FIELD_MISSING))
      })
     to("rabbitMQFail")
-  }.handled
+  }.maximumRedeliveries(0).handled
 
   //handle internal errors
   handle[ADTApplicationException] {
@@ -32,7 +33,7 @@ trait ADTErrorHandling extends  Preamble with DSL{
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Internal Application Error: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
     to("rabbitMQFail")
-  }.handled
+  }.maximumRedeliveries(0).handled
 
   //handle errors from wardware
   handle[WardwareException] {
@@ -41,16 +42,17 @@ trait ADTErrorHandling extends  Preamble with DSL{
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Wardware Exception: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
     to("rabbitMQFail")
-  }.handled
+  }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
   //handle timeouts
-  handle[TimeoutException]{
+  handle[TimeoutException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK( AcknowledgmentCode.AE, new HL7Exception("Timeout communicating with Wardware: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
-      )})
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Timeout communicating with Wardware: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
+      )
+    })
     to("rabbitMQFail")
-  }.handled
+  }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
 
 }

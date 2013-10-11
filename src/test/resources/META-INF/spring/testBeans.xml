@@ -58,6 +58,9 @@
         <constructor-arg name="database" value="${database}"/>
         <constructor-arg name="dateFormat" value="${dateFormat}"/>
         <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
+        <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
+        <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
+
     </bean>
 
 
