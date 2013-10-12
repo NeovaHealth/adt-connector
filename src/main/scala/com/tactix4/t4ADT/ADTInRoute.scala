@@ -69,12 +69,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A11") process (e => e.in = updateVisit(e.in[Message]))
       when(_.in(triggerEventHeader) == "A12") process (e => e.in = updateVisit(e.in[Message]))
       when(_.in(triggerEventHeader) == "A13") process (e => e.in = updateVisit(e.in[Message]))
-      choice
-
-    otherwise {
-      process(e =>  throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) )
-      //           transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + e.in(triggerEventHeader), ErrorCode.UNSUPPORTED_MESSAGE_TYPE)))
-    }
+      otherwise process(e =>  throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) )
     }
 
     to("rabbitMQSuccess")
