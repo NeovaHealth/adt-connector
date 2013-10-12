@@ -27,6 +27,7 @@ import scala.beans.BeanProperty
 
 class ADTApplicationException(msg:String, cause:Throwable=null) extends Throwable(msg,cause)
 class ADTFieldException(msg:String,cause:Throwable=null)extends Throwable(msg,cause)
+class ADTUnsupportedMessageException(msg:String=null,cause:Throwable=null)extends Throwable(msg,cause)
 
 class ADTInRoute(val terserMap: Map[String,Map[String, String]],
                  val protocol: String,
@@ -68,10 +69,14 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A11") process (e => e.in = updateVisit(e.in[Message]))
       when(_.in(triggerEventHeader) == "A12") process (e => e.in = updateVisit(e.in[Message]))
       when(_.in(triggerEventHeader) == "A13") process (e => e.in = updateVisit(e.in[Message]))
-      otherwise {
-           transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + e.in(triggerEventHeader), ErrorCode.UNSUPPORTED_MESSAGE_TYPE)))
-      }
+      choice
+
+    otherwise {
+      process(e =>  throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) )
+      //           transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("unsupported message type: " + e.in(triggerEventHeader), ErrorCode.UNSUPPORTED_MESSAGE_TYPE)))
     }
+    }
+
     to("rabbitMQSuccess")
   }
   
