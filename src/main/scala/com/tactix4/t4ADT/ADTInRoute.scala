@@ -3,19 +3,14 @@ package com.tactix4.t4ADT
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
 import ca.uhn.hl7v2.model.Message
-import ca.uhn.hl7v2.{ErrorCode, AcknowledgmentCode, HL7Exception}
 
-import scala.concurrent.{duration, Await}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
-import com.tactix4.wardware.{WardwareConnector, WardwareException}
+import com.tactix4.wardware.WardwareConnector
 
 import ca.uhn.hl7v2.util.Terser
-import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
-import java.util.concurrent.TimeoutException
-import org.apache.camel.{Exchange, LoggingLevel}
-import scala.beans.BeanProperty
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -44,9 +39,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
 
 
   val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
-
   lazy val connector = new WardwareConnector(protocol, host, port,username,password,database)
-
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)

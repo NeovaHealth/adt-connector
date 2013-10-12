@@ -11,7 +11,6 @@ import scala.util.control.Exception.catching
  */
 trait ADTProcessing {
 
-
   /**
    * query a terser object for a specified path
    * @param s the terser path
