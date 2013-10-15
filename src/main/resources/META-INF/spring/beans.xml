@@ -25,10 +25,12 @@
 
 
 
-    <camel:endpoint id="hl7listener" uri="mina2:tcp://0.0.0.0:8888?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://192.168.2.114:8888?sync=true&amp;codec=#hl7codec"/>
 
-    <camel:endpoint id="rabbitMQSuccess" uri="rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.successQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>
-    <camel:endpoint id="rabbitMQFail" uri="rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.failQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>
+    <camel:endpoint id="rabbitMQSuccess" uri="mock:success"/>
+    <!--//"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.successQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->
+    <camel:endpoint id="rabbitMQFail" uri="mock:fail"/>
+    <!--"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.failQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->
 
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">

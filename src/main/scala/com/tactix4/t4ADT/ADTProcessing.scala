@@ -53,7 +53,7 @@ trait ADTProcessing {
   def getAttribute(messageTypeMap: Map[String, String], attribute: String, terser: Terser): (String, String) = {
     val path = getTerserPathFromMap(messageTypeMap, attribute)
     val value = getValueFromTerserPath(path, terser)
-    path -> value
+    attribute -> value
   }
 
   def getMessageType(terser: Terser):String = {

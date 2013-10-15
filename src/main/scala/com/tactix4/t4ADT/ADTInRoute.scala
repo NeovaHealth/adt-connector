@@ -4,13 +4,17 @@ import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
 import ca.uhn.hl7v2.model.Message
 
+import scala.util.control.Exception.catching
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-import com.tactix4.wardware.WardwareConnector
+import com.tactix4.wardware.{WardwareSession, WardwareConnector}
 
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
+import ca.uhn.hl7v2.AcknowledgmentCode
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -39,7 +43,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
 
 
   val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
-  lazy val connector = new WardwareConnector(protocol, host, port,username,password,database)
+  lazy val connector = new WardwareConnector(protocol, host, port).startSession(username,password,database)
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
@@ -64,7 +68,7 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A13") process (e => e.in = updateVisit(e.in[Message]))
       otherwise process(e =>  throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) )
     }
-
+    marshal(hl7)
     to("rabbitMQSuccess")
   }
   
@@ -72,8 +76,9 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
   def patientMerge(message:Message): Message = {
     val terser = new Terser(message)
     val mappings = getMappings(terser, terserMap)
-    val requiredFields = validateRequiredFields(List("otherId,oldOtherId"),mappings,terser)
-    Await.result(connector.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get), timeOutMillis millis)
+    val requiredFields = validateRequiredFields(List("otherId","oldOtherId"),mappings,terser)
+    val response = Await.result(connector.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get), timeOutMillis millis)
+    println(response)
     message.generateACK()
   }
 
@@ -92,8 +97,15 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
     val mappings = getMappings(terser,terserMap)
     val requiredFields = getIdentifiers(mappings,terser)
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields), mappings, terser)
-    Await.result(connector.patientNew(requiredFields,optionalFields), timeOutMillis millis)
+
+    val result = Await.result(connector.patientNew(requiredFields,optionalFields), timeOutMillis millis)
+    println(result)
     message.generateACK()
+//    result.onComplete(
+//      case Success(s) => message.generateACK()
+//      case Failure(f) => message.generateACK()
+//    })
+
   }
 
 
