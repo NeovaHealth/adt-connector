@@ -4,7 +4,6 @@ import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
 import ca.uhn.hl7v2.model.Message
 
-import com.tactix4.t4wardware.
 
 
 import scala.concurrent.Await
