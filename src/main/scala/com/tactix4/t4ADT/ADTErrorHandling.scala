@@ -4,9 +4,9 @@ import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception, ErrorCode}
 import ca.uhn.hl7v2.model.Message
 import org.apache.camel.Exchange
 import java.util.concurrent.TimeoutException
-import com.tactix4.wardware.WardwareException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
+import com.tactix4.t4wardware.WardwareException
 
 /**
  * @author max@tactix4.com

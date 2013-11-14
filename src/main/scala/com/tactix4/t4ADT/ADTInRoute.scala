@@ -4,17 +4,16 @@ import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
 import ca.uhn.hl7v2.model.Message
 
-import scala.util.control.Exception.catching
+import com.tactix4.t4wardware.
+
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-import com.tactix4.wardware.{WardwareSession, WardwareConnector}
 
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
-import ca.uhn.hl7v2.AcknowledgmentCode
+import com.tactix4.t4wardware.WardwareConnector
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -62,7 +61,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A40") process (e => e.in = patientMerge(e.in[Message]))
       when(_.in(triggerEventHeader) == "A01") process (e => e.in = visitNew(e.in[Message]))
       when(_.in(triggerEventHeader) == "A02") process (e => e.in = visitUpdate(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A03") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A03") process (e => e.in = patientDischarge(e.in[Message]))
       when(_.in(triggerEventHeader) == "A11") process (e => e.in = visitUpdate(e.in[Message]))
       when(_.in(triggerEventHeader) == "A12") process (e => e.in = visitUpdate(e.in[Message]))
       when(_.in(triggerEventHeader) == "A13") process (e => e.in = visitUpdate(e.in[Message]))
@@ -94,6 +93,17 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     message.generateACK()
   }
 
+  def patientDischarge(message: Message) : Message = {
+
+    implicit val terser = new Terser(message)
+    implicit val mappings = getMappings(terser,terserMap)
+    val requiredFields = getIdentifiers()
+
+    val result = Await.result(connector.map(_.patientDischarge(requiredFields)), timeOutMillis millis)
+    println(result)
+    message.generateACK()
+  }
+
   def patientNew(message: Message): Message = {
 
     implicit val terser = new Terser(message)
@@ -105,23 +115,22 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     val result = Await.result(connector.map(_.patientNew(requiredFields,optionalFields)), timeOutMillis millis)
     println(result)
     message.generateACK()
-//    result.onComplete(
-//      case Success(s) => message.generateACK()
-//      case Failure(f) => message.generateACK()
-//    })
 
   }
 
 
-  def visitNew(m:Message) : Message = ???
-//  {
-//    implicit val terser = new Terser(m)
-//    implicit val mappings = getMappings(terser,terserMap)
-//    val requiredFields =  validateRequiredFields(List("visitId","dischargeDateTime"))
-//
-//    val result = Await.result(connector.map(_.))
-//
-//  }
+  def visitNew(message:Message) : Message =
+  {
+    implicit val terser = new Terser(message)
+    implicit val mappings = getMappings(terser,terserMap)
+    val identifier = getIdentifiers()
+    val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
+
+    val result = Await.result(connector.map(_.visitNew(identifier, requiredFields.get("wardId").get.toInt, requiredFields.get("visitId").get.toInt, requiredFields.get("visitStartDateTime").get)), timeOutMillis millis)
+    println(result)
+    message.generateACK()
+
+  }
   def visitUpdate(m:Message) = ???
 
 
