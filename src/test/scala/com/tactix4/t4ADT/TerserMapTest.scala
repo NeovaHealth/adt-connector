@@ -26,13 +26,13 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
 
   val testMessage = new ADT_A01()
   testMessage.initQuickstart("ADT", "A28", "P")
-  val terser = new Terser(testMessage)
+  implicit val terser = new Terser(testMessage)
   terser.set("PID-5-1", "Bobkins")
   terser.set("PID-5-2", "Bob")
   terser.set("PID-5-3", null)
   terser.set("PID-7-1", "19850101000000")
   terser.set("PID-8", "M")
-  val mappings = route.getMappings(terser,route.terserMap)
+  implicit val mappings = route.getMappings(terser,route.terserMap)
 
 
   val testFailMessage = new ADT_A15()
@@ -41,21 +41,21 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
   def failMappings = route.getMappings(failTerser,route.terserMap)
 
   test("read from the terserMap"){
-    route.getAttribute(mappings,"firstName",terser)
+    route.getAttribute("firstName")
   }
   test("generate error on non existent message type in terserMap"){
     intercept[ADTApplicationException]{
-      route.getAttribute(failMappings,"firstName",failTerser)
+      route.getAttribute("firstName")(failTerser,mappings)
     }
   }
   test("generate error on non existent message attribute in terserMap"){
     intercept[ADTApplicationException]{
-      route.getAttribute(mappings,"middleName",terser)
+      route.getAttribute("middleName")
     }
   }
   test("generate error on empty message attribute in terserMap"){
     intercept[ADTApplicationException]{
-      route.getAttribute(mappings,"middleName",terser)
+      route.getAttribute("middleName")(terser,mappings)
     }
   }
   test("generate a failure on an invalid date") {
@@ -71,7 +71,7 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
 
   test("generate a failure on an invalid terserPath") {
     intercept[ADTApplicationException]{
-      route.getAttribute(mappings, "terserFail",terser)
+      route.getAttribute("terserFail")(terser,mappings)
     }
   }
 

@@ -20,7 +20,7 @@
         <scala-version>2.10.2</scala-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.3</scalaz-version>
-        <wardware-connector-version>0.0.1-SNAPSHOT</wardware-connector-version>
+        <wardware-connector-version>1.0-SNAPSHOT</wardware-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.0.2</typesafe-config-version>

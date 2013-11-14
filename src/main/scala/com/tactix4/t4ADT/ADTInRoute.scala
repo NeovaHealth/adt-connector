@@ -28,7 +28,7 @@ class ADTApplicationException(msg:String, cause:Throwable=null) extends Throwabl
 class ADTFieldException(msg:String,cause:Throwable=null)extends Throwable(msg,cause)
 class ADTUnsupportedMessageException(msg:String=null,cause:Throwable=null)extends Throwable(msg,cause)
 
-class ADTInRoute(val terserMap: Map[String,Map[String, String]],
+class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val protocol: String,
                  val host: String,
                  val port: Int,
@@ -60,12 +60,12 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A28") process (e => e.in = patientNew(e.in[Message]))
       when(_.in(triggerEventHeader) == "A05") process (e => e.in = patientNew(e.in[Message]))
       when(_.in(triggerEventHeader) == "A40") process (e => e.in = patientMerge(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A01") process (e => e.in = createVisit(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A02") process (e => e.in = updateVisit(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A03") process (e => e.in = updateVisit(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A11") process (e => e.in = updateVisit(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A12") process (e => e.in = updateVisit(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A13") process (e => e.in = updateVisit(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A01") process (e => e.in = visitNew(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A02") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A03") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A11") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A12") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A13") process (e => e.in = visitUpdate(e.in[Message]))
       otherwise process(e =>  throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) )
     }
     marshal(hl7)
@@ -74,31 +74,35 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
   
 
   def patientMerge(message:Message): Message = {
-    val terser = new Terser(message)
-    val mappings = getMappings(terser, terserMap)
-    val requiredFields = validateRequiredFields(List("otherId","oldOtherId"),mappings,terser)
-    val response = Await.result(connector.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get), timeOutMillis millis)
+    implicit val terser = new Terser(message)
+    implicit val mappings = getMappings(terser, terserMap)
+    val requiredFields = validateRequiredFields(List("otherId", "oldOtherId"))
+    val response = Await.result(
+      connector.map(_.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get)),
+      timeOutMillis millis
+    )
     println(response)
     message.generateACK()
   }
 
   def patientUpdate(message: Message): Message = {
-    val terser = new Terser(message)
-    val mappings = getMappings(terser,terserMap)
-    val requiredFields = getIdentifiers(mappings,terser)
-    val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields), mappings, terser)
-    Await.result(connector.patientUpdate(requiredFields,optionalFields), timeOutMillis millis)
+    implicit val terser = new Terser(message)
+    implicit val mappings = getMappings(terser,terserMap)
+    val requiredFields = getIdentifiers()
+    val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
+    Await.result(connector.map(_.patientUpdate(requiredFields,optionalFields)), timeOutMillis millis)
     message.generateACK()
   }
 
   def patientNew(message: Message): Message = {
 
-    val terser = new Terser(message)
-    val mappings = getMappings(terser,terserMap)
-    val requiredFields = getIdentifiers(mappings,terser)
-    val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields), mappings, terser)
+    implicit val terser = new Terser(message)
+    implicit val mappings = getMappings(terser,terserMap)
 
-    val result = Await.result(connector.patientNew(requiredFields,optionalFields), timeOutMillis millis)
+    val requiredFields = getIdentifiers()
+    val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
+
+    val result = Await.result(connector.map(_.patientNew(requiredFields,optionalFields)), timeOutMillis millis)
     println(result)
     message.generateACK()
 //    result.onComplete(
@@ -109,8 +113,16 @@ class ADTInRoute(val terserMap: Map[String,Map[String, String]],
   }
 
 
-  def createVisit(m:Message) = ???
-  def updateVisit(m:Message) = ???
+  def visitNew(m:Message) : Message = ???
+//  {
+//    implicit val terser = new Terser(m)
+//    implicit val mappings = getMappings(terser,terserMap)
+//    val requiredFields =  validateRequiredFields(List("visitId","dischargeDateTime"))
+//
+//    val result = Await.result(connector.map(_.))
+//
+//  }
+  def visitUpdate(m:Message) = ???
 
 
 }

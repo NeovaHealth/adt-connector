@@ -50,35 +50,35 @@ trait ADTProcessing {
     messageTypeMap.get(attribute).getOrElse(throw new ADTApplicationException("Could not find attribute: " + attribute + " in terser configuration"))
   }
 
-  def getAttribute(messageTypeMap: Map[String, String], attribute: String, terser: Terser): (String, String) = {
+  def getAttribute(attribute: String)(implicit terser: Terser,messageTypeMap: Map[String, String]): (String, String) = {
     val path = getTerserPathFromMap(messageTypeMap, attribute)
     val value = getValueFromTerserPath(path, terser)
     attribute -> value
   }
 
-  def getMessageType(terser: Terser):String = {
+  def getMessageType(implicit terser: Terser):String = {
     getValueFromTerserPath("MSH-9-2", terser)
   }
 
-  def validateRequiredFields(fields: List[String], mappings: Map[String,String], terser: Terser ) : Map[String,String]= {
-    fields.map(f => getAttribute(mappings,f,terser)).toMap
+  def validateRequiredFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser ) : Map[String,String]= {
+    fields.map(getAttribute).toMap
   }
 
-  def validateOptionalFields(fields: List[String], mappings: Map[String,String], terser: Terser): Map[String, String] = {
-    fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(mappings,f,terser))).flatten.toMap
+  def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): Map[String, String] = {
+    fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap
   }
 
   def getOptionalFields(mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
     (mappings.keySet diff requiredFields.keySet).toList
   }
 
-  def getMappings(terser:Terser, terserMap:Map[String, Map[String,String]]) = {
+  def getMappings(implicit terser:Terser, terserMap:Map[String, Map[String,String]]) = {
     getMessageTypeMap(terserMap, getMessageType(terser))
   }
 
 
-  def getIdentifiers(mappings:Map[String,String],terser:Terser): Map[String, String] = {
-    val identifiers = validateOptionalFields(List("patientId", "otherId"),mappings, terser)
+  def getIdentifiers()(implicit mappings:Map[String,String],terser:Terser): Map[String, String] = {
+    val identifiers = validateOptionalFields(List("patientId", "otherId"))(mappings, terser)
     if(identifiers.isEmpty) throw new ADTFieldException("Identifier not found in message")
     else identifiers.toMap
   }
