@@ -9,7 +9,7 @@ package com.tactix4.t4ADT
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.{TestContextManager, ContextConfiguration}
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.scalatest.FunSuite
 import org.scalatest.matchers.ShouldMatchers
 import ca.uhn.hl7v2.model.v24.message.{ADT_A15, ADT_A01}
 import ca.uhn.hl7v2.util.Terser
