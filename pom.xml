@@ -105,11 +105,6 @@
             <version>${wardware-core-version}</version>
         </dependency>
         <dependency>
-            <groupId>org.scalaz</groupId>
-            <artifactId>scalaz-core_2.10</artifactId>
-            <version>${scalaz-version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.typesafe</groupId>
             <artifactId>config</artifactId>
             <version>${typesafe-config-version}</version>
@@ -228,6 +223,7 @@
                             ca.uhn.hl7v2.model,
                             ca.uhn.hl7v2.util,
                             com.tactix4.t4wardware,
+                            com.tactix4.t4wardware.core,
                             org.apache.camel,
                             org.apache.camel.component.hl7,
                             org.apache.camel.model,

@@ -36,7 +36,6 @@ trait ADTProcessing {
    * Convenience method to check a valid date
    *
    * @param date the date string
-   * @return a [[scalaz.ValidationNel[String,T] ]]
    */
   def checkDate(date: String,dateTimeFormat:DateTimeFormatter): String = {
     try { (DateTime.parse(date, dateTimeFormat)).toString() }
