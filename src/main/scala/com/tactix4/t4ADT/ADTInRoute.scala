@@ -13,6 +13,7 @@ import scala.concurrent.duration._
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
 import com.tactix4.t4wardware.WardwareConnector
+import scala.util.{Failure, Success}
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -75,7 +76,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     implicit val terser = new Terser(message)
     implicit val mappings = getMappings(terser, terserMap)
     val requiredFields = validateRequiredFields(List("otherId", "oldOtherId"))
-    awaitAndWrapException(connector.map(_.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get)))
+    awaitAndWrapException(connector.flatMap(_.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get)))
     message.generateACK()
   }
 
@@ -84,7 +85,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     implicit val mappings = getMappings(terser,terserMap)
     val requiredFields = getIdentifiers()
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
-    awaitAndWrapException(connector.map(_.patientUpdate(requiredFields,optionalFields)))
+    awaitAndWrapException(connector.flatMap(_.patientUpdate(requiredFields,optionalFields)))
     message.generateACK()
   }
 
@@ -94,7 +95,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     implicit val mappings = getMappings(terser,terserMap)
     val requiredFields = getIdentifiers()
 
-    awaitAndWrapException(connector.map(_.patientDischarge(requiredFields)))
+    awaitAndWrapException(connector.flatMap(_.patientDischarge(requiredFields)))
     message.generateACK()
   }
 
@@ -105,10 +106,11 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
     val requiredFields = getIdentifiers()
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
+    awaitAndWrapException(connector.flatMap(_.patientNew(requiredFields,optionalFields)))
 
-    awaitAndWrapException(connector.map(_.patientNew(requiredFields,optionalFields)))
+
+
     message.generateACK()
-
   }
 
   def visitNew(message:Message) : Message =
@@ -118,20 +120,18 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     val identifier = getIdentifiers()
     val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
 
-    awaitAndWrapException(connector.map(_.visitNew(identifier, requiredFields.get("wardId").get, requiredFields.get("visitId").get.toInt, requiredFields.get("visitStartDateTime").get)))
+    awaitAndWrapException(connector.flatMap(_.visitNew(identifier, requiredFields.get("wardId").get, requiredFields.get("visitId").get.toInt, requiredFields.get("visitStartDateTime").get)))
 
     message.generateACK()
 
   }
   def visitUpdate(m:Message) = ???
 
-  def awaitAndWrapException[T](method: Awaitable[T]) = {
-    try {
-      Await.result(method, timeOutMillis millis)
-    }
-    catch {
-      case e: Throwable => throw new ADTApplicationException(e.getMessage, e)
-    }
+  def awaitAndWrapException[T](method: Future[T]) = {
+    method.onFailure({
+      case f => throw new ADTApplicationException(f.getMessage, f)
+    })
+    Await.result(method, timeOutMillis millis)
 
   }
 
