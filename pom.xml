@@ -152,13 +152,13 @@
 	</dependencies>
 	<repositories> 
 		<repository>
-			<id>development.dmz.tactix4.net</id>
-			<name>development.dmz.tactix4.net-snapshots</name>
+			<id>development.dmz.tactix4.net-releases</id>
+			<name>development.dmz.tactix4.net-releases</name>
 			<url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
 		</repository>
 		<repository>
-			<id>development.dmz.tactix4.net</id>
-			<name>development.dmz.tactix4.net-releases</name>
+			<id>development.dmz.tactix4.net-snapshots</id>
+			<name>development.dmz.tactix4.net-snapshots</name>
 			<url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
 		</repository>
 		<repository>
