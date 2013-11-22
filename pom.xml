@@ -86,8 +86,23 @@
         </dependency>
         <dependency>
             <groupId>com.tactix4</groupId>
+            <artifactId>t4xmlrpc_2.10</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tactix4</groupId>
+            <artifactId>t4openerp-connector_2.10</artifactId>
+            <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tactix4</groupId>
             <artifactId>t4wardware-connector_2.10</artifactId>
             <version>${wardware-connector-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.tactix4</groupId>
+            <artifactId>t4wardware-core_2.10</artifactId>
+            <version>${wardware-core-version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>
@@ -154,7 +169,19 @@
             <url>http://repo.springsource.org/milestone/</url>
             <layout>default</layout>
         </repository>
-    </repositories>
+	</repositories>
+	<distributionManagement>
+		<repository>
+			<id>central</id>
+			<name>Tactix4 Release Repo</name>
+			<url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
+		</repository>
+		<snapshotRepository>
+			<id>central</id>
+			<name>Tactix4 Snapshot Repo</name>
+			<url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
+		</snapshotRepository>
+	</distributionManagement>
     	<build>
 		<defaultGoal>install</defaultGoal>
             <sourceDirectory>src/main/scala</sourceDirectory>
