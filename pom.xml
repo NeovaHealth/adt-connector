@@ -170,6 +170,18 @@
             <layout>default</layout>
         </repository>
 	</repositories>
+	<distributionManagement>
+		<repository>
+			<id>central</id>
+			<name>Tactix4 Release Repo</name>
+			<url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<name>Tactix4 Snapshot Repo</name>
+			<url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
+		</snapshotRepository>
+	</distributionManagement>
     	<build>
 		<defaultGoal>install</defaultGoal>
             <sourceDirectory>src/main/scala</sourceDirectory>
