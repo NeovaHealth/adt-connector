@@ -14,6 +14,7 @@ import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
 import com.tactix4.t4wardware.WardwareConnector
 import scala.util.{Failure, Success}
+import scala.collection.mutable.HashMap
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -34,14 +35,16 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val username: String,
                  val password: String,
                  val database: String,
-                 val dateFormat: String,
+                 val fromDateFormat: String,
+                 val toDateFormat: String,
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
                  val maximumRedeliveries: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling{
 
 
 
-  val dateTimeFormat = DateTimeFormat.forPattern(dateFormat)
+  val fromDateTimeFormat = DateTimeFormat.forPattern(fromDateFormat)
+  val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
   lazy val connector = new WardwareConnector(protocol, host, port).startSession(username,password,database)
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
@@ -85,7 +88,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     implicit val mappings = getMappings(terser,terserMap)
     val requiredFields = getIdentifiers()
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
-    awaitAndWrapException(connector.flatMap(_.patientUpdate(requiredFields,optionalFields)))
+    awaitAndWrapException(connector.flatMap(_.patientUpdate(requiredFields,optionalFields.toMap)))
     message.generateACK()
   }
 
@@ -106,7 +109,10 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
     val requiredFields = getIdentifiers()
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
-    awaitAndWrapException(connector.flatMap(_.patientNew(requiredFields,optionalFields)))
+
+    optionalFields.get("dob").map((dob: String) => optionalFields("dob") = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
+
+    awaitAndWrapException(connector.flatMap(_.patientNew(requiredFields,optionalFields.toMap)))
 
 
 
@@ -118,7 +124,8 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     implicit val terser = new Terser(message)
     implicit val mappings = getMappings(terser,terserMap)
     val identifier = getIdentifiers()
-    val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
+    val dateTime = getAttribute("visitStartDateTime")
+    val requiredFields =  validateRequiredFields(List("wardId","visitId"))  ++ Map(dateTime._1 -> checkDate(dateTime._2, fromDateTimeFormat, toDateTimeFormat))
 
     awaitAndWrapException(connector.flatMap(_.visitNew(identifier, requiredFields.get("wardId").get, requiredFields.get("visitId").get.toInt, requiredFields.get("visitStartDateTime").get)))
 

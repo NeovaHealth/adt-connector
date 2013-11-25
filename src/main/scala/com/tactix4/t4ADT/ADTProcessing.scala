@@ -5,6 +5,8 @@ import ca.uhn.hl7v2.HL7Exception
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormatter, DateTimeFormat}
 import scala.util.control.Exception.catching
+import scala.collection.mutable
+
 /**
  * @author max@tactix4.com
  *         11/10/2013
@@ -37,8 +39,9 @@ trait ADTProcessing {
    *
    * @param date the date string
    */
-  def checkDate(date: String,dateTimeFormat:DateTimeFormatter): String = {
-    try { (DateTime.parse(date, dateTimeFormat)).toString() }
+  def checkDate(date: String,fromDateFormat:DateTimeFormatter, toDateFormat:DateTimeFormatter): String = {
+    try { DateTime.parse(date, fromDateFormat).toString(toDateFormat)
+    }
     catch { case e: Exception => throw new ADTFieldException("unable to parse date: " + date) }
   }
 
@@ -63,8 +66,8 @@ trait ADTProcessing {
     fields.map(getAttribute).toMap
   }
 
-  def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): Map[String, String] = {
-    fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap
+  def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): mutable.HashMap[String, String] = {
+    scala.collection.mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
   }
 
   def getOptionalFields(mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {

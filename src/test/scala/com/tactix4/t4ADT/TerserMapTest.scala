@@ -61,12 +61,12 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
   test("generate a failure on an invalid date") {
     val invalidDate = "0o8ijasdf"
     intercept[ADTFieldException]{
-    route.checkDate(invalidDate,route.dateTimeFormat)
+    route.checkDate(invalidDate,route.fromDateTimeFormat, route.toDateTimeFormat)
     }
   }
   test("parse a valid date") {
     val validDate = "20130801001000"
-    route.checkDate(validDate, route.dateTimeFormat)
+    route.checkDate(validDate, route.fromDateTimeFormat, route.toDateTimeFormat)
    }
 
   test("generate a failure on an invalid terserPath") {

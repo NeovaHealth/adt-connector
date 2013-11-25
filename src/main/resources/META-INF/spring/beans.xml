@@ -25,7 +25,7 @@
 
 
 
-    <camel:endpoint id="hl7listener" uri="mina2:tcp://0.0.0.0:8888?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://10.10.160.97:8888?sync=true&amp;codec=#hl7codec"/>
 
     <camel:endpoint id="rabbitMQSuccess" uri="mock:success"/>
     <!--//"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.successQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->
@@ -53,7 +53,8 @@
         <constructor-arg name="username" value="${username}"/>
         <constructor-arg name="password" value="${password}"/>
         <constructor-arg name="database" value="${database}"/>
-        <constructor-arg name="dateFormat" value="${dateFormat}"/>
+        <constructor-arg name="fromDateFormat" value="${fromDateFormat}"/>
+        <constructor-arg name="toDateFormat" value="${toDateFormat}"/>
         <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
         <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
