@@ -186,7 +186,7 @@
                             <goal>create-kar</goal>
                         </goals>
                         <configuration>
-                            <featuresFile>features.xml</featuresFile>
+                            <featuresFile>${project.basedir}/features.xml</featuresFile>
                         </configuration>
                     </execution>
                 </executions>
