@@ -13,6 +13,10 @@ import scala.collection.mutable
  */
 trait ADTProcessing {
 
+  val fromDateTimeFormat:DateTimeFormatter
+  val toDateTimeFormat:DateTimeFormatter
+  val datesToParse:List[String]
+
   /**
    * query a terser object for a specified path
    * @param s the terser path
@@ -31,6 +35,7 @@ trait ADTProcessing {
     catch {
       case e: HL7Exception => throw new ADTFieldException(e.getMessage)
       case e: IllegalArgumentException => throw new ADTApplicationException("Error in terser path: " + e.getMessage)
+      case e: Throwable => throw new ADTApplicationException("Error occured getting terser path: " + e.getMessage)
     }
   }
 
@@ -67,7 +72,12 @@ trait ADTProcessing {
   }
 
   def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): mutable.HashMap[String, String] = {
-    scala.collection.mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
+    val opts = scala.collection.mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
+
+    datesToParse.foreach(d =>
+      opts.get(d).map(dob=> opts(d) = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
+    )
+    opts
   }
 
   def getOptionalFields(mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
