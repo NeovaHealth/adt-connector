@@ -54,6 +54,7 @@
                 <entry key="A05" value-ref="a01map"/>
                 <entry key="A31" value-ref="a01map"/>
                 <entry key="A08" value-ref="a01map"/>
+                <entry key="A03" value-ref="a01map"/>
                 <entry key="A40" value-ref="a40map"/>
             </scala-util:map>
         </constructor-arg>

@@ -42,11 +42,12 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
                             "PID|1|||" + patientTwoId+"||OTHER_IBM_BRIDGE^MARION||19661109|F\r"+
                             "MRG|"+patientOneId+"^^^IBOT&1.3.6.1.4.1.21367.2009.1.2.370&ISO\r"+
                             "PV1||O"
-  val patientMergeADT40   = "MSH|^~\\&|iPM|iIE|Wardware|Wardware|20120124135111||ADT^A40|609299|P|2.4|||AL|AL\r" +
-                            "EVN|A40|20120124135111\r"+
-                             PID1 + "\r" +
-                            "PD1|||Dummy Test Practice^GPPRC^TEST1X|G0000001^Dummy^Leigh^^^Dr\r" +
-                            "PV1|1|R|^^^^^^^^|||^^^^^^^^||||||||||||||||||||||||||||||||||||||"
+
+  val patientDischarge = "MSH|^~\\&|iPM|iIE|Wardware|Wardware|20120122151427||ADT^A03|608741|P|2.4|||AL|AL\r" +
+                            "EVN|A03|20120122151427\r" +
+                            PID2 + "\r" +
+                            "PD1|||Branch Practice, Gooseberry Hill HC, Luton^GPPRC^E81046B|G3403352B^Glaze^M E^^^Dr\r"+
+                            "PV1|1|I|W005^^^^^^^^Ward 05 Isolation|22||^^^^^^^^|^^^^^|G0000001^Dummy^Leigh^^^Dr|C2782056^Ahmad^T^^^Mr|160|||||||C2782056^Ahmad^T^^^Mr|01|1063663|||||||||||||||||||||||||20120115111800|20120115151300"
 
 
   val patientMergeADTNo_Identifier = "MSH|^~\\&|||||20131007152356.695+0100||ADT^A40^ADT_A05|201|T|2.4\rPID|1|||^AA^^JP|BROS^MARIO^^^^||19850101000000|M|||123 FAKE STREET^MARIO \\T\\ LUIGI BROS PLACE^TOADSTOOL KINGDOM^NES^A1B2C3^JP^HOME^^1234|1234|(555)555-0123^HOME^JP:1234567|||S|MSH|12345678|||||||0|||||N"
@@ -68,6 +69,8 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
     sendMessageAndExpectResponse(patientUpdateADT_31, "MSA|AA|")
     log.info("merge patientOne into patientTwo")
     sendMessageAndExpectResponse(patientMergeAlt, "MSA|AA|")
+    log.info("discharge patientTwo")
+    sendMessageAndExpectResponse(patientDischarge, "MSA|AA|")
   }
 
   @Test
