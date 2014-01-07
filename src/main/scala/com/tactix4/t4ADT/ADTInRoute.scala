@@ -45,6 +45,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   val fromDateTimeFormat = DateTimeFormat.forPattern(fromDateFormat)
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
+  val datesToParse = List("dob")
   lazy val connector = new WardwareConnector(protocol, host, port).startSession(username,password,database)
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
@@ -119,8 +120,6 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     implicit val mappings = getMappings(terser,terserMap)
     val requiredFields = getIdentifiers()
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
-
-    optionalFields.get("dob").map((dob: String) => optionalFields("dob") = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
 
     awaitAndWrapException(connector.flatMap(_.patientNew(requiredFields,optionalFields.toMap)))
 

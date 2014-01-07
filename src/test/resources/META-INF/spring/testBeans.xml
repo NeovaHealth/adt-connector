@@ -39,6 +39,12 @@
         </constructor-arg>
     </bean>
 
+
+    <bean id="a40map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:ADT_A40.properties"/>
+        </constructor-arg>
+    </bean>
     <bean id="mockOpenERP" class="com.tactix4.t4ADT.OpenERPMock"/>
 
  <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
@@ -48,7 +54,8 @@
                 <entry key="A05" value-ref="a01map"/>
                 <entry key="A31" value-ref="a01map"/>
                 <entry key="A08" value-ref="a01map"/>
-                <entry key="A40" value-ref="a01map"/>
+                <entry key="A03" value-ref="a01map"/>
+                <entry key="A40" value-ref="a40map"/>
             </scala-util:map>
         </constructor-arg>
         <constructor-arg name="protocol" value="${protocol}"/>

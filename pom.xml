@@ -109,11 +109,6 @@
             <version>4.8.2</version>
             <scope>test</scope>
         </dependency>
-        <!--<dependency>-->
-            <!--<groupId>ch.qos.logback</groupId>-->
-            <!--<artifactId>logback-classic</artifactId>-->
-            <!--<version>1.0.12</version>-->
-        <!--</dependency>-->
 
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -154,6 +149,18 @@
             <layout>default</layout>
         </repository>
 	</repositories>
+	<distributionManagement>
+		<repository>
+			<id>central</id>
+			<name>Tactix4 Release Repo</name>
+			<url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<name>Tactix4 Snapshot Repo</name>
+			<url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
+		</snapshotRepository>
+	</distributionManagement>
     	<build>
 		<defaultGoal>install</defaultGoal>
             <sourceDirectory>src/main/scala</sourceDirectory>
@@ -170,7 +177,7 @@
                             <goal>create-kar</goal>
                         </goals>
                         <configuration>
-                            <featuresFile>features.xml</featuresFile>
+                            <featuresFile>${project.basedir}/features.xml</featuresFile>
                         </configuration>
                     </execution>
                 </executions>
