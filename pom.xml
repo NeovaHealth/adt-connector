@@ -21,7 +21,6 @@
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.3</scalaz-version>
         <wardware-connector-version>1.0-SNAPSHOT</wardware-connector-version>
-        <wardware-core-version>1.0-SNAPSHOT</wardware-core-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.0.2</typesafe-config-version>
@@ -86,23 +85,8 @@
         </dependency>
         <dependency>
             <groupId>com.tactix4</groupId>
-            <artifactId>t4xmlrpc_2.10</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.tactix4</groupId>
-            <artifactId>t4openerp-connector_2.10</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.tactix4</groupId>
             <artifactId>t4wardware-connector_2.10</artifactId>
             <version>${wardware-connector-version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.tactix4</groupId>
-            <artifactId>t4wardware-core_2.10</artifactId>
-            <version>${wardware-core-version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>

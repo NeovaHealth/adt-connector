@@ -63,7 +63,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A05") process (e => e.in = patientNew(e.in[Message]))
       when(_.in(triggerEventHeader) == "A40") process (e => e.in = patientMerge(e.in[Message]))
       when(_.in(triggerEventHeader) == "A01") process (e => e.in = visitNew(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A02") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A02") process (e => e.in = patientTransfer(e.in[Message]))
       when(_.in(triggerEventHeader) == "A03") process (e => e.in = patientDischarge(e.in[Message]))
       when(_.in(triggerEventHeader) == "A11") process (e => e.in = visitUpdate(e.in[Message]))
       when(_.in(triggerEventHeader) == "A12") process (e => e.in = visitUpdate(e.in[Message]))
@@ -102,19 +102,27 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     message.generateACK()
   }
 
+  def patientTransfer(message: Message) : Message = {
+    implicit val terser = new Terser(message)
+    implicit val mappings = getMappings(terser,terserMap)
+    val identifiers = getIdentifiers()
+    val wardId = validateRequiredFields(List("wardId"))
+
+    awaitAndWrapException(connector.flatMap(_.patientTransfer(identifiers,wardId("wardId"))))
+    message.generateACK()
+  }
+
   def patientNew(message: Message): Message = {
+
 
     implicit val terser = new Terser(message)
     implicit val mappings = getMappings(terser,terserMap)
-
     val requiredFields = getIdentifiers()
     val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
 
     optionalFields.get("dob").map((dob: String) => optionalFields("dob") = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
 
     awaitAndWrapException(connector.flatMap(_.patientNew(requiredFields,optionalFields.toMap)))
-
-
 
     message.generateACK()
   }
@@ -132,7 +140,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     message.generateACK()
 
   }
-  def visitUpdate(m:Message) = ???
+  def visitUpdate(m:Message) = m.generateACK()
 
   def awaitAndWrapException[T](method: Future[T]) = {
     method.onFailure({
@@ -141,6 +149,5 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     Await.result(method, timeOutMillis millis)
 
   }
-
 
 }

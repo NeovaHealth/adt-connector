@@ -17,7 +17,7 @@ import org.springframework.context.support.{ClassPathXmlApplicationContext, Abst
 class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
 
   def createApplicationContext(): AbstractApplicationContext = {
-    new ClassPathXmlApplicationContext("META-INF/spring/testBeans.xml");
+    new ClassPathXmlApplicationContext("META-INF/spring/testBeans.xml")
   }
 
   val URI:String = "mina2:tcp://localhost:8888?sync=true&codec=#hl7codec"

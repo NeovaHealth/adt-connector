@@ -41,7 +41,7 @@
 
     <bean id="mockOpenERP" class="com.tactix4.t4ADT.OpenERPMock"/>
 
-    <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
+ <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
             <scala-util:map>
                 <entry key="A28" value-ref="a01map"/>
@@ -57,11 +57,11 @@
         <constructor-arg name="username" value="${username}"/>
         <constructor-arg name="password" value="${password}"/>
         <constructor-arg name="database" value="${database}"/>
-        <constructor-arg name="dateFormat" value="${dateFormat}"/>
+        <constructor-arg name="fromDateFormat" value="${fromDateFormat}"/>
+        <constructor-arg name="toDateFormat" value="${toDateFormat}"/>
         <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
         <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
-
     </bean>
 
 
