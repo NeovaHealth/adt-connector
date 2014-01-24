@@ -81,4 +81,5 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
     sendMessageAndExpectError(patientUpdateADTNo_Identity_31, "Required field missing")
     sendMessageAndExpectError(patientMergeADTNo_Identifier, "Required field missing")
   }
+
 }

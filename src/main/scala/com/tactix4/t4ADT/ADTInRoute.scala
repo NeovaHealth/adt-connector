@@ -2,11 +2,18 @@ package com.tactix4.t4ADT
 
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
-import ca.uhn.hl7v2.model.Message
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception, ErrorCode}
+import ca.uhn.hl7v2.model.Message
+import org.apache.camel.{CamelExecutionException, Exchange}
+import java.util.concurrent.TimeoutException
+import com.tactix4.t4wardware.WardwareException
+import java.net.ConnectException
 
-import scala.concurrent.{Awaitable, Future, Await}
+import scala.util.control.Exception._
+
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 
@@ -14,7 +21,6 @@ import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
 import com.tactix4.t4wardware.WardwareConnector
 import scala.util.{Failure, Success}
-import scala.collection.mutable.HashMap
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -52,7 +58,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   hl7.setValidate(false)
 
 
-  //stick all the messages that generate errors onto the fail queue
+
 
   "hl7listener" ==> {
     unmarshal(hl7)
@@ -74,72 +80,48 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     marshal(hl7)
     to("rabbitMQSuccess")
   }
-  
 
-  def patientMerge(message:Message): Message = {
+  def extract(f : Terser => Map[String,String] => Future[_]) (implicit message:Message): Message = {
+
     implicit val terser = new Terser(message)
     implicit val mappings = getMappings(terser, terserMap)
+
+    val result = allCatch either Await.result(f(terser)(mappings), timeOutMillis millis)
+
+    result.left.map((error: Throwable) => throw new ADTApplicationException(error.getMessage, error))
+
+    message.generateACK()
+  }
+
+  def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
     val requiredFields = validateRequiredFields(List("otherId", "oldOtherId"))
-    awaitAndWrapException(connector.flatMap(_.patientMerge(requiredFields.get("otherId").get, requiredFields.get("oldOtherId").get)))
-    message.generateACK()
+    connector.flatMap(_.patientMerge(requiredFields("otherId"), requiredFields("oldOtherId")))
   }
 
-  def patientUpdate(message: Message): Message = {
-    implicit val terser = new Terser(message)
-    implicit val mappings = getMappings(terser,terserMap)
-    val requiredFields = getIdentifiers()
-    val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
-    awaitAndWrapException(connector.flatMap(_.patientUpdate(requiredFields,optionalFields.toMap)))
-    message.generateACK()
+  def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit map =>
+    val i = getIdentifiers
+    val o = validateAllOptionalFields
+    connector.flatMap(_.patientUpdate(i,o))
   }
 
-  def patientDischarge(message: Message) : Message = {
-
-    implicit val terser = new Terser(message)
-    implicit val mappings = getMappings(terser,terserMap)
-    val requiredFields = getIdentifiers()
-
-    awaitAndWrapException(connector.flatMap(_.patientDischarge(requiredFields)))
-    message.generateACK()
+  def patientDischarge(implicit message: Message)  = extract{implicit t => implicit m =>
+    val i = getIdentifiers
+    connector.flatMap(_.patientDischarge(i))
   }
 
-  def patientNew(message: Message): Message = {
-
-    implicit val terser = new Terser(message)
-    implicit val mappings = getMappings(terser,terserMap)
-
-    val requiredFields = getIdentifiers()
-    val optionalFields = validateOptionalFields(getOptionalFields(mappings,requiredFields))
-
-    awaitAndWrapException(connector.flatMap(_.patientNew(requiredFields,optionalFields.toMap)))
-
-
-
-    message.generateACK()
+  def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
+    val i = getIdentifiers
+    val o = validateAllOptionalFields
+    connector.flatMap(_.patientNew(i,o))
   }
 
-  def visitNew(message:Message) : Message =
-  {
-    implicit val terser = new Terser(message)
-    implicit val mappings = getMappings(terser,terserMap)
-    val identifier = getIdentifiers()
-    val dateTime = getAttribute("visitStartDateTime")
-    val requiredFields =  validateRequiredFields(List("wardId","visitId"))  ++ Map(dateTime._1 -> checkDate(dateTime._2, fromDateTimeFormat, toDateTimeFormat))
-
-    awaitAndWrapException(connector.flatMap(_.visitNew(identifier, requiredFields.get("wardId").get, requiredFields.get("visitId").get.toInt, requiredFields.get("visitStartDateTime").get)))
-
-    message.generateACK()
-
-  }
-  def visitUpdate(m:Message) = ???
-
-  def awaitAndWrapException[T](method: Future[T]) = {
-    method.onFailure({
-      case f => throw new ADTApplicationException(f.getMessage, f)
-    })
-    Await.result(method, timeOutMillis millis)
-
+  def visitNew(implicit message: Message) = extract{implicit t => implicit m =>
+    val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
+    connector.flatMap(_.visitNew(getIdentifiers,requiredFields("wardId"), requiredFields("visitId"), requiredFields("visitStartDateTime")))
   }
 
+  def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>
+    Future.successful()
+  }
 
 }

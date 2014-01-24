@@ -78,4 +78,5 @@
         <camel:routeBuilder ref="mockOpenERP"/>
     </camel:camelContext>
 
+
 </beans>

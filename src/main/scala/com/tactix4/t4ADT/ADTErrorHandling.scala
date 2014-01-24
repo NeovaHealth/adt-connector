@@ -7,15 +7,26 @@ import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
 import com.tactix4.t4wardware.WardwareException
+import java.net.ConnectException
 
 /**
  * @author max@tactix4.com
  *         11/10/2013
  */
-trait ADTErrorHandling extends  Preamble with DSL{
+trait ADTErrorHandling extends  Preamble with DSL {
 
   val redeliveryDelay:Long
   val maximumRedeliveries:Int
+
+   //handle all exceptions for debugging
+  handle[ConnectException] {
+    transform(e => {
+      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      println("Connect Exception")
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Connect Exception: "  + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+     })
+    to("rabbitMQFail")
+  }.maximumRedeliveries(0).handled
 
   //handle missing required fields
   handle[ADTFieldException] {

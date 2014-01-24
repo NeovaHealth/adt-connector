@@ -234,8 +234,8 @@
                             scala.concurrent,
                             scala.concurrent.duration,
                             scala.reflect,
-                            scala.runtime,
-                            scala.util.control
+                            scala.util.control,
+                            scala.runtime
                         </Import-Package>
                         <Export-Package>
                             com.tactix4.t4ADT,

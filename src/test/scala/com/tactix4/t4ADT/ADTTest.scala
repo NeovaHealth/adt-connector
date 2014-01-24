@@ -20,7 +20,6 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     new ClassPathXmlApplicationContext("META-INF/spring/testBeans.xml");
   }
 
-
   val URI:String = "mina2:tcp://localhost:8888?sync=true&codec=#hl7codec"
 
   override def createRegistry() ={
@@ -31,6 +30,7 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     jndi.bind("hl7codec", codec)
     jndi
   }
+
 
  def sendMessageAndExpectResponse(message: String, expectedResult: String)= {
 
@@ -47,7 +47,7 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
  }
   def sendMessageAndExpectError(message: String, expectedResult: String)= {
     val resultEndpoint = getMockEndpoint("rabbitMQSuccess")
- val failEndpoint = getMockEndpoint("rabbitMQFail")
+    val failEndpoint = getMockEndpoint("rabbitMQFail")
     resultEndpoint.setExpectedMessageCount(0)
     failEndpoint.setExpectedMessageCount(1)
     failEndpoint.message(0).body.equals(message) //checks that rabbitmq recieves the original adt message

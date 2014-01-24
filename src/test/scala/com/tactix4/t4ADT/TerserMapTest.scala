@@ -41,11 +41,11 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
   def failMappings = route.getMappings(failTerser,route.terserMap)
 
   test("read from the terserMap"){
-    route.getAttribute("firstName")
+    route.getAttribute("givenName")
   }
   test("generate error on non existent message type in terserMap"){
     intercept[ADTFieldException]{
-      route.getAttribute("firstName")(failTerser,mappings)
+      route.getAttribute("givenName")(failTerser,mappings)
     }
   }
   test("generate error on non existent message attribute in terserMap"){

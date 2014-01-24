@@ -36,6 +36,7 @@ class OpenERPMock extends RouteBuilder {
       else if(inbound contains "patientNew") exchange.out = "<methodResponse><params><param><value><int>38</int></value></param></params></methodResponse>"
       else if(inbound contains "patientUpdate") exchange.out = "<methodResponse><params><param><value><boolean>true</boolean></value></param></params></methodResponse>"
       else if(inbound contains "patientMerge") exchange.out = "<methodResponse><params><param><value><boolean>true</boolean></value></param></params></methodResponse>"
+      else if(inbound contains "patientDischarge") exchange.out = "<methodResponse><params><param><value><boolean>true</boolean></value></param></params></methodResponse>"
       else exchange.out = faultMessage
 
     })

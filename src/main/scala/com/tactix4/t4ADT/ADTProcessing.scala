@@ -6,6 +6,7 @@ import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormatter, DateTimeFormat}
 import scala.util.control.Exception.catching
 import scala.collection.mutable
+import scala.util.control.Exception._
 
 /**
  * @author max@tactix4.com
@@ -22,21 +23,28 @@ trait ADTProcessing {
    * @param s the terser path
    * @param t the terser object to query
    * @return the value from the specified terser path
-   * @throws ADTParseException if there was an error parsing the supplied path
+   * @throws ADApplicationException if there was an error parsing the supplied path
    * @throws ADTFieldException if the field was empty
    */
   def getValueFromTerserPath(s: String, t: Terser): String  = {
-    try {
+    val e = catching(classOf[Throwable]) either {
       t.get(s) match {
-        case null => throw new ADTFieldException("no value found at terser path: " + s)
-        case someString:String => someString
+          case null => throw new ADTFieldException("no value found at terser path: " + s)
+          case someString:String => someString
       }
     }
-    catch {
-      case e: HL7Exception => throw new ADTFieldException(e.getMessage)
-      case e: IllegalArgumentException => throw new ADTApplicationException("Error in terser path: " + e.getMessage)
-      case e: Throwable => throw new ADTApplicationException("Error occured getting terser path: " + e.getMessage)
-    }
+
+    e.fold(
+      {
+        case e: ADTFieldException => throw e
+        case e: HL7Exception => throw new ADTFieldException(e.getMessage, e)
+        case e: IllegalArgumentException => throw new ADTApplicationException("Error in terser path: " + e.getMessage, e)
+        case e: NullPointerException => throw new ADTApplicationException("Error in terser path: " + e.getMessage, e)
+      },
+      (value: String) => value
+    )
+
+
   }
 
   /**
@@ -45,9 +53,10 @@ trait ADTProcessing {
    * @param date the date string
    */
   def checkDate(date: String,fromDateFormat:DateTimeFormatter, toDateFormat:DateTimeFormatter): String = {
-    try { DateTime.parse(date, fromDateFormat).toString(toDateFormat)
-    }
-    catch { case e: Exception => throw new ADTFieldException("unable to parse date: " + date) }
+    val c = catching(classOf[Exception]) either  DateTime.parse(date, fromDateFormat).toString(toDateFormat)
+    c.fold(
+      (throwable: Throwable) => throw new ADTFieldException("Error parsing date: " + date + "\nError: " + throwable.getMessage, throwable),
+      (s:String) => s)
   }
 
   def getMessageTypeMap(terserMap:Map[String, Map[String,String]], messageType:String): Map[String, String] = {
@@ -68,7 +77,15 @@ trait ADTProcessing {
   }
 
   def validateRequiredFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser ) : Map[String,String]= {
-    fields.map(getAttribute).toMap
+    val rs = mutable.HashMap[String,String](fields.map(getAttribute).toMap.toSeq: _*)
+    datesToParse.foreach(d =>
+      rs.get(d).map(dob=> rs(d) = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
+    )
+    rs.toMap
+  }
+
+  def validateAllOptionalFields(implicit mappings: Map[String,String], terser: Terser): Map[String, String] = {
+   validateOptionalFields(getOptionalFields).toMap
   }
 
   def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): mutable.HashMap[String, String] = {
@@ -80,7 +97,7 @@ trait ADTProcessing {
     opts
   }
 
-  def getOptionalFields(mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
+  def getOptionalFields(implicit mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
     (mappings.keySet diff requiredFields.keySet).toList
   }
 
@@ -89,7 +106,7 @@ trait ADTProcessing {
   }
 
 
-  def getIdentifiers()(implicit mappings:Map[String,String],terser:Terser): Map[String, String] = {
+  def getIdentifiers(implicit mappings:Map[String,String],terser:Terser): Map[String, String] = {
     val identifiers = validateOptionalFields(List("patientId", "otherId"))(mappings, terser)
     if(identifiers.isEmpty) throw new ADTFieldException("Identifier not found in message")
     else identifiers.toMap
