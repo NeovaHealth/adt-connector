@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <features xmlns="http://karaf.apache.org/xmlns/features/v1.2.0" name="Tactix4">
     <feature name="Tactix4 ADT" version="1.0">
         <feature>spring</feature>
