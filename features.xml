@@ -22,6 +22,7 @@
         <bundle>mvn:com.tactix4/t4openerp-connector_2.10/1.2-SNAPSHOT</bundle>
         <bundle>mvn:com.tactix4/t4skr-connector_2.10/1.0-SNAPSHOT</bundle>
         <bundle>mvn:com.tactix4/t4adt_2.10/0.0.1-SNAPSHOT</bundle>
+        <bundle>mvn:nl.grons/metrics-scala_2.10/3.0.4</bundle>
    </feature>
 
 </features>

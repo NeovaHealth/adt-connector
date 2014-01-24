@@ -215,11 +215,16 @@
 					<instructions>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Import-Package>
+                            nl.grons.metrics,
+                            nl.grons.metrics.scala,
+                            com.codahale.metrics,
                             ca.uhn.hl7v2,
                             ca.uhn.hl7v2.model,
                             ca.uhn.hl7v2.util,
                             com.tactix4.t4skr,
                             com.tactix4.t4skr.core,
+                            com.tactix4.t4openerp,
+                            com.tactix4.t4openerp.connector,
                             org.apache.camel,
                             org.apache.camel.component.hl7,
                             org.apache.camel.model,
@@ -232,6 +237,7 @@
                             org.springframework.beans.factory.config,
                             org.springframework.scala.beans.propertyeditors,
                             scala,
+                            scala.util,
                             scala.collection,
                             scala.collection.generic,
                             scala.collection.immutable,
