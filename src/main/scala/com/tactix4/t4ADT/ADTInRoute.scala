@@ -14,6 +14,10 @@ import scala.concurrent.duration._
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
 import com.tactix4.t4skr.T4skrConnector
+import com.tactix4.t4ADT.utils.Instrumented
+import com.codahale.metrics.Meter
+import nl.grons.metrics.scala
+import org.apache.camel.Exchange
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -38,7 +42,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val toDateFormat: String,
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
-                 val maximumRedeliveries: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling{
+                 val maximumRedeliveries: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling with Instrumented{
 
 
 
@@ -56,20 +60,21 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   "hl7listener" ==> {
     unmarshal(hl7)
+    process(_ => metrics.meter("AllMessages").mark())
     choice {
       //sort by most common message type?
-      when(_.in(triggerEventHeader) == "A08") process (e => e.in = patientUpdate(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A31") process (e => e.in = patientUpdate(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A28") process (e => e.in = patientNew(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A05") process (e => e.in = patientNew(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A40") process (e => e.in = patientMerge(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A01") process (e => e.in = visitNew(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A02") process (e => e.in = patientTransfer(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A03") process (e => e.in = patientDischarge(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A11") process (e => e.in = visitUpdate(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A12") process (e => e.in = visitUpdate(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A13") process (e => e.in = visitUpdate(e.in[Message]))
-      otherwise process(e =>  throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) )
+      when(_.in(triggerEventHeader) == "A08") process (e => {metrics.meter("A08").mark();e.in =  patientUpdate(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A31") process (e => {metrics.meter("A31").mark();e.in =  patientUpdate(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A28") process (e => {metrics.meter("A28").mark();e.in =  patientNew(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A05") process (e => {metrics.meter("A05").mark();e.in =  patientNew(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A40") process (e => {metrics.meter("A40").mark();e.in =  patientMerge(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A01") process (e => {metrics.meter("A01").mark();e.in =  visitNew(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A02") process (e => {metrics.meter("A02").mark();e.in =  patientTransfer(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A03") process (e => {metrics.meter("A03").mark();e.in =  patientDischarge(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A11") process (e => {metrics.meter("A11").mark();e.in =  visitUpdate(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A12") process (e => {metrics.meter("A12").mark();e.in =  visitUpdate(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A13") process (e => {metrics.meter("A13").mark();e.in =  visitUpdate(e.in[Message])})
+      otherwise process(e =>  {metrics.meter("Unsupported").mark(); throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) })
     }
     marshal(hl7)
     to("rabbitMQSuccess")
@@ -86,10 +91,12 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
     message.generateACK()
   }
+
   def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
     val requiredFields = validateRequiredFields(List("otherId", "oldOtherId"))
     connector.flatMap(_.patientMerge(requiredFields("otherId"), requiredFields("oldOtherId")))
   }
+
   def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
     val i = getIdentifiers
     val w = validateRequiredFields(List("wardId"))
