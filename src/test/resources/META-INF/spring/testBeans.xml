@@ -27,9 +27,6 @@
     <camel:endpoint id="rabbitMQSuccess" uri="mock:rabbitMQSuccess"/>
     <camel:endpoint id="rabbitMQFail" uri="mock:rabbitMQFail"/>
 
-    <camel:endpoint id="mockOpenERPServerCommon" uri="jetty:http://localhost:${port}/xmlrpc/common"/>
-    <camel:endpoint id="mockOpenERPServerObject" uri="jetty:http://localhost:${port}/xmlrpc/object"/>
-
     <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
 
 
@@ -50,6 +47,7 @@
  <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
             <scala-util:map>
+                <entry key="A01" value-ref="a01map"/>
                 <entry key="A28" value-ref="a01map"/>
                 <entry key="A05" value-ref="a01map"/>
                 <entry key="A31" value-ref="a01map"/>
@@ -74,7 +72,6 @@
 
     <camel:camelContext id="camel">
         <camel:routeBuilder ref="adtInRoute"/>
-        <camel:routeBuilder ref="mockOpenERP"/>
     </camel:camelContext>
 
 

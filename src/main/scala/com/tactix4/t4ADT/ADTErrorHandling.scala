@@ -6,7 +6,7 @@ import org.apache.camel.Exchange
 import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
-import com.tactix4.t4wardware.WardwareException
+import com.tactix4.t4skr.T4skrException
 import java.net.ConnectException
 
 /**
@@ -46,11 +46,11 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("rabbitMQFail")
   }.maximumRedeliveries(0).handled
 
-  //handle errors from wardware
-  handle[WardwareException] {
+  //handle errors from t4skr
+  handle[T4skrException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Wardware Exception: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
     to("rabbitMQFail")
   }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
@@ -59,7 +59,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[TimeoutException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Timeout communicating with Wardware: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Timeout communicating with T4skr: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
       )
     })
     to("rabbitMQFail")

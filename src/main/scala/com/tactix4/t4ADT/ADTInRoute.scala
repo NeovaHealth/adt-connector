@@ -4,13 +4,7 @@ import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception, ErrorCode}
 import ca.uhn.hl7v2.model.Message
-import org.apache.camel.{CamelExecutionException, Exchange}
-import java.util.concurrent.TimeoutException
-import com.tactix4.t4wardware.WardwareException
-import java.net.ConnectException
-
 import scala.util.control.Exception._
 
 import scala.concurrent.{Await, Future}
@@ -19,14 +13,13 @@ import scala.concurrent.duration._
 
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
-import scala.util.{Failure, Success}
-import scala.collection.mutable.HashMap
+import com.tactix4.t4skr.T4skrConnector
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
  * via the mina2 component, validating them, then calling the associated
- * wardwareConnetor methods and returning an appropriate ack
- * Note: we block on the async wardwareConnector methods because the mina connection
+ * t4skrConnetor methods and returning an appropriate ack
+ * Note: we block on the async t4skrConnector methods because the mina connection
  * is synchronous
  */
 
@@ -51,14 +44,15 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   val fromDateTimeFormat = DateTimeFormat.forPattern(fromDateFormat)
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
-  val datesToParse = List("dob")
-  lazy val connector = new WardwareConnector(protocol, host, port).startSession(username,password,database)
+  val datesToParse = List("dob","visitStartDateTime")
+  val connector = new T4skrConnector(protocol, host, port).startSession(username,password,database).map(s => {s.openERPSession.context.setTimeZone("Europe/London"); s})
+
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
 
 
-  //stick all the messages that generate errors onto the fail queue
+
 
   "hl7listener" ==> {
     unmarshal(hl7)
@@ -80,7 +74,6 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     marshal(hl7)
     to("rabbitMQSuccess")
   }
-  
 
   def extract(f : Terser => Map[String,String] => Future[_]) (implicit message:Message): Message = {
 
@@ -124,7 +117,6 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
     connector.flatMap(_.visitNew(getIdentifiers,requiredFields("wardId"), requiredFields("visitId"), requiredFields("visitStartDateTime")))
   }
-  def visitUpdate(m:Message) = ???
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>
     Future.successful()

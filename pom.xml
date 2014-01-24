@@ -4,9 +4,9 @@
     <groupId>com.tactix4</groupId>
     <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
-    <description>Tactix4 Wardware ADT</description>
+    <description>Tactix4 T4skr ADT</description>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Tactix4 Wardware ADT</name>
+    <name>Tactix4 T4skr ADT</name>
     <organization>
         <name>com.tactix4</name>
     </organization>
@@ -20,7 +20,7 @@
         <scala-version>2.10.2</scala-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.3</scalaz-version>
-        <wardware-connector-version>1.0-SNAPSHOT</wardware-connector-version>
+        <t4skr-connector-version>1.0-SNAPSHOT</t4skr-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.0.2</typesafe-config-version>
@@ -85,8 +85,8 @@
         </dependency>
         <dependency>
             <groupId>com.tactix4</groupId>
-            <artifactId>t4wardware-connector_2.10</artifactId>
-            <version>${wardware-connector-version}</version>
+            <artifactId>t4skr-connector_2.10</artifactId>
+            <version>${t4skr-connector-version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>
@@ -213,8 +213,8 @@
                             ca.uhn.hl7v2,
                             ca.uhn.hl7v2.model,
                             ca.uhn.hl7v2.util,
-                            com.tactix4.t4wardware,
-                            com.tactix4.t4wardware.core,
+                            com.tactix4.t4skr,
+                            com.tactix4.t4skr.core,
                             org.apache.camel,
                             org.apache.camel.component.hl7,
                             org.apache.camel.model,
