@@ -19,8 +19,8 @@ import scala.concurrent.duration._
 
 import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
-import com.tactix4.t4wardware.WardwareConnector
 import scala.util.{Failure, Success}
+import scala.collection.mutable.HashMap
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -58,7 +58,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   hl7.setValidate(false)
 
 
-
+  //stick all the messages that generate errors onto the fail queue
 
   "hl7listener" ==> {
     unmarshal(hl7)
@@ -80,6 +80,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     marshal(hl7)
     to("rabbitMQSuccess")
   }
+  
 
   def extract(f : Terser => Map[String,String] => Future[_]) (implicit message:Message): Message = {
 
@@ -123,6 +124,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
     connector.flatMap(_.visitNew(getIdentifiers,requiredFields("wardId"), requiredFields("visitId"), requiredFields("visitStartDateTime")))
   }
+  def visitUpdate(m:Message) = ???
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>
     Future.successful()
