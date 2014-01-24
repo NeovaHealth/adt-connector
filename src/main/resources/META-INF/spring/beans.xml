@@ -23,10 +23,7 @@
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
-
-
-    <camel:endpoint id="hl7listener" uri="mina2:tcp://0.0.0.0:8888?sync=true&amp;codec=#hl7codec"/>
-
+   <camel:endpoint id="hl7listener" uri="mina2:tcp://10.10.170.22:8888?sync=true&amp;codec=#hl7codec"/>
 
     <camel:endpoint id="rabbitMQSuccess" uri="mock:success"/>
     <!--//"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.successQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->

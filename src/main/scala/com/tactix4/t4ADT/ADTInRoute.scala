@@ -70,7 +70,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       when(_.in(triggerEventHeader) == "A05") process (e => e.in = patientNew(e.in[Message]))
       when(_.in(triggerEventHeader) == "A40") process (e => e.in = patientMerge(e.in[Message]))
       when(_.in(triggerEventHeader) == "A01") process (e => e.in = visitNew(e.in[Message]))
-      when(_.in(triggerEventHeader) == "A02") process (e => e.in = visitUpdate(e.in[Message]))
+      when(_.in(triggerEventHeader) == "A02") process (e => e.in = patientTransfer(e.in[Message]))
       when(_.in(triggerEventHeader) == "A03") process (e => e.in = patientDischarge(e.in[Message]))
       when(_.in(triggerEventHeader) == "A11") process (e => e.in = visitUpdate(e.in[Message]))
       when(_.in(triggerEventHeader) == "A12") process (e => e.in = visitUpdate(e.in[Message]))
@@ -92,10 +92,14 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
     message.generateACK()
   }
-
   def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
     val requiredFields = validateRequiredFields(List("otherId", "oldOtherId"))
     connector.flatMap(_.patientMerge(requiredFields("otherId"), requiredFields("oldOtherId")))
+  }
+  def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
+    val i = getIdentifiers
+    val w = validateRequiredFields(List("wardId"))
+    connector.flatMap(_.patientTransfer(i,w("wardId")))
   }
 
   def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit map =>
