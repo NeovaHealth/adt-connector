@@ -223,8 +223,6 @@
                             ca.uhn.hl7v2.util,
                             com.tactix4.t4skr,
                             com.tactix4.t4skr.core,
-                            com.tactix4.t4openerp,
-                            com.tactix4.t4openerp.connector,
                             org.apache.camel,
                             org.apache.camel.component.hl7,
                             org.apache.camel.model,

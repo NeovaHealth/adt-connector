@@ -2,22 +2,19 @@ package com.tactix4.t4ADT
 
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.model.dataformat.HL7DataFormat
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import ca.uhn.hl7v2.util.Terser
 import ca.uhn.hl7v2.model.Message
-import scala.util.control.Exception._
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.control.Exception._
 
-
-import ca.uhn.hl7v2.util.Terser
 import org.joda.time.format.DateTimeFormat
+
 import com.tactix4.t4skr.T4skrConnector
 import com.tactix4.t4ADT.utils.Instrumented
-import com.codahale.metrics.Meter
-import nl.grons.metrics.scala
-import org.apache.camel.Exchange
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -49,7 +46,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   val fromDateTimeFormat = DateTimeFormat.forPattern(fromDateFormat)
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
   val datesToParse = List("dob","visitStartDateTime")
-  val connector = new T4skrConnector(protocol, host, port).startSession(username,password,database).map(s => {s.openERPSession.context.setTimeZone("Europe/London"); s})
+  val connector = new T4skrConnector(protocol, host, port).startSession(username,password,database)//.map(s => {s.openERPSession.context.setTimeZone("Europe/London"); s})
 
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
