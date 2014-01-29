@@ -52,6 +52,13 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
 
+  val patientUpdateTimer = metrics.timer("patientUpdate")
+  val patientNewTimer = metrics.timer("patientNew")
+  val patientMergeTimer = metrics.timer("patientMerge")
+  val visitNewTimer = metrics.timer("visitNew")
+  val visitUpdateTimer = metrics.timer("visitUpdate")
+  val patientTransferTimer = metrics.timer("patientTransfer")
+  val patientDischargeTimer = metrics.timer("patientDischarge")
 
 
 
@@ -60,17 +67,17 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     process(_ => metrics.meter("AllMessages").mark())
     choice {
       //sort by most common message type?
-      when(_.in(triggerEventHeader) == "A08") process (e => {metrics.meter("A08").mark();e.in =  patientUpdate(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A31") process (e => {metrics.meter("A31").mark();e.in =  patientUpdate(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A28") process (e => {metrics.meter("A28").mark();e.in =  patientNew(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A05") process (e => {metrics.meter("A05").mark();e.in =  patientNew(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A40") process (e => {metrics.meter("A40").mark();e.in =  patientMerge(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A01") process (e => {metrics.meter("A01").mark();e.in =  visitNew(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A02") process (e => {metrics.meter("A02").mark();e.in =  patientTransfer(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A03") process (e => {metrics.meter("A03").mark();e.in =  patientDischarge(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A11") process (e => {metrics.meter("A11").mark();e.in =  visitUpdate(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A12") process (e => {metrics.meter("A12").mark();e.in =  visitUpdate(e.in[Message])})
-      when(_.in(triggerEventHeader) == "A13") process (e => {metrics.meter("A13").mark();e.in =  visitUpdate(e.in[Message])})
+      when(_.in(triggerEventHeader) == "A08") process (e => {metrics.meter("A08").mark();patientUpdateTimer.time {e.in =  patientUpdate(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A31") process (e => {metrics.meter("A31").mark();patientUpdateTimer.time {e.in =  patientUpdate(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A28") process (e => {metrics.meter("A28").mark();e.in =  patientNewTimer.time {patientNew(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A05") process (e => {metrics.meter("A05").mark();patientNewTimer.time {e.in =  patientNew(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A40") process (e => {metrics.meter("A40").mark();patientMergeTimer.time{e.in =  patientMerge(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A01") process (e => {metrics.meter("A01").mark();visitNewTimer.time{e.in =  visitNew(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A02") process (e => {metrics.meter("A02").mark();patientTransferTimer.time{e.in =  patientTransfer(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A03") process (e => {metrics.meter("A03").mark();patientDischargeTimer.time{e.in =  patientDischarge(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A11") process (e => {metrics.meter("A11").mark();visitUpdateTimer.time{e.in =  visitUpdate(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A12") process (e => {metrics.meter("A12").mark();visitUpdateTimer.time{e.in =  visitUpdate(e.in[Message])}})
+      when(_.in(triggerEventHeader) == "A13") process (e => {metrics.meter("A13").mark();visitUpdateTimer.time{e.in =  visitUpdate(e.in[Message])}})
       otherwise process(e =>  {metrics.meter("Unsupported").mark(); throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader)) })
     }
     marshal(hl7)
@@ -78,7 +85,6 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   }
 
   def extract(f : Terser => Map[String,String] => Future[_]) (implicit message:Message): Message = {
-
     implicit val terser = new Terser(message)
     implicit val mappings = getMappings(terser, terserMap)
 

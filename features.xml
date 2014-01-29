@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<features name="Tactix4">
+<features xmlns="http://karaf.apache.org/xmlns/features/v1.2.0" name="Tactix4">
     <feature name="Tactix4 ADT" version="1.0">
         <feature>spring</feature>
         <feature version="2.12.2">camel-scala</feature>
