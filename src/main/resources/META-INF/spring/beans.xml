@@ -57,7 +57,7 @@
         <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
     </bean>
-    <camel:camelContext id="myCamel" managementNamePattern="#name#">
+    <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
 
