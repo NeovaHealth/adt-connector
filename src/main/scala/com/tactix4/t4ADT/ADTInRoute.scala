@@ -108,7 +108,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit map =>
     val i = getIdentifiers
-    val o = validateAllOptionalFields
+    val o = validateAllOptionalFields(i)
     connector.flatMap(_.patientUpdate(i,o))
   }
 
@@ -119,7 +119,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
     val i = getIdentifiers
-    val o = validateAllOptionalFields
+    val o = validateAllOptionalFields(i)
     connector.flatMap(_.patientNew(i,o))
   }
 

@@ -84,8 +84,8 @@ trait ADTProcessing {
     rs.toMap
   }
 
-  def validateAllOptionalFields(implicit mappings: Map[String,String], terser: Terser): Map[String, String] = {
-   validateOptionalFields(getOptionalFields).toMap
+  def validateAllOptionalFields(requiredFields: Map[String,String])(implicit mappings: Map[String,String], terser: Terser): Map[String, String] = {
+   validateOptionalFields(getOptionalFields(requiredFields)).toMap
   }
 
   def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): mutable.HashMap[String, String] = {
@@ -97,7 +97,7 @@ trait ADTProcessing {
     opts
   }
 
-  def getOptionalFields(implicit mappings:Map[String,String], requiredFields: Map[String,String]): List[String] = {
+  def getOptionalFields(requiredFields: Map[String,String])(implicit mappings:Map[String,String]): List[String] = {
     (mappings.keySet diff requiredFields.keySet).toList
   }
 
