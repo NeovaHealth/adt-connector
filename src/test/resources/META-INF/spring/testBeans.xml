@@ -36,6 +36,11 @@
         </constructor-arg>
     </bean>
 
+    <bean id="a31map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:ADT_A31.properties"/>
+        </constructor-arg>
+    </bean>
 
     <bean id="a40map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
@@ -50,7 +55,7 @@
                 <entry key="A01" value-ref="a01map"/>
                 <entry key="A28" value-ref="a01map"/>
                 <entry key="A05" value-ref="a01map"/>
-                <entry key="A31" value-ref="a01map"/>
+                <entry key="A31" value-ref="a31map"/>
                 <entry key="A08" value-ref="a01map"/>
                 <entry key="A03" value-ref="a01map"/>
                 <entry key="A40" value-ref="a40map"/>
