@@ -5,67 +5,68 @@ package com.tactix4.t4ADT
  * @author max@tactix4.com
  * Date: 26/09/13
  */
-
-import org.junit.Test
+import org.junit.{FixMethodOrder, Test}
 import scala.util.Random
+import org.junit.runners.MethodSorters
 
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class PatientNewUpdateMergeDischargeTest extends ADTTest{
 
 
   @Test
-  def testA28(){
+  def atestA28(){
     log.info("sending patientNew with ADT_A28 : id: " + TestVars.patientOneId)
     sendMessageAndExpectResponse(TestVars.patientNewADT28, "MSA|AA|")
   }
   @Test
-  def testA05{
+  def btestA05{
     log.info("sending patientNew with ADT_A05 : id: " + TestVars.patientTwoId)
     sendMessageAndExpectResponse(TestVars.patientNewADT05, "MSA|AA|")
   }
   @Test
-  def testA08{
+  def ctestA08{
     log.info("updating patientTwo")
     sendMessageAndExpectResponse(TestVars.patientUpdateADT_08, "MSA|AA|")
   }
   @Test
-  def testA31{
+  def dtestA31{
     log.info("updating patientOne")
     sendMessageAndExpectResponse(TestVars.patientUpdateADT_31, "MSA|AA|")
   }
   @Test
-  def testA40{
+  def etestA40{
     log.info("merge patientOne into patientTwo")
     sendMessageAndExpectResponse(TestVars.patientMerge, "MSA|AA|")
   }
   @Test
-  def testA01{
+  def ftestA01{
     log.info("new visit for patientTwo")
     sendMessageAndExpectResponse(TestVars.visitNew, "MSA|AA|")
   }
   @Test
-  def testA03 {
+  def gtestA03 {
     log.info("discharge patientTwo")
     sendMessageAndExpectResponse(TestVars.patientDischarge, "MSA|AA|")
   }
 
   @Test
-  def fail28{
+  def hfail28{
     sendMessageAndExpectError(TestVars.patientNewADT28No_Identity, "Required field missing")
   }
   @Test
-  def fail05{
+  def ifail05{
     sendMessageAndExpectError(TestVars.patientNewADT05No_Identity, "Required field missing")
   }
   @Test
-  def fail08{
+  def jfail08{
     sendMessageAndExpectError(TestVars.patientUpdateADTNo_Identity_08, "Required field missing")
   }
   @Test
-  def fail31{
+  def kfail31{
     sendMessageAndExpectError(TestVars.patientUpdateADTNo_Identity_31, "Required field missing")
   }
   @Test
-  def fail40{
+  def lfail40{
     sendMessageAndExpectError(TestVars.patientMergeADTNo_Identifier, "Required field missing")
   }
 
