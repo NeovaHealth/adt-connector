@@ -44,7 +44,6 @@ trait ADTProcessing {
       (value: String) => value
     )
 
-
   }
 
   /**
@@ -105,6 +104,9 @@ trait ADTProcessing {
     getMessageTypeMap(terserMap, getMessageType(terser))
   }
 
+  def getIdentifier(implicit mappings:Map[String,String],terser:Terser): String = {
+      validateRequiredFields(List("otherId")).apply("otherId")
+  }
 
   def getIdentifiers(implicit mappings:Map[String,String],terser:Terser): Map[String, String] = {
     val identifiers = validateOptionalFields(List("patientId", "otherId"))(mappings, terser)

@@ -15,6 +15,16 @@
         <property name="location" value="file:src/test/resources/com.tactix4.t4ADT.properties"/>
     </bean>
 
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="driverClassName" value="org.postgresql.Driver"/>
+        <property name="url" value="jdbc:postgresql://localhost:5740/t4skr"/>
+        <property name="username" value="max"/>
+        <property name="password" value="max"/>
+    </bean>
+
+    <bean id="sql" class="org.apache.camel.component.sql.SqlComponent">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
     <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
         <property name="propertyEditorRegistrars">
             <bean class="org.springframework.scala.beans.propertyeditors.ScalaEditorRegistrar"/>

@@ -2,13 +2,14 @@
 <features xmlns="http://karaf.apache.org/xmlns/features/v1.2.0" name="Tactix4">
     <feature name="Tactix4 ADT" version="1.0">
         <feature>spring</feature>
-        <feature version="2.12.2">camel-scala</feature>
-        <feature version="2.12.2">camel-hl7</feature>
-		<feature version="2.12.2">camel-mina2</feature>
-		<feature version="2.12.2">camel-spring</feature>
-        <bundle>mvn:org.scalaz/scalaz-core_2.10/7.0.3</bundle>
-        <bundle>mvn:org.scalaz/scalaz-concurrent_2.10/7.0.3</bundle>
-        <bundle>mvn:org.scalaz/scalaz-effect_2.10/7.0.3</bundle>
+        <feature version="2.12.3">camel-scala</feature>
+        <feature version="2.12.3">camel-hl7</feature>
+		<feature version="2.12.3">camel-mina2</feature>
+		<feature version="2.12.3">camel-spring</feature>
+        <feature version="2.12.3">camel-sql</feature>
+        <bundle>mvn:org.scalaz/scalaz-core_2.10/7.0.5</bundle>
+        <bundle>mvn:org.scalaz/scalaz-concurrent_2.10/7.0.5</bundle>
+        <bundle>mvn:org.scalaz/scalaz-effect_2.10/7.0.5</bundle>
         <bundle>wrap:mvn:com.typesafe/scalalogging-slf4j_2.10/1.0.1</bundle>
         <bundle>mvn:com.ning/async-http-client/1.7.16</bundle>
         <bundle>wrap:mvn:net.databinder.dispatch/dispatch-core_2.10/0.11.0</bundle>
@@ -22,6 +23,9 @@
         <bundle>mvn:com.codahale.metrics/metrics-core/3.0.1</bundle>
         <bundle>mvn:com.codahale.metrics/metrics-healthchecks/3.0.1</bundle>
         <bundle>wrap:mvn:nl.grons/metrics-scala_2.10/3.0.4</bundle>
+        <bundle>mvn:commons-dbcp/commons-dbcp/1.4</bundle>
+        <bundle>mvn:commons-pool/commons-pool/1.4</bundle>
+        <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.postgresql/9.3-1100-jdbc41_1</bundle>
         <bundle>mvn:com.tactix4/t4adt_2.10/0.0.1-SNAPSHOT</bundle>
    </feature>
 

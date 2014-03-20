@@ -18,6 +18,7 @@
         <!--dependency versions -->
         <camel-version>2.12.3</camel-version>
         <scala-version>2.10.2</scala-version>
+        <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.3</scalaz-version>
         <t4skr-connector-version>1.0-SNAPSHOT</t4skr-connector-version>
@@ -31,7 +32,7 @@
         <karaf-feature-plugin-version>2.2.8</karaf-feature-plugin-version>
         <maven-resources-plugin-version>2.4.3</maven-resources-plugin-version>
         <maven-bundle-plugin-version>2.2.0</maven-bundle-plugin-version>
-        <maven-scala-plugin-version>3.1.5</maven-scala-plugin-version>
+        <maven-scala-plugin-version>3.1.6</maven-scala-plugin-version>
 
     </properties>
 
@@ -65,13 +66,18 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-rabbitmq</artifactId>
+            <artifactId>camel-sql</artifactId>
             <version>${camel-version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-spring</artifactId>
             <version>${camel-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-dbcp</groupId>
+            <artifactId>commons-dbcp</artifactId>
+            <version>${commons-dbcp-version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -122,6 +128,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.0.13</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
             <version>3.1.4.RELEASE</version>
@@ -129,39 +140,42 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.scala</groupId>
-            <artifactId>spring-scala</artifactId>
-            <version>1.0.0.M2</version>
+            <artifactId>spring-scala_2.10</artifactId>
+            <version>1.0.0.RC1</version>
+         </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>9.3-1101-jdbc41</version>
         </dependency>
 
 	</dependencies>
-	<repositories> 
-		<repository>
-            <id>apachepublicrepo</id>
-            <name>apache public repo</name>
-            <url>http://repository.apache.org/content/groups/ea/</url>
-            <layout>default</layout>
-        </repository>
-        <repository>
-            <id>fusesourcerepo</id>
-            <name>fusesource repo</name>
-            <url>http://repo.fusesource.com/nexus/content/groups/ea/</url>
-            <layout>default</layout>
-        </repository>
+	<repositories>
         <repository>
             <id>springframeworkmilestonerepo</id>
             <name>springframework milestone repo</name>
             <url>http://repo.springsource.org/milestone/</url>
             <layout>default</layout>
         </repository>
+        <repository>
+            <id>artifactory-releases</id>
+            <name>artifactory release repo</name>
+            <url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
+        </repository>
+        <repository>
+            <id>artifactory-snapshots</id>
+            <name>artifactory snapshot repo</name>
+            <url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
+        </repository>
 	</repositories>
 	<distributionManagement>
 		<repository>
-			<id>central</id>
+			<id>artifactory-releases</id>
 			<name>Tactix4 Release Repo</name>
 			<url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
 		</repository>
 		<snapshotRepository>
-			<id>snapshots</id>
+			<id>artifactory-snapshots</id>
 			<name>Tactix4 Snapshot Repo</name>
 			<url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
 		</snapshotRepository>
@@ -230,10 +244,14 @@
                             org.apache.camel.scala,
                             org.apache.camel.scala.dsl,
                             org.apache.camel.scala.dsl.builder,
+                            org.apache.camel.component.sql,
+                            org.apache.camel.processor.idempotent.jdbc,
+                            org.postgresql,
                             org.joda.time,
                             org.joda.time.format,
                             org.springframework.beans.factory.config,
                             org.springframework.scala.beans.propertyeditors,
+                            org.apache.commons.dbcp,
                             scala,
                             scala.util,
                             scala.collection,

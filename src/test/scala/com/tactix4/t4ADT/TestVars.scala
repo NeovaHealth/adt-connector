@@ -8,7 +8,7 @@ import scala.util.Random
  */
 object TestVars {
   final val patientOneId = Random.nextInt().abs
-  val PID1 = "PID|1|^^^^PAS||" + patientOneId + "|DUMMY^PATIENT HEIDI^^^Miss||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
+  val PID1 = "PID|1|^^^^PAS||D2014280^\"\"^^RDD^HOSP~652 639 8685^NSTS01^^NHS^NHS~QD1320147-1^^^RDD^EVO|DUMMY^PATIENT HEIDI^^^Miss||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
   final val patientTwoId = Random.nextInt().abs
   val PID2 = "PID|1|^^^^PAS||" + patientTwoId + "|DUMMY^PATIENT HEIDI^^^Ms||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
 

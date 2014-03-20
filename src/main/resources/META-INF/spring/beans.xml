@@ -3,11 +3,9 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:util="http://www.springframework.org/schema/util"
        xmlns:camel="http://camel.apache.org/schema/spring"
-       xmlns:scala-util="http://www.springframework.org/schema/scala/util"
        xsi:schemaLocation="
 		http://www.springframework.org/schema/util  http://www.springframework.org/schema/util/spring-util-3.0.xsd
 	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-	    http://www.springframework.org/schema/scala/util http://www.springframework.org/schema/scala/util/scala-util.xsd
     http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
 
 
@@ -23,7 +21,25 @@
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
-   <camel:endpoint id="hl7listener" uri="mina2:tcp://${adtListenAddress}:${adtListenPort}?sync=true&amp;codec=#hl7codec"/>
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="driverClassName" value="org.postgresql.Driver"/>
+        <property name="url" value="jdbc:postgresql://localhost:5740/t4skr"/>
+        <property name="username" value="max"/>
+        <property name="password" value="max"/>
+    </bean>
+
+    <bean id="sql" class="org.apache.camel.component.sql.SqlComponent">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <bean id="messageIdRepo" class="com.tactix4.t4ADT.utils.T4skrMessageRepository">
+        <constructor-arg ref="dataSource" />
+        <constructor-arg value="t4ADT_processor" />
+        <property name="tableName" value="T4SKR_MSGID_REPO" />
+    </bean>
+
+  <!-- bean which creates/destroys the database table for this example -->
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adtListenAddress}:${adtListenPort}?sync=true&amp;codec=#hl7codec"/>
 
     <camel:endpoint id="rabbitMQSuccess" uri="mock:success"/>
     <!--//"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.successQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->
@@ -32,7 +48,7 @@
 
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
-            <scala-util:map>
+            <map>
                 <entry key="A01" value-ref="a01map"/>
                 <entry key="A11" value-ref="a11map"/>
                 <entry key="A02" value-ref="a02map"/>
@@ -43,7 +59,7 @@
                 <entry key="A28" value-ref="a28map"/>
                 <entry key="A31" value-ref="a31map"/>
                 <entry key="A40" value-ref="a40map"/>
-            </scala-util:map>
+            </map>
         </constructor-arg>
         <constructor-arg name="protocol" value="${protocol}"/>
         <constructor-arg name="host" value="${hostname}"/>
@@ -56,6 +72,7 @@
         <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
         <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
+        <constructor-arg name="msgStoreTableName" value="${msgStoreTableName}"/>
     </bean>
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>

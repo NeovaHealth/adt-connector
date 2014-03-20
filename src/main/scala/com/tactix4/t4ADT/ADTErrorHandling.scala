@@ -76,4 +76,12 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("rabbitMQFail")
   }.handled
 
+  handle[ADTDuplicateMessageException] {
+    transform(e =>{
+      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(exception.getCause.getMessage,ErrorCode.DUPLICATE_KEY_IDENTIFIER))
+    })
+    to("rabbitMQFail")
+  }.handled
+
 }
