@@ -96,7 +96,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     r
   }
 
-  def matchMsg(t:String) = when(_.in(triggerEventHeader) == t) process(
+  def handleMessageType(t:String) = when(_.in(triggerEventHeader) == t) process(
     e => {
       metrics.meter(t).mark()
       e.setProperty("PatientAlreadyExists",patientExists(terser("PID-3-1").evaluate(e,classOf[String])))
@@ -116,29 +116,29 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     )(this) {
       process(e => e.getIn.setHeader("msgBody",e.getIn.getBody.toString))
       process(e => e.getIn.setHeader("origMessage",e.in[Message]))
-      when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) process(e => throw new ADTDuplicateMessageException())
+      when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) process(e => throw new ADTDuplicateMessageException("Duplicate Message"))
       choice {
-        matchMsg("A08")
-        matchMsg("A31")
-        matchMsg("A28")
-        matchMsg("A05")
-        matchMsg("A40")
-        matchMsg("A01")
-        matchMsg("A02")
-        matchMsg("A03")
-        matchMsg("A11")
-        matchMsg("A12")
-        matchMsg("A13")
+        handleMessageType("A08")
+        handleMessageType("A31")
+        handleMessageType("A28")
+        handleMessageType("A05")
+        handleMessageType("A40")
+        handleMessageType("A01")
+        handleMessageType("A02")
+        handleMessageType("A03")
+        handleMessageType("A11")
+        handleMessageType("A12")
+        handleMessageType("A13")
         otherwise process(e =>  {
           metrics.meter("Unsupported").mark()
           throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader))
         })
       }
-      wireTap("direct:update")
-      to(s"sql:insert into $msgStoreTableName (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)")
+      wireTap("seda:update")
+      to("msgHistory")
     }
   }
-  "direct:update" ==> {
+  "seda:update" ==> {
     when(_.getProperty("PatientAlreadyExists") == false)  process(e => {
       val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
       val t = new Terser(msg)

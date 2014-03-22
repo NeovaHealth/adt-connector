@@ -8,19 +8,24 @@
 	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
     http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
 
-
+     <!--Configuration-->
     <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="location" value="file:etc/tactix4/com.tactix4.t4ADT.properties"/>
     </bean>
-
     <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
         <property name="propertyEditorRegistrars">
             <bean class="org.springframework.scala.beans.propertyeditors.ScalaEditorRegistrar"/>
         </property>
     </bean>
+     <!---->
 
+    <!--HL7 Listener-->
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
+    <!---->
+
+    <!--SQL -->
     <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
         <property name="driverClassName" value="org.postgresql.Driver"/>
         <property name="url" value="jdbc:postgresql://${sql_host}:${sql_port}/${sql_database_name}"/>
@@ -37,11 +42,12 @@
         <constructor-arg value="t4ADT_processor" />
     </bean>
 
-  <!-- bean which creates/destroys the database table for this example -->
-    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="failMsgHistory" uri="sql:insert into ${fail_msg_store_table} (id, type, timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>
 
-    <camel:endpoint id="rabbitMQFail" uri="sql:insert into ${fail_msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>
+    <camel:endpoint id="msgHistory" uri="sql:insert into ${msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>
+    <!---->
 
+    <!--Route injection-->
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
             <map>
@@ -70,10 +76,15 @@
         <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
         <constructor-arg name="msgStoreTableName" value="${msg_store_table}"/>
     </bean>
+    <!---->
+
+    <!--Context-->
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
+    <!---->
 
+    <!--Utility beans-->
     <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
        <constructor-arg>
            <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_DATES.properties"/>
@@ -131,4 +142,5 @@
             <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_A40.properties"/>
         </constructor-arg>
     </bean>
+    <!---->
 </beans>
