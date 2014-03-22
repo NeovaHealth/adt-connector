@@ -18,12 +18,18 @@ trait ADTErrorHandling extends  Preamble with DSL {
   val redeliveryDelay:Long
   val maximumRedeliveries:Int
 
+  def getExceptionMessage(e:Exception):String = {
+    val c = e.getCause
+    if(c != null) c.getMessage()
+    else e.getMessage()
+  }
+
    //handle all exceptions for debugging
   handle[ConnectException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
       println("Connect Exception")
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Connect Exception: "  + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR))
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Connect Exception: "  + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR))
      })
     to("rabbitMQFail")
   }.maximumRedeliveries(0).handled
@@ -32,7 +38,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[ADTFieldException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Validation Error: "  + exception.getCause.getMessage, ErrorCode.REQUIRED_FIELD_MISSING))
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Validation Error: "  + getExceptionMessage(exception), ErrorCode.REQUIRED_FIELD_MISSING))
      })
     to("rabbitMQFail")
   }.maximumRedeliveries(0).handled
@@ -41,7 +47,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[ADTApplicationException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Internal Application Error: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Internal Application Error: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
     to("rabbitMQFail")
   }.maximumRedeliveries(0).handled
@@ -50,7 +56,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[T4skrException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
     to("rabbitMQFail")
   }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
@@ -59,7 +65,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[TimeoutException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Timeout communicating with T4skr: " + exception.getCause.getMessage, ErrorCode.APPLICATION_INTERNAL_ERROR)
+      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Timeout communicating with T4skr: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
       )
     })
     to("rabbitMQFail")
@@ -70,7 +76,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[ADTUnsupportedMessageException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(exception.getCause.getMessage, ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+      e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
     }
     )
     to("rabbitMQFail")
@@ -79,7 +85,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
   handle[ADTDuplicateMessageException] {
     transform(e =>{
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(exception.getCause.getMessage,ErrorCode.DUPLICATE_KEY_IDENTIFIER))
+      e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.DUPLICATE_KEY_IDENTIFIER))
     })
     to("rabbitMQFail")
   }.handled

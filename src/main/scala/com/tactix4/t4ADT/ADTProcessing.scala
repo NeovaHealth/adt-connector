@@ -17,7 +17,8 @@ trait ADTProcessing {
   val fromDateTimeFormat:DateTimeFormatter
   val toDateTimeFormat:DateTimeFormatter
   val datesToParse:List[String]
-
+  val hosptialNumber = "other_identifier"
+  val oldHospitalNumber = "old_other_identifier"  
   /**
    * query a terser object for a specified path
    * @param s the terser path
@@ -104,13 +105,8 @@ trait ADTProcessing {
     getMessageTypeMap(terserMap, getMessageType(terser))
   }
 
-  def getIdentifier(implicit mappings:Map[String,String],terser:Terser): String = {
-      validateRequiredFields(List("otherId")).apply("otherId")
+  def getHospitalNumber(implicit mappings:Map[String,String],terser:Terser): String = {
+      validateRequiredFields(List(hosptialNumber)).apply(hosptialNumber)
   }
 
-  def getIdentifiers(implicit mappings:Map[String,String],terser:Terser): Map[String, String] = {
-    val identifiers = validateOptionalFields(List("patientId", "otherId"))(mappings, terser)
-    if(identifiers.isEmpty) throw new ADTFieldException("Identifier not found in message")
-    else identifiers.toMap
-  }
 }

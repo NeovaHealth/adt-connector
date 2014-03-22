@@ -17,10 +17,10 @@
 
         <!--dependency versions -->
         <camel-version>2.12.3</camel-version>
-        <scala-version>2.10.2</scala-version>
+        <scala-version>2.10.3</scala-version>
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
-        <scalaz-version>7.0.3</scalaz-version>
+        <scalaz-version>7.0.5</scalaz-version>
         <t4skr-connector-version>1.0-SNAPSHOT</t4skr-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
@@ -229,6 +229,7 @@
 					<instructions>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Import-Package>
+                            javax.sql,
                             nl.grons.metrics,
                             nl.grons.metrics.scala,
                             com.codahale.metrics,
@@ -238,6 +239,7 @@
                             com.tactix4.t4skr,
                             com.tactix4.t4skr.core,
                             org.apache.camel,
+                            org.apache.camel.builder,
                             org.apache.camel.component.hl7,
                             org.apache.camel.model,
                             org.apache.camel.model.dataformat,

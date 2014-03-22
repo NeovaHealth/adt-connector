@@ -16,4 +16,11 @@ object SpringHelper {
     }
     m.toMap
   }
+  def propertiesToList(p:java.util.Properties): List[String] = {
+    val l = scala.collection.mutable.MutableList[String]()
+    for( n : String <- p.stringPropertyNames){
+      l += p.getProperty(n)
+    }
+    l.toList
+  }
 }

@@ -23,28 +23,24 @@
 
     <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
         <property name="driverClassName" value="org.postgresql.Driver"/>
-        <property name="url" value="jdbc:postgresql://localhost:5740/t4skr"/>
-        <property name="username" value="max"/>
-        <property name="password" value="max"/>
+        <property name="url" value="jdbc:postgresql://${sql_host}:${sql_port}/${sql_database_name}"/>
+        <property name="username" value="${sql_database_username}"/>
+        <property name="password" value="${sql_database_password}"/>
     </bean>
 
     <bean id="sql" class="org.apache.camel.component.sql.SqlComponent">
         <property name="dataSource" ref="dataSource"/>
     </bean>
 
-    <bean id="messageIdRepo" class="com.tactix4.t4ADT.utils.T4skrMessageRepository">
+    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.jdbc.JdbcMessageIdRepository">
         <constructor-arg ref="dataSource" />
         <constructor-arg value="t4ADT_processor" />
-        <property name="tableName" value="T4SKR_MSGID_REPO" />
     </bean>
 
   <!-- bean which creates/destroys the database table for this example -->
-    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adtListenAddress}:${adtListenPort}?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
 
-    <camel:endpoint id="rabbitMQSuccess" uri="mock:success"/>
-    <!--//"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.successQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->
-    <camel:endpoint id="rabbitMQFail" uri="mock:fail"/>
-    <!--"rabbitmq://${rabbitmq.host}:${rabbitmq.port}/${rabbitmq.failQueue}?username=${rabbitmq.username}&amp;password=${rabbitmq.password}"/>-->
+    <camel:endpoint id="rabbitMQFail" uri="sql:insert into ${fail_msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>
 
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
@@ -67,16 +63,23 @@
         <constructor-arg name="username" value="${username}"/>
         <constructor-arg name="password" value="${password}"/>
         <constructor-arg name="database" value="${database}"/>
-        <constructor-arg name="fromDateFormat" value="${fromDateFormat}"/>
-        <constructor-arg name="toDateFormat" value="${toDateFormat}"/>
-        <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
-        <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
-        <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
-        <constructor-arg name="msgStoreTableName" value="${msgStoreTableName}"/>
+        <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
+        <constructor-arg name="toDateFormat" value="${to_date_format}"/>
+        <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
+        <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
+        <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
+        <constructor-arg name="msgStoreTableName" value="${msg_store_table}"/>
     </bean>
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
+
+    <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+       <constructor-arg>
+           <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_DATES.properties"/>
+       </constructor-arg>
+    </bean>
+
 
     <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>

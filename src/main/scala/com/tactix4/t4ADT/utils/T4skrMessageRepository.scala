@@ -15,18 +15,30 @@ class T4skrMessageRepository(d: DataSource, name: String) extends JdbcMessageIdR
 
   @BeanProperty
   var tableName = "T4SKR_MSG_REPO"
-  @BeanProperty
-  override var createTableIfNotExists = true
-  @BeanProperty
-  override var tableExistsString = s"SELECT 1 FROM $tableName WHERE 1 = 0"
-  @BeanProperty
-  override var createString = s"CREATE TABLE $tableName (processorName VARCHAR(255), messageId VARCHAR(100), createdAt TIMESTAMP)"
-  @BeanProperty
-  override var queryString = s"SELECT COUNT(*) FROM $tableName WHERE processorName = ? AND messageId = ?"
-  @BeanProperty
-  override var insertString = s"INSERT INTO $tableName (processorName, messageId, createdAt) VALUES (?, ?, ?)"
-  @BeanProperty
-  override var deleteString = s"DELETE FROM $tableName WHERE processorName = ? AND messageId = ?"
+
+  protected var createTableIfNotExists = true
+  override def isCreateTableIfNotExists:Boolean = createTableIfNotExists
+  override def setCreateTableIfNotExists(b:Boolean) = createTableIfNotExists = b
+
+  protected var tableExistsString = s"SELECT 1 FROM $tableName WHERE 1 = 0"
+  override def getTableExistsString = tableExistsString
+  override def setTableExistsString(s:String) = tableExistsString = s
+
+  protected var createString = s"CREATE TABLE $tableName (processorName VARCHAR(255), messageId VARCHAR(100), createdAt TIMESTAMP)"
+  override def getCreateString = createString
+  override def setCreateString(s:String) = createString = s
+
+  protected var queryString = s"SELECT COUNT(*) FROM $tableName WHERE processorName = ? AND messageId = ?"
+  override  def getQueryString = queryString
+  override def setQueryString(s:String) = queryString = s
+
+  protected var insertString = s"INSERT INTO $tableName (processorName, messageId, createdAt) VALUES (?, ?, ?)"
+  override def getInsertString = insertString
+  override def setInsertString(s:String) = insertString = s
+
+  protected var deleteString = s"DELETE FROM $tableName WHERE processorName = ? AND messageId = ?"
+  override def getDeleteString = deleteString
+  override def setDeleteString(s:String) = deleteString = s
 
 
 }

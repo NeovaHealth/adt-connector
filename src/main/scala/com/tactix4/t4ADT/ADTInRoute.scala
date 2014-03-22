@@ -11,17 +11,17 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.control.Exception._
 
-import org.joda.time.format.DateTimeFormat
+import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
 
 import com.tactix4.t4skr.T4skrConnector
 import com.tactix4.t4ADT.utils.Instrumented
 import org.apache.camel.Exchange
-import org.apache.camel.scala.dsl.{DSL, SIdempotentConsumerDefinition}
-import org.apache.camel.processor.idempotent.jdbc.JdbcMessageIdRepository
-import org.apache.camel.language.Bean
-import org.apache.camel.processor.idempotent.MemoryIdempotentRepository
-import nl.grons.metrics.scala.Timer
-import scala.collection.immutable.HashMap
+import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
+
+import com.tactix4.t4skr.core.HospitalNo
+import org.apache.camel.component.hl7.HL7.terser
+import ca.uhn.hl7v2.model.v24.message.ADT_AXX
+
 
 //TODO: Convert all camelCase fields in config files to not_camel_case
 //TODO: create patientExists method in connector
@@ -47,7 +47,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val username: String,
                  val password: String,
                  val database: String,
-                 val fromDateFormat: String,
+                 val inputDateFormats: List[String],
                  val toDateFormat: String,
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
@@ -58,9 +58,10 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   val connector = new T4skrConnector(protocol, host, port).startSession(username,password,database)//.map(s => {s.openERPSession.context.setTimeZone("Europe/London"); s})
 
-  val fromDateTimeFormat = DateTimeFormat.forPattern(fromDateFormat)
+
+  val fromDateTimeFormat:DateTimeFormatter = new DateTimeFormatterBuilder().append(null, inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
-  val datesToParse = List("dob","visitStartDateTime")
+  val datesToParse = List("dob","visit_start_date_time")
 
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
@@ -76,34 +77,46 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   val patientDischargeTimer = metrics.timer("patientDischarge")
 
   val metricMap = Map(
-    "A08" -> (patientUpdateTimer, patientUpdate(_)),
-    "A31" -> (patientUpdateTimer, patientUpdate(_)),
-    "A28" -> (patientNewTimer, patientNew(_)),
-    "A05" -> (patientNewTimer,patientNew(_)),
-    "A40" -> (patientMergeTimer,patientMerge(_)),
-    "A01" -> (visitNewTimer,visitNew(_)),
-    "A02" -> (patientTransferTimer,patientTransfer(_)),
-    "A03" -> (patientDischargeTimer,patientDischarge(_)),
-    "A11" -> (visitUpdateTimer, visitUpdate(_)),
-    "A12" -> (visitUpdateTimer,visitUpdate(_)),
-    "A13" -> (visitUpdateTimer,visitUpdate(_))
+    ("A08",(patientUpdateTimer, patientUpdate(_:Message))),
+    "A31" -> (patientUpdateTimer, patientUpdate(_:Message)),
+    "A28" -> (patientNewTimer, patientNew(_:Message)),
+    "A05" -> (patientNewTimer,patientNew(_:Message)),
+    "A40" -> (patientMergeTimer,patientMerge(_:Message)),
+    "A01" -> (visitNewTimer,visitNew(_:Message)),
+    "A02" -> (patientTransferTimer,patientTransfer(_:Message)),
+    "A03" -> (patientDischargeTimer,patientDischarge(_:Message)),
+    "A11" -> (visitUpdateTimer, visitUpdate(_:Message)),
+    "A12" -> (visitUpdateTimer,visitUpdate(_:Message)),
+    "A13" -> (visitUpdateTimer,visitUpdate(_:Message))
   )
 
-  def patientExists(hospitalNumber: String): Boolean = Await.result(connector.flatMap(_.getPatient(hospitalNumber)), 1000 millis).isDefined
+  def patientExists(hospitalNumber: HospitalNo): Boolean = {
+    val r = hospitalNumber != null && hospitalNumber.length > 0 && Await.result(connector.flatMap(_.getPatientByHospitalNumber(hospitalNumber)), 2000 millis).isDefined
+    println(s"Patient Exsits: $r")
+    r
+  }
 
-  def matchMsg(t:String) = when(_.in(triggerEventHeader) == t) process(e => {metrics.meter(t).mark();metricMap(t)._1.time{e.in = metricMap(t)._2(e.in[Message])}})
+  def matchMsg(t:String) = when(_.in(triggerEventHeader) == t) process(
+    e => {
+      metrics.meter(t).mark()
+      e.setProperty("PatientAlreadyExists",patientExists(terser("PID-3-1").evaluate(e,classOf[String])))
+      metricMap(t)._1.time{e.in = metricMap(t)._2(e.in[Message])}
+    }
+  )
+
+
 
   "hl7listener" ==> {
     process(_ =>  metrics.meter("AllMessages").mark() )
     unmarshal(hl7)
-    process(e => setHeader("terser", new Terser(e.in[Message])))
     SIdempotentConsumerDefinition(idempotentConsumer(_.getIn.getHeader("CamelHL7MessageControl"))
       .messageIdRepositoryRef("messageIdRepo")
       .skipDuplicate(false)
       .removeOnFailure(false)
     )(this) {
+      process(e => e.getIn.setHeader("msgBody",e.getIn.getBody.toString))
+      process(e => e.getIn.setHeader("origMessage",e.in[Message]))
       when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) process(e => throw new ADTDuplicateMessageException())
-      process(e => setHeader("NeedsUpdate",patientExists(e.in("terser").asInstanceOf[Terser].get("PID-3-1"))))
       choice {
         matchMsg("A08")
         matchMsg("A31")
@@ -121,13 +134,20 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
           throw new ADTUnsupportedMessageException("Unsupported message type: " + e.in(triggerEventHeader))
         })
       }
-
-      when(_.in("NeedsUpdate") == true) process (e =>  patientUpdate(e.in[Message]))
-
-      process(e => setHeader("msg",e.in[String]))
-      to(s"sql:insert into $msgStoreTableName (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msg)")
+      wireTap("direct:update")
+      to(s"sql:insert into $msgStoreTableName (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)")
     }
   }
+  "direct:update" ==> {
+    when(_.getProperty("PatientAlreadyExists") == false)  process(e => {
+      val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
+      val t = new Terser(msg)
+      t.set("MSH-9-2","A31")
+      e.in = patientUpdate(msg)
+    })
+
+  }
+
 
   def extract(f : Terser => Map[String,String] => Future[_]) (implicit message:Message): Message = {
     implicit val terser = new Terser(message)
@@ -141,35 +161,37 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   }
 
   def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
-    val requiredFields = validateRequiredFields(List("otherId", "oldOtherId"))
-    connector.flatMap(_.patientMerge(requiredFields("otherId"), requiredFields("oldOtherId")))
+    val requiredFields = validateRequiredFields(List(hosptialNumber, oldHospitalNumber))
+    connector.flatMap(_.patientMerge(requiredFields(hosptialNumber), requiredFields(oldHospitalNumber)))
   }
 
   def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
-    val i = getIdentifier
-    val w = validateRequiredFields(List("wardId"))
-    connector.flatMap(_.patientTransfer(i,w("wardId")))
+    val i = getHospitalNumber
+    val w = validateRequiredFields(List("ward_identifier"))
+    connector.flatMap(_.patientTransfer(i,w("ward_identifier")))
   }
 
   def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit map =>
-    val i = getIdentifier
-    val o = validateAllOptionalFields(i)
+    val i = getHospitalNumber
+    val o = validateAllOptionalFields(Map(hosptialNumber->i))
     connector.flatMap(_.patientUpdate(i,o))
   }
 
   def patientDischarge(implicit message: Message)  = extract{implicit t => implicit m =>
-    val i = getIdentifier
+    val i = getHospitalNumber
     connector.flatMap(_.patientDischarge(i))
   }
 
   def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
-    val i = getIdentifier
-    connector.flatMap(_.patientNew(i))
+    val i = getHospitalNumber
+    val o = validateAllOptionalFields(Map(hosptialNumber->i))
+    connector.flatMap(_.patientNew(i, o))
   }
 
   def visitNew(implicit message: Message) = extract{implicit t => implicit m =>
-    val requiredFields =  validateRequiredFields(List("wardId","visitId","visitStartDateTime"))
-    connector.flatMap(_.visitNew(getIdentifier,requiredFields("wardId"), requiredFields("visitId"), requiredFields("visitStartDateTime")))
+    val requiredFields =  validateRequiredFields(List("ward_identifier","visit_identifier","visit_start_date_time"))
+    val o = validateAllOptionalFields(requiredFields)
+    connector.flatMap(_.visitNew(getHospitalNumber,requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"),o))
   }
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>
