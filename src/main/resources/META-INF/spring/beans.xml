@@ -70,11 +70,11 @@
         <constructor-arg name="password" value="${password}"/>
         <constructor-arg name="database" value="${database}"/>
         <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
+        <constructor-arg name="sexMap" ref="sexMap"/>
         <constructor-arg name="toDateFormat" value="${to_date_format}"/>
         <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
         <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
-        <constructor-arg name="msgStoreTableName" value="${msg_store_table}"/>
     </bean>
     <!---->
 
@@ -91,6 +91,11 @@
        </constructor-arg>
     </bean>
 
+    <bean id="sexMap" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+           <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_SEX.properties"/>
+        </constructor-arg>
+    </bean>
 
     <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>

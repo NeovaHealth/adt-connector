@@ -48,11 +48,11 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val password: String,
                  val database: String,
                  val inputDateFormats: List[String],
+                 val sexMap: Map[String,String],
                  val toDateFormat: String,
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
-                 val maximumRedeliveries: Int,
-                 val msgStoreTableName: String) extends RouteBuilder with ADTProcessing with ADTErrorHandling with Instrumented{
+                 val maximumRedeliveries: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling with Instrumented{
 
 
 
@@ -160,38 +160,39 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     message.generateACK()
   }
 
-  def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
-    val requiredFields = validateRequiredFields(List(hosptialNumber, oldHospitalNumber))
+  def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit m =>
+    val requiredFields = validateRequiredFields(List(hosptialNumber, oldHospitalNumber))(m,implicitly)
     connector.flatMap(_.patientMerge(requiredFields(hosptialNumber), requiredFields(oldHospitalNumber)))
   }
 
-  def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit mappings=>
-    val i = getHospitalNumber
-    val w = validateRequiredFields(List("ward_identifier"))
+  def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit m =>
+    val i = getHospitalNumber(m,implicitly)
+    val w = validateRequiredFields(List("ward_identifier"))(m,implicitly)
     connector.flatMap(_.patientTransfer(i,w("ward_identifier")))
   }
 
-  def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit map =>
-    val i = getHospitalNumber
-    val o = validateAllOptionalFields(Map(hosptialNumber->i))
+  def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit m =>
+    val i = getHospitalNumber(m,implicitly)
+    val o = validateAllOptionalFields(Map(hosptialNumber->i))(m,implicitly)
     connector.flatMap(_.patientUpdate(i,o))
   }
 
   def patientDischarge(implicit message: Message)  = extract{implicit t => implicit m =>
-    val i = getHospitalNumber
-    connector.flatMap(_.patientDischarge(i))
+    val i = getHospitalNumber(m,implicitly)
+    val r = validateRequiredFields(List("discharge_date"))(m,implicitly)
+    connector.flatMap(_.patientDischarge(i,r("discharge_date")))
   }
 
   def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
-    val i = getHospitalNumber
-    val o = validateAllOptionalFields(Map(hosptialNumber->i))
+    val i = getHospitalNumber(m,implicitly)
+    val o = validateAllOptionalFields(Map(hosptialNumber->i))(m,implicitly)
     connector.flatMap(_.patientNew(i, o))
   }
 
   def visitNew(implicit message: Message) = extract{implicit t => implicit m =>
-    val requiredFields =  validateRequiredFields(List("ward_identifier","visit_identifier","visit_start_date_time"))
-    val o = validateAllOptionalFields(requiredFields)
-    connector.flatMap(_.visitNew(getHospitalNumber,requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"),o))
+    val requiredFields =  validateRequiredFields(List("ward_identifier","visit_identifier","visit_start_date_time"))(m,implicitly)
+    val o = validateAllOptionalFields(requiredFields)(m,implicitly)
+    connector.flatMap(_.visitNew(getHospitalNumber(m,implicitly),requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"),o))
   }
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>

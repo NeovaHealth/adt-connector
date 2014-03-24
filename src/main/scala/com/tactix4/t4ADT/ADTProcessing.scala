@@ -17,6 +17,7 @@ trait ADTProcessing {
   val fromDateTimeFormat:DateTimeFormatter
   val toDateTimeFormat:DateTimeFormatter
   val datesToParse:List[String]
+  val sexMap:Map[String,String]
   val hosptialNumber = "other_identifier"
   val oldHospitalNumber = "old_other_identifier"  
   /**
@@ -76,8 +77,12 @@ trait ADTProcessing {
     getValueFromTerserPath("MSH-9-2", terser)
   }
 
+  def parseSexField(m: mutable.HashMap[String,String]): Unit = catching(classOf[NoSuchElementException]).opt(m.get("sex").map((s:String) => m("sex") = sexMap(s))).map(throw new ADTFieldException("Value for sex field is unknown"))
+
   def validateRequiredFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser ) : Map[String,String]= {
     val rs = mutable.HashMap[String,String](fields.map(getAttribute).toMap.toSeq: _*)
+    if(fields exists (_ == "sex"))  parseSexField(rs)
+
     datesToParse.foreach(d =>
       rs.get(d).map(dob=> rs(d) = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
     )
@@ -89,7 +94,9 @@ trait ADTProcessing {
   }
 
   def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): mutable.HashMap[String, String] = {
-    val opts = scala.collection.mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
+    val opts = mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
+
+    if(fields exists (_ == "sex")) catching(classOf[ADTFieldException]).opt(parseSexField(opts))
 
     datesToParse.foreach(d =>
       opts.get(d).map(dob=> opts(d) = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
