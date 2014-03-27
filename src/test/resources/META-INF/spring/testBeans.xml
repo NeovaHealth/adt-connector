@@ -15,16 +15,8 @@
         <property name="location" value="file:src/test/resources/com.tactix4.t4ADT.properties"/>
     </bean>
 
-    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
-        <property name="driverClassName" value="org.postgresql.Driver"/>
-        <property name="url" value="jdbc:postgresql://localhost:5740/t4skr"/>
-        <property name="username" value="max"/>
-        <property name="password" value="max"/>
-    </bean>
+    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 
-    <bean id="sql" class="org.apache.camel.component.sql.SqlComponent">
-        <property name="dataSource" ref="dataSource"/>
-    </bean>
     <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
         <property name="propertyEditorRegistrars">
             <bean class="org.springframework.scala.beans.propertyeditors.ScalaEditorRegistrar"/>
@@ -33,9 +25,12 @@
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
+    <camel:endpoint id="failMsgHistory" uri="mock:error"/>
+    <!--sql:insert into ${fail_msg_store_table} (id, type, timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>-->
 
-    <camel:endpoint id="rabbitMQSuccess" uri="mock:rabbitMQSuccess"/>
-    <camel:endpoint id="rabbitMQFail" uri="mock:rabbitMQFail"/>
+    <camel:endpoint id="msgHistory" uri="mock:out"/>
+    <!--sql:insert into ${msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>-->
+    <!---->
 
     <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
 
@@ -57,11 +52,10 @@
             <util:properties location="classpath:ADT_A40.properties"/>
         </constructor-arg>
     </bean>
-    <bean id="mockOpenERP" class="com.tactix4.t4ADT.OpenERPMock"/>
 
  <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
-            <scala-util:map>
+            <util:map>
                 <entry key="A01" value-ref="a01map"/>
                 <entry key="A28" value-ref="a01map"/>
                 <entry key="A05" value-ref="a01map"/>
@@ -69,25 +63,37 @@
                 <entry key="A08" value-ref="a01map"/>
                 <entry key="A03" value-ref="a01map"/>
                 <entry key="A40" value-ref="a40map"/>
-            </scala-util:map>
+            </util:map>
         </constructor-arg>
-        <constructor-arg name="protocol" value="${protocol}"/>
-        <constructor-arg name="host" value="${hostname}"/>
-        <constructor-arg name="port" value="${port}"/>
-        <constructor-arg name="username" value="${username}"/>
-        <constructor-arg name="password" value="${password}"/>
-        <constructor-arg name="database" value="${database}"/>
-        <constructor-arg name="fromDateFormat" value="${fromDateFormat}"/>
-        <constructor-arg name="toDateFormat" value="${toDateFormat}"/>
-        <constructor-arg name="timeOutMillis" value="${timeOutMillis}"/>
-        <constructor-arg name="maximumRedeliveries" value="${maximumRedeliveries}"/>
-        <constructor-arg name="redeliveryDelay" value="${redeliveryDelay}"/>
+              <constructor-arg name="protocol" value="${protocol}"/>
+              <constructor-arg name="host" value="${hostname}"/>
+              <constructor-arg name="port" value="${port}"/>
+              <constructor-arg name="username" value="${username}"/>
+              <constructor-arg name="password" value="${password}"/>
+              <constructor-arg name="database" value="${database}"/>
+              <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
+              <constructor-arg name="sexMap" ref="sexMap"/>
+              <constructor-arg name="toDateFormat" value="${to_date_format}"/>
+              <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
+              <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
+                <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
     </bean>
 
 
     <camel:camelContext id="camel">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
+    <!--Utility beans-->
+    <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATES.properties"/>
+        </constructor-arg>
+    </bean>
 
+    <bean id="sexMap" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_SEX.properties"/>
+        </constructor-arg>
+    </bean>
 
 </beans>

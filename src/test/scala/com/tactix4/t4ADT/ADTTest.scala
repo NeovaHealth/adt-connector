@@ -34,8 +34,8 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
 
  def sendMessageAndExpectResponse(message: String, expectedResult: String)= {
 
- val resultEndpoint = getMockEndpoint("rabbitMQSuccess")
- val failEndpoint = getMockEndpoint("rabbitMQFail")
+ val resultEndpoint = getMockEndpoint("msgHistory")
+ val failEndpoint = getMockEndpoint("failMsgHistory")
    resultEndpoint.setExpectedMessageCount(1)
    failEndpoint.setExpectedMessageCount(0)
    resultEndpoint.message(0).body.equals(message) //checks that rabbitmq recieves the original adt message
@@ -46,8 +46,8 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
    resetMocks()
  }
   def sendMessageAndExpectError(message: String, expectedResult: String)= {
-    val resultEndpoint = getMockEndpoint("rabbitMQSuccess")
-    val failEndpoint = getMockEndpoint("rabbitMQFail")
+    val resultEndpoint = getMockEndpoint("msgHistory")
+    val failEndpoint = getMockEndpoint("failMsgHistory")
     resultEndpoint.setExpectedMessageCount(0)
     failEndpoint.setExpectedMessageCount(1)
     failEndpoint.message(0).body.equals(message) //checks that rabbitmq recieves the original adt message

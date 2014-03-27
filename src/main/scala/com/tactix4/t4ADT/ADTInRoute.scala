@@ -61,7 +61,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   val fromDateTimeFormat:DateTimeFormatter = new DateTimeFormatterBuilder().append(null, inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
-  val datesToParse = List("dob","visit_start_date_time")
+  val datesToParse = List("dob","visit_start_date_time","discharge_date")
 
   val triggerEventHeader = "CamelHL7TriggerEvent"
   val hl7 = new HL7DataFormat()
