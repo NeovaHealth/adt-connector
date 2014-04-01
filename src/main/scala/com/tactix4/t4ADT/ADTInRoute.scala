@@ -18,14 +18,20 @@ import com.tactix4.t4ADT.utils.Instrumented
 import org.apache.camel.Exchange
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 
-import com.tactix4.t4skr.core.HospitalNo
+import com.tactix4.t4skr.core.{VisitId, HospitalNo}
 import org.apache.camel.component.hl7.HL7.terser
 import ca.uhn.hl7v2.model.v24.message.ADT_AXX
+import org.joda.time.DateTime
+import ca.uhn.hl7v2.HL7Exception
 
 
 //TODO: Convert all camelCase fields in config files to not_camel_case
 //TODO: create patientExists method in connector
 //TODO: add a create table method for sql store
+//TODO: check if visit exists:
+// t4clinical.patient_visit visit_code
+// A03 discard if patient doesn't exist.
+
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -48,7 +54,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val password: String,
                  val database: String,
                  val inputDateFormats: List[String],
-                 val sexMap: Map[String,String],
+                 val sexMap:Map[String,String],
                  val toDateFormat: String,
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
@@ -77,29 +83,36 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   val patientDischargeTimer = metrics.timer("patientDischarge")
 
   val metricMap = Map(
-    ("A08",(patientUpdateTimer, patientUpdate(_:Message))),
+    "A08" ->(patientUpdateTimer, patientUpdate(_: Message)),
     "A31" -> (patientUpdateTimer, patientUpdate(_:Message)),
     "A28" -> (patientNewTimer, patientNew(_:Message)),
     "A05" -> (patientNewTimer,patientNew(_:Message)),
     "A40" -> (patientMergeTimer,patientMerge(_:Message)),
     "A01" -> (visitNewTimer,visitNew(_:Message)),
     "A02" -> (patientTransferTimer,patientTransfer(_:Message)),
-    "A03" -> (patientDischargeTimer,patientDischarge(_:Message)),
+    "A03" -> (patientDischargeTimer,{(m:Message) => {
+      //happily accept discharge messages for patients that don't exist without any further processing
+      when(_.getProperty("PatientAlreadyExists") == false) process(e => e.in[Message].generateACK())
+      otherwise process(e => patientDischarge(m))
+    }}),
     "A11" -> (visitUpdateTimer, visitUpdate(_:Message)),
     "A12" -> (visitUpdateTimer,visitUpdate(_:Message)),
     "A13" -> (visitUpdateTimer,visitUpdate(_:Message))
   )
 
   def patientExists(hospitalNumber: HospitalNo): Boolean = {
-    val r = hospitalNumber != null && hospitalNumber.length > 0 && Await.result(connector.flatMap(_.getPatientByHospitalNumber(hospitalNumber)), 2000 millis).isDefined
-    println(s"Patient Exsits: $r")
-    r
+    hospitalNumber != null && hospitalNumber.length > 0 && Await.result(connector.flatMap(_.getPatientByHospitalNumber(hospitalNumber)), 2000 millis).isDefined
+  }
+
+  def visitExists(visitId:VisitId) : Boolean = {
+    visitId != null && visitId.length > 0 && Await.result(connector.flatMap(_.visitExists(visitId)), 2000 millis)
   }
 
   def handleMessageType(t:String) = when(_.in(triggerEventHeader) == t) process(
     e => {
       metrics.meter(t).mark()
       e.setProperty("PatientAlreadyExists",patientExists(terser("PID-3-1").evaluate(e,classOf[String])))
+      e.setProperty("VisitAlreadyExists",visitExists(terser("PV1-19").evaluate(e,classOf[String])))
       metricMap(t)._1.time{e.in = metricMap(t)._2(e.in[Message])}
     }
   )
@@ -139,11 +152,20 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     }
   }
   "seda:update" ==> {
-    when(_.getProperty("PatientAlreadyExists") == false)  process(e => {
+    when(e => (e.getProperty("PatientAlreadyExists") == false) && !List("A31", "A08").contains(e.in(triggerEventHeader)))  process(e => {
       val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
       val t = new Terser(msg)
       t.set("MSH-9-2","A31")
       e.in = patientUpdate(msg)
+    })
+    when(e => e.getProperty("VisitAlreadyExists") == false && e.in(triggerEventHeader) != "A01") process(e => {
+      val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
+      val t = new Terser(msg)
+      if(catching(classOf[HL7Exception]).opt(t.getSegment("PV1")).isDefined){
+        t.set("MSH-9-2","A01")
+        e.in = visitNew(msg)
+      }
+
     })
 
   }
@@ -179,8 +201,9 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   def patientDischarge(implicit message: Message)  = extract{implicit t => implicit m =>
     val i = getHospitalNumber(m,implicitly)
-    val r = validateRequiredFields(List("discharge_date"))(m,implicitly)
-    connector.flatMap(_.patientDischarge(i,r("discharge_date")))
+    val r = validateOptionalFields(List("discharge_date"))(m,implicitly)
+    val o = r.get("discharge_date") getOrElse new DateTime().toString(toDateTimeFormat)
+    connector.flatMap(_.patientDischarge(i,o))
   }
 
   def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
