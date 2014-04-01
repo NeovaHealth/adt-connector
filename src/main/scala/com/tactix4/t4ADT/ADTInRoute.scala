@@ -90,11 +90,12 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     "A40" -> (patientMergeTimer,patientMerge(_:Message)),
     "A01" -> (visitNewTimer,visitNew(_:Message)),
     "A02" -> (patientTransferTimer,patientTransfer(_:Message)),
-    "A03" -> (patientDischargeTimer,{(m:Message) => {
-      //happily accept discharge messages for patients that don't exist without any further processing
-      when(_.getProperty("PatientAlreadyExists") == false) process(e => e.in[Message].generateACK())
-      otherwise process(e => patientDischarge(m))
-    }}),
+    "A03" -> (patientDischargeTimer,patientDischarge(_:Message)),
+//  {
+//      //happily accept discharge messages for patients that don't exist without any further processing
+//      when(_.getProperty("PatientAlreadyExists") == false) process(e => e.in[Message].generateACK())
+//      otherwise process(e => patientDischarge(m))
+//    }}),
     "A11" -> (visitUpdateTimer, visitUpdate(_:Message)),
     "A12" -> (visitUpdateTimer,visitUpdate(_:Message)),
     "A13" -> (visitUpdateTimer,visitUpdate(_:Message))
@@ -129,6 +130,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     )(this) {
       process(e => e.getIn.setHeader("msgBody",e.getIn.getBody.toString))
       process(e => e.getIn.setHeader("origMessage",e.in[Message]))
+      process(e => e.getIn.setHeader("terser",new Terser(e.in[Message])))
       when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) process(e => throw new ADTDuplicateMessageException("Duplicate Message"))
       choice {
         handleMessageType("A08")
@@ -138,6 +140,18 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
         handleMessageType("A40")
         handleMessageType("A01")
         handleMessageType("A02")
+        when(_.in(triggerEventHeader) == "A03") process(
+          e => {
+            metrics.meter("A03").mark()
+            allCatch.opt{
+              val t = e.getIn.getHeader("terser").asInstanceOf[Terser]
+              e.setProperty("PatientAlreadyExists",patientExists(t.get("PID-3-1")))
+              e.setProperty("VisitAlreadyExists",visitExists(t.get("PV1-19")))
+            }
+            if(e.getProperty("PatientAlreadyExists") == false) { e.in = e.in[Message].generateACK() }
+            else patientDischargeTimer.time{e.in = patientDischarge(e.in[Message])}
+          }
+          )
         handleMessageType("A03")
         handleMessageType("A11")
         handleMessageType("A12")
@@ -152,7 +166,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     }
   }
   "seda:update" ==> {
-    when(e => (e.getProperty("PatientAlreadyExists") == false) && !List("A31", "A08").contains(e.in(triggerEventHeader)))  process(e => {
+    when(e => (e.getProperty("PatientAlreadyExists") == false) && !List("A31", "A08","A03").contains(e.in(triggerEventHeader)))  process(e => {
       val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
       val t = new Terser(msg)
       t.set("MSH-9-2","A31")
