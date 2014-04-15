@@ -48,6 +48,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val password: String,
                  val database: String,
                  val inputDateFormats: List[String],
+                 val wards: List[String],
                  val sexMap: Map[String,String],
                  val toDateFormat: String,
                  val timeOutMillis: Int,
@@ -191,8 +192,13 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   def visitNew(implicit message: Message) = extract{implicit t => implicit m =>
     val requiredFields =  validateRequiredFields(List("ward_identifier","visit_identifier","visit_start_date_time"))(m,implicitly)
-    val o = validateAllOptionalFields(requiredFields)(m,implicitly)
-    connector.flatMap(_.visitNew(getHospitalNumber(m,implicitly),requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"),o))
+    if(wards contains requiredFields("ward_identifier")) {
+      val o = validateAllOptionalFields(requiredFields)(m, implicitly)
+      connector.flatMap(_.visitNew(getHospitalNumber(m, implicitly), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o))
+    }
+    else {
+      Future.successful()
+    }
   }
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>

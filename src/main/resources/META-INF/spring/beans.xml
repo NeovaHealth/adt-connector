@@ -70,6 +70,7 @@
         <constructor-arg name="password" value="${password}"/>
         <constructor-arg name="database" value="${database}"/>
         <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
+        <constructor-arg name="wards" ref="validWards"/>
         <constructor-arg name="sexMap" ref="sexMap"/>
         <constructor-arg name="toDateFormat" value="${to_date_format}"/>
         <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
@@ -85,6 +86,12 @@
     <!---->
 
     <!--Utility beans-->
+    <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+        <constructor-arg>
+            <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_WARDS.properties"/>
+        </constructor-arg>
+    </bean>
+
     <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
        <constructor-arg>
            <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_DATES.properties"/>
