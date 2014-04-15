@@ -32,6 +32,7 @@ trait ADTProcessing {
     val e = catching(classOf[Throwable]) either {
       t.get(s) match {
           case null => throw new ADTFieldException("no value found at terser path: " + s)
+          case "" => throw new ADTFieldException("no value found at terser path: " + s)
           case someString:String => someString
       }
     }
