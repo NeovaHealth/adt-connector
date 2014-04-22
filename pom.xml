@@ -21,7 +21,7 @@
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.5</scalaz-version>
-        <t4skr-connector-version>1.0-SNAPSHOT</t4skr-connector-version>
+        <t4skr-connector-version>2.0-SNAPSHOT</t4skr-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.0.2</typesafe-config-version>
@@ -168,18 +168,6 @@
             <url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
         </repository>
 	</repositories>
-	<distributionManagement>
-		<repository>
-			<id>artifactory-releases</id>
-			<name>Tactix4 Release Repo</name>
-			<url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
-		</repository>
-		<snapshotRepository>
-			<id>artifactory-snapshots</id>
-			<name>Tactix4 Snapshot Repo</name>
-			<url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
-		</snapshotRepository>
-	</distributionManagement>
     	<build>
 		<defaultGoal>install</defaultGoal>
             <sourceDirectory>src/main/scala</sourceDirectory>
@@ -210,7 +198,12 @@
                     <target>1.7</target>
                     <encoding>UTF-8</encoding>
                 </configuration>
-            </plugin>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>2.8</version>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
@@ -238,6 +231,9 @@
                             ca.uhn.hl7v2.util,
                             com.tactix4.t4skr,
                             com.tactix4.t4skr.core,
+                            com.tactix4.t4openerp.connector,
+                            com.tactix4.t4openerp.connector.domain,
+                            com.tactix4.t4openerp.connector.transport,
                             org.apache.camel,
                             org.apache.camel.builder,
                             org.apache.camel.component.hl7,
@@ -263,8 +259,11 @@
                             scala.concurrent,
                             scala.concurrent.duration,
                             scala.reflect,
+                            scala.reflect.api,
                             scala.util.control,
-                            scala.runtime
+                            scala.runtime,
+                            scalaz,
+                            scalaz.syntax
                         </Import-Package>
                         <Export-Package>
                             com.tactix4.t4ADT,

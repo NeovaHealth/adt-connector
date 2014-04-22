@@ -10,22 +10,23 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.control.Exception._
+import scalaz._
+import Scalaz._
 
 import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
 
-import com.tactix4.t4skr.T4skrConnector
+import com.tactix4.t4skr.{T4skrResult, T4skrConnector}
 import com.tactix4.t4ADT.utils.Instrumented
-import org.apache.camel.Exchange
+import org.apache.camel.{LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 
-import com.tactix4.t4skr.core.HospitalNo
+import com.tactix4.t4skr.core.{VisitId, HospitalNo}
 import org.apache.camel.component.hl7.HL7.terser
-import ca.uhn.hl7v2.model.v24.message.ADT_AXX
+import org.joda.time.DateTime
+import ca.uhn.hl7v2.HL7Exception
+import com.tactix4.t4openerp.connector.domain.Domain._
+import com.tactix4.t4openerp.connector._
 
-
-//TODO: Convert all camelCase fields in config files to not_camel_case
-//TODO: create patientExists method in connector
-//TODO: add a create table method for sql store
 
 /**
  * A Camel Route for receiving ADT messages over an MLLP connector
@@ -86,22 +87,23 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     "A01" -> (visitNewTimer,visitNew(_:Message)),
     "A02" -> (patientTransferTimer,patientTransfer(_:Message)),
     "A03" -> (patientDischargeTimer,patientDischarge(_:Message)),
-//  {
-//      //happily accept discharge messages for patients that don't exist without any further processing
-//      when(_.getProperty("PatientAlreadyExists") == false) process(e => e.in[Message].generateACK())
-//      otherwise process(e => patientDischarge(m))
-//    }}),
     "A11" -> (visitUpdateTimer, visitUpdate(_:Message)),
     "A12" -> (visitUpdateTimer,visitUpdate(_:Message)),
     "A13" -> (visitUpdateTimer,visitUpdate(_:Message))
   )
 
   def patientExists(hospitalNumber: HospitalNo): Boolean = {
-    hospitalNumber != null && hospitalNumber.length > 0 && Await.result(connector.flatMap(_.getPatientByHospitalNumber(hospitalNumber)), 2000 millis).isDefined
+    hospitalNumber != null && hospitalNumber.length > 0 && !Await.result(connector.oeSession.search("t4clinical.patient","other_identifier" === hospitalNumber).value, 2000 millis).fold(
+      _ => false,
+      ids => !ids.isEmpty
+    )
   }
 
   def visitExists(visitId:VisitId) : Boolean = {
-    visitId != null && visitId.length > 0 && Await.result(connector.flatMap(_.visitExists(visitId)), 2000 millis)
+    visitId != null && visitId.length > 0 && Await.result(connector.oeSession.search("t4clinical.patient.visit", "name" === visitId).value, 2000 millis).fold(
+      _=> false,
+      ids =>  !ids.isEmpty
+    )
   }
 
   def handleMessageType(t:String) = when(_.in(triggerEventHeader) == t) process(
@@ -171,20 +173,23 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
       val t = new Terser(msg)
       if(catching(classOf[HL7Exception]).opt(t.getSegment("PV1")).isDefined){
+        println("adding new visit")
         t.set("MSH-9-2","A01")
         e.in = visitNew(msg)
       }
-
+      else {
+        println("can't find PV1 segment")
+      }
     })
+    to("log:done")
 
   }
 
-
-  def extract(f : Terser => Map[String,String] => Future[_]) (implicit message:Message): Message = {
+  def extract(f : Terser => Map[String,String] => T4skrResult[_]) (implicit message:Message): Message = {
     implicit val terser = new Terser(message)
     implicit val mappings = getMappings(terser, terserMap)
 
-    val result = allCatch either Await.result(f(terser)(mappings), timeOutMillis millis)
+    val result = allCatch either Await.result(f(terser)(mappings) value, timeOutMillis millis)
 
     result.left.map((error: Throwable) => throw new ADTApplicationException(error.getMessage, error))
 
@@ -193,47 +198,49 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
   def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit m =>
     val requiredFields = validateRequiredFields(List(hosptialNumber, oldHospitalNumber))(m,implicitly)
-    connector.flatMap(_.patientMerge(requiredFields(hosptialNumber), requiredFields(oldHospitalNumber)))
+    connector.patientMerge(requiredFields(hosptialNumber), requiredFields(oldHospitalNumber))
   }
 
   def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit m =>
     val i = getHospitalNumber(m,implicitly)
     val w = validateRequiredFields(List("ward_identifier"))(m,implicitly)
-    connector.flatMap(_.patientTransfer(i,w("ward_identifier")))
+    connector.patientTransfer(i,w("ward_identifier"))
   }
 
   def patientUpdate(implicit message:Message) :Message = extract {implicit terser => implicit m =>
     val i = getHospitalNumber(m,implicitly)
     val o = validateAllOptionalFields(Map(hosptialNumber->i))(m,implicitly)
-    connector.flatMap(_.patientUpdate(i,o))
+    connector.patientUpdate(i,o)
   }
 
   def patientDischarge(implicit message: Message)  = extract{implicit t => implicit m =>
     val i = getHospitalNumber(m,implicitly)
     val r = validateOptionalFields(List("discharge_date"))(m,implicitly)
     val o = r.get("discharge_date") getOrElse new DateTime().toString(toDateTimeFormat)
-    connector.flatMap(_.patientDischarge(i,o))
+    connector.patientDischarge(i,o)
   }
 
   def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
     val i = getHospitalNumber(m,implicitly)
     val o = validateAllOptionalFields(Map(hosptialNumber->i))(m,implicitly)
-    connector.flatMap(_.patientNew(i, o))
+    connector.patientNew(i, o)
   }
 
   def visitNew(implicit message: Message) = extract{implicit t => implicit m =>
     val requiredFields =  validateRequiredFields(List("ward_identifier","visit_identifier","visit_start_date_time"))(m,implicitly)
     if(wards contains requiredFields("ward_identifier")) {
       val o = validateAllOptionalFields(requiredFields)(m, implicitly)
-      connector.flatMap(_.visitNew(getHospitalNumber(m, implicitly), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o))
+      connector.visitNew(getHospitalNumber(m, implicitly), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o)
     }
     else {
-      Future.successful()
+      throw new ADTFieldException(s"Unsupported ward: ${requiredFields("ward_identifier")}")
+//      log(LoggingLevel.WARN,"Ignoring wardid: "  + requiredFields("ward_identifier"))
+//      T4skrResult("ok".success)
     }
   }
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>
-    Future.successful()
+    T4skrResult("ok".success)
   }
 
 }

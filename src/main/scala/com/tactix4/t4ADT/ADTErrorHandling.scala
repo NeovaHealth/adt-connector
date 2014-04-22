@@ -6,7 +6,6 @@ import org.apache.camel.Exchange
 import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
-import com.tactix4.t4skr.T4skrException
 import java.net.ConnectException
 
 /**
@@ -54,15 +53,15 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("failMsgHistory")
   }.maximumRedeliveries(0).handled
 
-  //handle errors from t4skr
-  handle[T4skrException] {
-    transform(e => {
-      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-      e.getIn.setHeader("exception",getExceptionMessage(exception))
-      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
-      )})
-    to("failMsgHistory")
-  }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
+//  //handle errors from t4skr
+//  handle[T4skrException] {
+//    transform(e => {
+//      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+//      e.getIn.setHeader("exception",getExceptionMessage(exception))
+//      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
+//      )})
+//    to("failMsgHistory")
+//  }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
   //handle timeouts
   handle[TimeoutException] {
