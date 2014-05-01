@@ -93,7 +93,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   )
 
   def patientExists(hospitalNumber: HospitalNo): Boolean = {
-    hospitalNumber != null && hospitalNumber.length > 0 && !Await.result(connector.oeSession.search("t4clinical.patient","other_identifier" === hospitalNumber).value, 2000 millis).fold(
+    (hospitalNumber != null) && (hospitalNumber.length > 0) && Await.result(connector.oeSession.search("t4clinical.patient","other_identifier" === hospitalNumber).value, 2000 millis).fold(
       _ => false,
       ids => !ids.isEmpty
     )
@@ -125,7 +125,6 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       .skipDuplicate(false)
       .removeOnFailure(false)
     )(this) {
-      process(e => e.getIn.setHeader("msgBody",e.getIn.getBody.toString))
       process(e => e.getIn.setHeader("origMessage",e.in[Message]))
       process(e => e.getIn.setHeader("terser",new Terser(e.in[Message])))
       when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) process(e => throw new ADTDuplicateMessageException("Duplicate Message"))
@@ -172,13 +171,10 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     when(e => e.getProperty("VisitAlreadyExists") == false && e.in(triggerEventHeader) != "A01") process(e => {
       val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
       val t = new Terser(msg)
-      if(catching(classOf[HL7Exception]).opt(t.getSegment("PV1")).isDefined){
+      if(catching(classOf[HL7Exception]).opt(t.getSegment("PV1")).isDefined && catching(classOf[HL7Exception]).opt(t.get("PV1-45")).isDefined){
         println("adding new visit")
         t.set("MSH-9-2","A01")
         e.in = visitNew(msg)
-      }
-      else {
-        println("can't find PV1 segment")
       }
     })
     to("log:done")

@@ -3,20 +3,15 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:util="http://www.springframework.org/schema/util"
        xmlns:camel="http://camel.apache.org/schema/spring"
-       xmlns:scala-util="http://www.springframework.org/schema/scala/util"
        xsi:schemaLocation="
 		http://www.springframework.org/schema/util  http://www.springframework.org/schema/util/spring-util-3.0.xsd
 	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
-        http://www.springframework.org/schema/scala/util http://www.springframework.org/schema/scala/util/scala-util.xsd">
+    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
 
 
     <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="location" value="file:src/test/resources/com.tactix4.t4ADT.properties"/>
     </bean>
-
-    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
-
     <bean class="org.springframework.beans.factory.config.CustomEditorConfigurer">
         <property name="propertyEditorRegistrars">
             <bean class="org.springframework.scala.beans.propertyeditors.ScalaEditorRegistrar"/>
@@ -28,7 +23,7 @@
     <camel:endpoint id="failMsgHistory" uri="mock:error"/>
     <!--sql:insert into ${fail_msg_store_table} (id, type, timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>-->
 
-    <camel:endpoint id="msgHistory" uri="mock:out"/>
+    <camel:endpoint id="msgHistory" uri="mock:success"/>
     <!--sql:insert into ${msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>-->
     <!---->
 
