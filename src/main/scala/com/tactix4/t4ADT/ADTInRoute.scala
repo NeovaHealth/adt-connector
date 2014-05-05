@@ -125,6 +125,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       .skipDuplicate(false)
       .removeOnFailure(false)
     )(this) {
+      process(e => e.getIn.setHeader("msgBody",e.getIn.getBody.toString))
       process(e => e.getIn.setHeader("origMessage",e.in[Message]))
       process(e => e.getIn.setHeader("terser",new Terser(e.in[Message])))
       when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) process(e => throw new ADTDuplicateMessageException("Duplicate Message"))
@@ -162,21 +163,33 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     }
   }
   "seda:update" ==> {
-    when(e => (e.getProperty("PatientAlreadyExists") == false) && !List("A31", "A08","A03").contains(e.in(triggerEventHeader)))  process(e => {
+    when(e => !e.getProperty("PatientAlreadyExists", false, classOf[Boolean]) && !List("A31", "A08","A03").contains(e.in(triggerEventHeader)))  process(e => {
       val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
       val t = new Terser(msg)
       t.set("MSH-9-2","A31")
       e.in = patientUpdate(msg)
     })
-    when(e => e.getProperty("VisitAlreadyExists") == false && e.in(triggerEventHeader) != "A01") process(e => {
-      val msg = e.getIn.getHeader("origMessage").asInstanceOf[Message]
-      val t = new Terser(msg)
-      if(catching(classOf[HL7Exception]).opt(t.getSegment("PV1")).isDefined && catching(classOf[HL7Exception]).opt(t.get("PV1-45")).isDefined){
-        println("adding new visit")
-        t.set("MSH-9-2","A01")
-        e.in = visitNew(msg)
+    when(e => allCatch.opt(e.getIn.getHeader("terser",classOf[Terser]).getSegment("PV1")).isDefined) process(e => {
+      val msg = e.getIn.getHeader("origMessage", classOf[Message])
+      val t = e.getIn.getHeader("terser",classOf[Terser])
+      val discharged = allCatch.opt(!t.get("PV1-45").isEmpty) getOrElse false
+      val visitExists = e.getProperty("VisitAlreadyExists", false, classOf[Boolean])
+
+      if(e.in(triggerEventHeader) != "A01") {
+        if (!discharged) {
+          if (visitExists) {
+            t.set("MSH-9-2","A01")
+            e.in = visitUpdate(msg)
+          }
+          else {
+            t.set("MSH-9-2","A01")
+            e.in = visitNew(msg)
+          }
+        }
       }
+
     })
+
     to("log:done")
 
   }
