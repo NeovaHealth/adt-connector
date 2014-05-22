@@ -53,11 +53,6 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
       route.getAttribute("middle_name")
     }
   }
-  test("generate error on empty message attribute in terserMap"){
-    intercept[ADTApplicationException]{
-      route.getAttribute("other_names")(terser,mappings)
-    }
-  }
   test("generate a failure on an invalid date") {
     val invalidDate = "0o8ijasdf"
     intercept[ADTFieldException]{
