@@ -26,6 +26,7 @@ import org.joda.time.DateTime
 import ca.uhn.hl7v2.HL7Exception
 import com.tactix4.t4openerp.connector.domain.Domain._
 import com.tactix4.t4openerp.connector._
+import com.typesafe.scalalogging.slf4j.Logging
 
 
 /**
@@ -54,7 +55,8 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
                  val toDateFormat: String,
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
-                 val maximumRedeliveries: Int) extends RouteBuilder with ADTProcessing with ADTErrorHandling with Instrumented{
+                 val maximumRedeliveries: Int,
+                 val ignoreUnknownWards:Boolean) extends RouteBuilder with ADTProcessing with ADTErrorHandling with Instrumented with Logging{
 
 
 
@@ -87,9 +89,9 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     "A01" -> (visitNewTimer,visitNew(_:Message)),
     "A02" -> (patientTransferTimer,patientTransfer(_:Message)),
     "A03" -> (patientDischargeTimer,patientDischarge(_:Message)),
-    "A11" -> (visitUpdateTimer, visitUpdate(_:Message)),
+    "A11" -> (visitUpdateTimer, cancelVisitNew(_:Message)),
     "A12" -> (visitUpdateTimer,visitUpdate(_:Message)),
-    "A13" -> (visitUpdateTimer,visitUpdate(_:Message))
+    "A13" -> (visitUpdateTimer,cancelPatientDischarge(_:Message))
   )
 
   def patientExists(hospitalNumber: HospitalNo): Boolean = {
@@ -175,7 +177,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       val discharged = allCatch.opt(!t.get("PV1-45").isEmpty) getOrElse false
       val visitExists = e.getProperty("VisitAlreadyExists", false, classOf[Boolean])
 
-      if(e.in(triggerEventHeader) != "A01") {
+      if(!List("A01","A11").contains(e.in(triggerEventHeader))) {
         if (!discharged) {
           if (visitExists) {
             t.set("MSH-9-2","A01")
@@ -210,6 +212,13 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     connector.patientMerge(requiredFields(hosptialNumber), requiredFields(oldHospitalNumber))
   }
 
+  def cancelPatientTransfer(implicit message:Message): Message = extract { implicit terser => implicit m =>
+    val i = getHospitalNumber(m,implicitly)
+    val w = validateRequiredFields(List("ward_identifier"))(m,implicitly)
+    connector.patientTransfer(i,w("ward_identifier"))
+//    connector.cancelPatientTransfer(i,w("ward_identifier"))
+  }
+
   def patientTransfer(implicit message:Message): Message = extract { implicit terser => implicit m =>
     val i = getHospitalNumber(m,implicitly)
     val w = validateRequiredFields(List("ward_identifier"))(m,implicitly)
@@ -228,11 +237,20 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     val o = r.get("discharge_date") getOrElse new DateTime().toString(toDateTimeFormat)
     connector.patientDischarge(i,o)
   }
+  def cancelPatientDischarge(implicit message: Message)  = extract{implicit t => implicit m =>
+    val r = validateRequiredFields(List("visit_identifier"))(m,implicitly)
+    connector.patientDischargeCancel(r("visit_identifier"))
+  }
 
   def patientNew(implicit message: Message) = extract{implicit t => implicit m =>
     val i = getHospitalNumber(m,implicitly)
     val o = validateAllOptionalFields(Map(hosptialNumber->i))(m,implicitly)
     connector.patientNew(i, o)
+  }
+
+  def cancelVisitNew(implicit message:Message)  = extract { implicit t => implicit m =>
+    val r = validateRequiredFields(List("visit_identifier"))(m,implicitly)
+    connector.visitCancel(r("visit_identifier"))
   }
 
   def visitNew(implicit message: Message) = extract{implicit t => implicit m =>
@@ -242,14 +260,27 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       connector.visitNew(getHospitalNumber(m, implicitly), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o)
     }
     else {
-      throw new ADTFieldException(s"Unsupported ward: ${requiredFields("ward_identifier")}")
-//      log(LoggingLevel.WARN,"Ignoring wardid: "  + requiredFields("ward_identifier"))
-//      T4skrResult("ok".success)
+      if(ignoreUnknownWards){
+        logger.warn(s"Ignoring unknown ward reference: ${requiredFields("ward_identifier")}")
+        T4skrResult("ok".success)
+      }
+      else throw new ADTFieldException(s"Unsupported ward: ${requiredFields("ward_identifier")}")
     }
   }
 
   def visitUpdate(implicit message:Message) = extract{ implicit t => implicit m =>
-    T4skrResult("ok".success)
+      val requiredFields =  validateRequiredFields(List("ward_identifier","visit_identifier","visit_start_date_time"))(m,implicitly)
+    if(wards contains requiredFields("ward_identifier")) {
+      val o = validateAllOptionalFields(requiredFields)(m, implicitly)
+      connector.visitUpdate(getHospitalNumber(m, implicitly), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o)
+    }
+    else {
+      if(ignoreUnknownWards) {
+        logger.warn(s"Ignoring unknown ward reference: ${requiredFields("ward_identifier")}")
+        T4skrResult("ok".success)
+      }
+      else throw new ADTFieldException(s"Unsupported ward: ${requiredFields("ward_identifier")}")
+    }
   }
 
 }

@@ -234,6 +234,8 @@
                             com.tactix4.t4openerp.connector,
                             com.tactix4.t4openerp.connector.domain,
                             com.tactix4.t4openerp.connector.transport,
+                            com.typesafe.scalalogging.slf4j,
+                            org.slf4j,
                             org.apache.camel,
                             org.apache.camel.builder,
                             org.apache.camel.component.hl7,

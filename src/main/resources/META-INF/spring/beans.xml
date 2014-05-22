@@ -76,6 +76,7 @@
         <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
         <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
+        <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
     </bean>
     <!---->
 

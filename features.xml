@@ -19,7 +19,7 @@
         <bundle>mvn:io.netty/netty/3.6.3.Final</bundle>
         <bundle>mvn:com.typesafe/config/1.0.2</bundle>
         <bundle>wrap:mvn:org.springframework.scala/spring-scala_2.10/1.0.0.RC1</bundle>
-        <bundle>mvn:com.tactix4/t4xmlrpc_2.10/2.0</bundle>
+        <bundle>mvn:com.tactix4/t4xmlrpc_2.10/2.0.1</bundle>
         <bundle>mvn:com.tactix4/t4openerp-connector_2.10/2.0.0</bundle>
         <bundle>mvn:com.tactix4/t4skr-core_2.10/1.3-SNAPSHOT</bundle>
         <bundle>mvn:com.tactix4/t4skr-connector_2.10/2.0-SNAPSHOT</bundle>
