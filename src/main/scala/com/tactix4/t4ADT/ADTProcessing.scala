@@ -7,6 +7,7 @@ import org.joda.time.format.{DateTimeFormatter, DateTimeFormat}
 import scala.util.control.Exception.catching
 import scala.collection.mutable
 import scala.util.control.Exception._
+import com.tactix4.t4skr.core.VisitId
 
 /**
  * @author max@tactix4.com
@@ -116,6 +117,10 @@ trait ADTProcessing {
 
   def getHospitalNumber(implicit mappings:Map[String,String],terser:Terser): String = {
       validateRequiredFields(List(hosptialNumber)).apply(hosptialNumber)
+  }
+
+  def getVisitNumber(implicit mappings:Map[String,String],terser:Terser) : Option[VisitId] = {
+      validateOptionalFields(List("visit_identifier")).get("visit_identifier")
   }
 
 }

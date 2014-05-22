@@ -27,36 +27,25 @@
     <!--sql:insert into ${msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>-->
     <!---->
 
-    <camel:endpoint id="hl7listener" uri="mina2:tcp://localhost:8888?sync=true&amp;codec=#hl7codec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
 
 
-    <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
-        <constructor-arg>
-            <util:properties location="classpath:ADT_A01.properties"/>
-        </constructor-arg>
-    </bean>
-
-    <bean id="a31map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
-        <constructor-arg>
-            <util:properties location="classpath:ADT_A31.properties"/>
-        </constructor-arg>
-    </bean>
-
-    <bean id="a40map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
-        <constructor-arg>
-            <util:properties location="classpath:ADT_A40.properties"/>
-        </constructor-arg>
-    </bean>
+    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 
  <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
         <constructor-arg name="terserMap">
             <util:map>
                 <entry key="A01" value-ref="a01map"/>
-                <entry key="A28" value-ref="a01map"/>
-                <entry key="A05" value-ref="a01map"/>
+                <entry key="A11" value-ref="a11map"/>
+                <entry key="A02" value-ref="a02map"/>
+                <entry key="A12" value-ref="a12map"/>
+                <entry key="A03" value-ref="a03map"/>
+                <entry key="A13" value-ref="a13map"/>
+                <entry key="A08" value-ref="a08map"/>
+                <entry key="A28" value-ref="a28map"/>
                 <entry key="A31" value-ref="a31map"/>
                 <entry key="A08" value-ref="a01map"/>
-                <entry key="A03" value-ref="a01map"/>
+                <entry key="A05" value-ref="a05map"/>
                 <entry key="A40" value-ref="a40map"/>
             </util:map>
         </constructor-arg>
@@ -67,18 +56,28 @@
               <constructor-arg name="password" value="${password}"/>
               <constructor-arg name="database" value="${database}"/>
               <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
+              <constructor-arg name="wards" ref="validWards"/>
               <constructor-arg name="sexMap" ref="sexMap"/>
               <constructor-arg name="toDateFormat" value="${to_date_format}"/>
               <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
               <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
-                <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
+              <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
+              <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
     </bean>
 
-
-    <camel:camelContext id="camel">
+    <!--Context-->
+    <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
+    <!---->
+
     <!--Utility beans-->
+    <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_WARDS.properties"/>
+        </constructor-arg>
+    </bean>
+
     <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
         <constructor-arg>
             <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATES.properties"/>
@@ -87,8 +86,64 @@
 
     <bean id="sexMap" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
-            <util:properties location="classpath:com.tactix4.t4ADT.ADT_SEX.properties"/>
+           <util:properties location="classpath:com.tactix4.t4ADT.ADT_SEX.properties"/>
         </constructor-arg>
     </bean>
 
+    <bean id="a01map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A01.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a11map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A11.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a02map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A02.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a12map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A12.properties"/>
+        </constructor-arg>
+    </bean>
+       <bean id="a05map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A05.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a03map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A03.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a13map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A13.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a08map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A08.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a28map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A28.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a31map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A31.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a40map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_A40.properties"/>
+        </constructor-arg>
+    </bean>
+    <!---->
 </beans>

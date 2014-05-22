@@ -21,7 +21,7 @@
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.5</scalaz-version>
-        <t4skr-connector-version>2.0-SNAPSHOT</t4skr-connector-version>
+        <t4skr-connector-version>2.0.1</t4skr-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.0.2</typesafe-config-version>
@@ -160,12 +160,12 @@
         <repository>
             <id>artifactory-releases</id>
             <name>artifactory release repo</name>
-            <url>http://10.10.160.30:8081/artifactory/libs-release-local</url>
+            <url>http://10.10.170.8:8081/artifactory/libs-release-local</url>
         </repository>
         <repository>
             <id>artifactory-snapshots</id>
             <name>artifactory snapshot repo</name>
-            <url>http://10.10.160.30:8081/artifactory/libs-snapshot-local</url>
+            <url>http://10.10.170.8:8081/artifactory/libs-snapshot-local</url>
         </repository>
 	</repositories>
     	<build>

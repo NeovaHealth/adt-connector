@@ -18,7 +18,7 @@ import ca.uhn.hl7v2.util.Terser
 @ContextConfiguration(locations=Array("classpath:META-INF/spring/testBeans.xml"))
 class TerserMapTest extends FunSuite with ShouldMatchers{
 
-  val configPath = "src/test/resources/ADT_A01.properties"
+  val configPath = "src/test/resources/com.tactix4.t4ADT.ADT_A31.properties"
 
   @Autowired val route :ADTInRoute  = null
 
@@ -41,21 +41,21 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
   def failMappings = route.getMappings(failTerser,route.terserMap)
 
   test("read from the terserMap"){
-    route.getAttribute("givenName")
+    route.getAttribute("given_name")
   }
   test("generate error on non existent message type in terserMap"){
     intercept[ADTFieldException]{
-      route.getAttribute("givenName")(failTerser,mappings)
+      route.getAttribute("given_name")(failTerser,mappings)
     }
   }
   test("generate error on non existent message attribute in terserMap"){
     intercept[ADTApplicationException]{
-      route.getAttribute("middleName")
+      route.getAttribute("middle_name")
     }
   }
   test("generate error on empty message attribute in terserMap"){
     intercept[ADTApplicationException]{
-      route.getAttribute("middleName")(terser,mappings)
+      route.getAttribute("other_names")(terser,mappings)
     }
   }
   test("generate a failure on an invalid date") {

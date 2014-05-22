@@ -20,7 +20,7 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     new ClassPathXmlApplicationContext("META-INF/spring/testBeans.xml")
   }
 
-  val URI:String = "mina2:tcp://localhost:8888?sync=true&codec=#hl7codec"
+  val URI:String = "mina2:tcp://localhost:31337?sync=true&codec=#hl7codec"
 
   override def createRegistry() ={
 

@@ -111,8 +111,10 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
   def handleMessageType(t:String) = when(_.in(triggerEventHeader) == t) process(
     e => {
       metrics.meter(t).mark()
-      e.setProperty("PatientAlreadyExists",patientExists(terser("PID-3-1").evaluate(e,classOf[String])))
-      e.setProperty("VisitAlreadyExists",visitExists(terser("PV1-19").evaluate(e,classOf[String])))
+      implicit val terser = e.getIn.getHeader("terser",classOf[Terser])
+      implicit val mappings = getMappings(terser, terserMap)
+      e.setProperty("PatientAlreadyExists",patientExists(getHospitalNumber(mappings,terser)))
+      e.setProperty("VisitAlreadyExists",visitExists(getVisitNumber(mappings,terser).getOrElse("")))
       metricMap(t)._1.time{e.in = metricMap(t)._2(e.in[Message])}
     }
   )
