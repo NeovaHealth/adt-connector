@@ -19,7 +19,7 @@ trait ADTProcessing {
   val toDateTimeFormat:DateTimeFormatter
   val datesToParse:List[String]
   val sexMap:Map[String,String]
-  val hosptialNumber = "other_identifier"
+  val hospitalNumber = "other_identifier"
   val oldHospitalNumber = "old_other_identifier"  
   /**
    * query a terser object for a specified path
@@ -116,10 +116,18 @@ trait ADTProcessing {
   }
 
   def getHospitalNumber(implicit mappings:Map[String,String],terser:Terser): String = {
-      validateRequiredFields(List(hosptialNumber)).apply(hosptialNumber)
+      validateRequiredFields(List(hospitalNumber)).apply(hospitalNumber)
   }
 
-  def getVisitNumber(implicit mappings:Map[String,String],terser:Terser) : Option[VisitId] = {
+  def getOldHospitalNumber(implicit mappings:Map[String,String],terser:Terser) : Option[String] = {
+      validateOptionalFields(List(oldHospitalNumber)).get(oldHospitalNumber)
+  }
+
+  def getNHSNumber(implicit mappings:Map[String,String],terser:Terser): Option[String] = {
+      validateOptionalFields(List("patient_identifier")).get("patient_identifier")
+  }
+
+  def getVisitName(implicit mappings:Map[String,String],terser:Terser) : Option[VisitId] = {
       validateOptionalFields(List("visit_identifier")).get("visit_identifier")
   }
 

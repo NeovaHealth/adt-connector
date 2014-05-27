@@ -53,15 +53,6 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("failMsgHistory")
   }.maximumRedeliveries(0).handled
 
-//  //handle errors from t4skr
-//  handle[T4skrException] {
-//    transform(e => {
-//      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-//      e.getIn.setHeader("exception",getExceptionMessage(exception))
-//      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
-//      )})
-//    to("failMsgHistory")
-//  }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
   //handle timeouts
   handle[TimeoutException] {
@@ -74,7 +65,26 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("failMsgHistory")
   }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
-  //handle unsupported messages
+
+  handle[ADTUnsupportedWardException]{
+    choice{
+      when(_.getIn.getHeader("ignoreUnknownWards",classOf[Boolean])){
+        log("Ignoring unknown ward")
+        transform(_.in[Message].generateACK())
+        to("msgHistory")
+      }
+      otherwise {
+        transform(e => {
+          val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+          e.getIn.setHeader("exception", getExceptionMessage(exception))
+          e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+
+        })
+        to("failMsgHistory")
+      }
+    }
+  }.handled
+
 
   handle[ADTUnsupportedMessageException] {
     transform(e => {

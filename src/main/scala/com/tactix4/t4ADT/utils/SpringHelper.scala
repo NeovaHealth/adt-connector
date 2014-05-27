@@ -23,4 +23,13 @@ object SpringHelper {
     }
     l.toList
   }
+  def propertiesToSet(p:java.util.Properties): Set[String] = {
+    val l = scala.collection.mutable.MutableList[String]()
+    for( n : String <- p.stringPropertyNames){
+      l += p.getProperty(n)
+    }
+    l.toSet
+  }
+
+
 }

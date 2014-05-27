@@ -44,7 +44,6 @@
                 <entry key="A08" value-ref="a08map"/>
                 <entry key="A28" value-ref="a28map"/>
                 <entry key="A31" value-ref="a31map"/>
-                <entry key="A08" value-ref="a01map"/>
                 <entry key="A05" value-ref="a05map"/>
                 <entry key="A40" value-ref="a40map"/>
             </util:map>
