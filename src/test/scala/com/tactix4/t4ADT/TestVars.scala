@@ -7,14 +7,17 @@ import scala.util.Random
  *         10/03/2014
  */
 object TestVars {
-  final val patientOneId = Random.nextInt().abs
+
+  def randomId = Random.shuffle("abcdefghijklmnopqrstuvwxyz1234567890".toList).take(Random.nextInt(30) + 6).mkString
+
+  final val patientOneId = randomId
   val PID1 = "PID|1|^^^^PAS||"+ patientOneId + "^\"\"^^RDD^HOSP~652 639 8685^NSTS01^^NHS^NHS~QD1320147-1^^^RDD^EVO|DUMMY^PATIENT HEIDI^^^Miss||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
-  final val patientTwoId = Random.nextInt().abs
+  final val patientTwoId = randomId
   val PID2 = "PID|1|^^^^PAS||" + patientTwoId + "|DUMMY^PATIENT HEIDI^^^Ms||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
 
   val WARD = "E8"
 
-  val visitID = Random.shuffle("aasdfhjklqweryuio123487961234mnbxdf".toList).mkString
+  val visitID = randomId
 
   val patientNewADT28     = "MSH|^~\\&|iPM|iIE|T4skr|T4skr|20120124135111||ADT^A28|609299|P|2.4|||AL|AL\r" +
                             "EVN|A28|20120124135111\r"+

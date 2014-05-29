@@ -265,7 +265,10 @@
                             scala.util.control,
                             scala.runtime,
                             scalaz,
-                            scalaz.syntax
+                            scalaz.syntax,
+                            scalaz.std,
+                            scalaz.syntax.std
+
                         </Import-Package>
                         <Export-Package>
                             com.tactix4.t4ADT,

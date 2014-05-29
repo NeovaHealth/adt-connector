@@ -32,13 +32,13 @@ class TerserMapTest extends FunSuite with ShouldMatchers{
   terser.set("PID-5-3", null)
   terser.set("PID-7-1", "19850101000000")
   terser.set("PID-8", "M")
-  implicit val mappings = route.getMappings(terser,route.terserMap)
+  implicit val mappings = route.getCurrentMappings(terser,route.terserMap)
 
 
   val testFailMessage = new ADT_A15()
   testFailMessage.initQuickstart("ADT", "A15", "P")
   val failTerser = new Terser(testFailMessage)
-  def failMappings = route.getMappings(failTerser,route.terserMap)
+  def failMappings = route.getCurrentMappings(failTerser,route.terserMap)
 
   test("read from the terserMap"){
     route.getAttribute("given_name")

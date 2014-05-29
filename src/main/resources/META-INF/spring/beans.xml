@@ -18,7 +18,6 @@
         </property>
     </bean>
      <!---->
-
     <!--HL7 Listener-->
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
 
@@ -58,6 +57,7 @@
                 <entry key="A03" value-ref="a03map"/>
                 <entry key="A13" value-ref="a13map"/>
                 <entry key="A08" value-ref="a08map"/>
+                <entry key="A05" value-ref="a05map"/>
                 <entry key="A28" value-ref="a28map"/>
                 <entry key="A31" value-ref="a31map"/>
                 <entry key="A40" value-ref="a40map"/>
@@ -133,6 +133,11 @@
     <bean id="a13map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
             <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_A13.properties"/>
+        </constructor-arg>
+    </bean>
+    <bean id="a05map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+            <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_A05.properties"/>
         </constructor-arg>
     </bean>
     <bean id="a08map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">

@@ -97,21 +97,22 @@ trait ADTProcessing {
   }
 
   def validateOptionalFields(fields: List[String])(implicit mappings: Map[String,String], terser: Terser): mutable.HashMap[String, String] = {
-    val opts = mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
+      val opts = mutable.HashMap(fields.map(f => catching(classOf[ADTFieldException], classOf[ADTApplicationException]).opt(getAttribute(f))).flatten.toMap.toSeq: _*)
 
-    if(fields exists (_ == "sex")) catching(classOf[ADTFieldException]).opt(parseSexField(opts))
+      if (fields exists (_ == "sex")) catching(classOf[ADTFieldException]).opt(parseSexField(opts))
 
-    datesToParse.foreach(d =>
-      opts.get(d).map(dob=> opts(d) = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
-    )
-    opts
+      datesToParse.foreach(d =>
+        opts.get(d).map(dob => opts(d) = checkDate(dob, fromDateTimeFormat, toDateTimeFormat))
+      )
+      opts
+
   }
 
   def getOptionalFields(requiredFields: Map[String,String])(implicit mappings:Map[String,String]): List[String] = {
     (mappings.keySet diff requiredFields.keySet).toList
   }
 
-  def getMappings(implicit terser:Terser, terserMap:Map[String, Map[String,String]]) = {
+  def getCurrentMappings(implicit terser:Terser, terserMap:Map[String, Map[String,String]]) = {
     getMessageTypeMap(terserMap, getMessageType(terser))
   }
 
