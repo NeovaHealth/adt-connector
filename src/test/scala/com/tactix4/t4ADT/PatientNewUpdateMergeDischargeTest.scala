@@ -18,6 +18,8 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
     log.info("sending patientNew with ADT_A28 : id: " + TestVars.patientOneId)
     sendMessageAndExpectResponse(TestVars.patientNewADT28, "MSA|AA|")
   }
+
+
   @Test
   def btestA05{
     log.info("sending patientNew with ADT_A05 : id: " + TestVars.patientTwoId)

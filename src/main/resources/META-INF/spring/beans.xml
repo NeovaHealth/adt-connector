@@ -50,7 +50,7 @@
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
 
         <constructor-arg name="mappings" ref="common_mappings"/>
-        <constructor-arg name="msgTypeOptionalMapings">
+        <constructor-arg name="msgTypeMappings">
             <map>
                 <entry key="A01" value-ref="a01map"/>
                 <entry key="A11" value-ref="a11map"/>
@@ -79,7 +79,7 @@
         <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
         <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
-        <constructor-arg name="datesToParse" value="datesToParse"/>
+        <constructor-arg name="datesToParse" ref="datesToParse"/>
     </bean>
     <!---->
 

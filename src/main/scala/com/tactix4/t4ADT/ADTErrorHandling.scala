@@ -7,12 +7,13 @@ import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
 import java.net.ConnectException
+import com.tactix4.t4ADT.exceptions._
 
 /**
  * @author max@tactix4.com
  *         11/10/2013
  */
-trait ADTErrorHandling extends  Preamble with DSL {
+trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
 
   val redeliveryDelay:Long
   val maximumRedeliveries:Int
@@ -105,4 +106,13 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("failMsgHistory")
   }.handled
 
+
+  handle[ADTConsistencyException] {
+    transform(e =>{
+      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      e.getIn.setHeader("exception",getExceptionMessage(exception))
+      e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.APPLICATION_INTERNAL_ERROR))
+    })
+    to("failMsgHistory")
+  }.handled
 }

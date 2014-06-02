@@ -7,12 +7,13 @@ import scala.util.control.Exception._
 import com.tactix4.t4skr.core.{HospitalNo, VisitId}
 import scalaz._
 import Scalaz._
+import com.tactix4.t4ADT.exceptions.ADTExceptions
 
 /**
  * @author max@tactix4.com
  *         11/10/2013
  */
-trait ADTProcessing {
+trait ADTProcessing extends ADTExceptions{
 
   val fromDateTimeFormat:DateTimeFormatter
   val toDateTimeFormat:DateTimeFormatter
@@ -32,7 +33,11 @@ trait ADTProcessing {
    * @param date the date string
    */
   def parseDate(date: String):String = {
+    try {
       DateTime.parse(date, fromDateTimeFormat).toString(toDateTimeFormat)
+    } catch {
+      case e:Throwable => throw new ADTFieldException("Could not parse date: " + e.getMessage)
+    }
   }
 
   def parseSex(m: String): String = {
@@ -70,7 +75,6 @@ trait ADTProcessing {
         else s
         }
     )
-
 
   }
 
