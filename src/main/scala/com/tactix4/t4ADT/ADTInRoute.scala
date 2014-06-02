@@ -90,7 +90,7 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
     "A02" -> (patientTransferTimer,patientTransfer(_:Message)),
     "A03" -> (patientDischargeTimer,patientDischarge(_:Message)),
     "A11" -> (visitUpdateTimer, cancelVisitNew(_:Message)),
-    "A12" -> (visitUpdateTimer,visitUpdate(_:Message)),
+    "A12" -> (visitUpdateTimer,cancelPatientTransfer(_:Message)),
     "A13" -> (visitUpdateTimer,cancelPatientDischarge(_:Message))
   )
 
@@ -177,25 +177,21 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
       val msg = e.getIn.getHeader("origMessage", classOf[Message])
       val t = e.getIn.getHeader("terser",classOf[Terser])
       val discharged = allCatch.opt(!t.get("PV1-45").isEmpty) getOrElse false
-      val visitExists = e.getProperty("VisitAlreadyExists", false, classOf[Boolean])
 
       if(!List("A01","A11").contains(e.in(triggerEventHeader))) {
         if (!discharged) {
-          if (visitExists) {
-            t.set("MSH-9-2","A01")
+          t.set("MSH-9-2","A01")
+          implicit val mappings = getMappings(t, terserMap)
+          if(visitExists(getVisitNumber(mappings,t).getOrElse(""))){
             e.in = visitUpdate(msg)
           }
           else {
-            t.set("MSH-9-2","A01")
             e.in = visitNew(msg)
           }
         }
       }
 
     })
-
-    to("log:done")
-
   }
 
   def extract(f : Terser => Map[String,String] => T4skrResult[_]) (implicit message:Message): Message = {
@@ -204,9 +200,12 @@ class ADTInRoute(implicit val terserMap: Map[String,Map[String, String]],
 
     val result = allCatch either Await.result(f(terser)(mappings) value, timeOutMillis millis)
 
-    result.left.map((error: Throwable) => throw new ADTApplicationException(error.getMessage, error))
-
-    message.generateACK()
+    result.fold(
+      (error: Throwable) => throw new ADTApplicationException(error.getMessage, error),
+      (result: Validation[ErrorMessage, Any]) => result.fold(
+        (error: ErrorMessage) => throw new ADTApplicationException(error),
+        _ => message.generateACK())
+    )
   }
 
   def patientMerge(implicit message:Message): Message = extract { implicit terser => implicit m =>

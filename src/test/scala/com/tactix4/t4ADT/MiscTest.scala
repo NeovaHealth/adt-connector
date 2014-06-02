@@ -21,8 +21,8 @@ class MiscTest extends ADTTest {
   }
   @Test
   def testDuplicateMessage() = {
-   sendMessageAndExpectResponse(TestVars.patientNewADT05,"AA")
-   sendMessageAndExpectError(TestVars.patientNewADT05,"Duplicate")
+   sendMessageAndExpectResponse(TestVars.A05Dup,"AA")
+   sendMessageAndExpectError(TestVars.A05Dup,"Duplicate")
   }
 
 
