@@ -84,7 +84,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
         to("failMsgHistory")
       }
     }
-  }.handled
+  }.handled.maximumRedeliveries(0)
 
 
   handle[ADTUnsupportedMessageException] {
@@ -95,7 +95,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
     }
     )
     to("failMsgHistory")
-  }.handled
+  }.handled.maximumRedeliveries(0)
 
   handle[ADTDuplicateMessageException] {
     transform(e =>{
@@ -104,7 +104,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.DUPLICATE_KEY_IDENTIFIER))
     })
     to("failMsgHistory")
-  }.handled
+  }.handled.maximumRedeliveries(0)
 
 
   handle[ADTConsistencyException] {
@@ -114,5 +114,5 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.APPLICATION_INTERNAL_ERROR))
     })
     to("failMsgHistory")
-  }.handled
+  }.handled.maximumRedeliveries(0)
 }
