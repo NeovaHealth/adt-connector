@@ -254,6 +254,7 @@
                             org.apache.commons.dbcp,
                             scala,
                             scala.util,
+                            scala.util.matching,
                             scala.collection,
                             scala.collection.generic,
                             scala.collection.immutable,
@@ -265,11 +266,15 @@
                             scala.util.control,
                             scala.runtime,
                             scalaz,
-                            scalaz.syntax
+                            scalaz.syntax,
+                            scalaz.std,
+                            scalaz.syntax.std
+
                         </Import-Package>
                         <Export-Package>
                             com.tactix4.t4ADT,
-                            com.tactix4.t4ADT.utils
+                            com.tactix4.t4ADT.utils,
+                            com.tactix4.t4ADT.exceptions
                         </Export-Package>
 					</instructions>
 				</configuration>

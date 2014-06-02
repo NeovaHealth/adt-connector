@@ -7,12 +7,13 @@ import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
 import java.net.ConnectException
+import com.tactix4.t4ADT.exceptions._
 
 /**
  * @author max@tactix4.com
  *         11/10/2013
  */
-trait ADTErrorHandling extends  Preamble with DSL {
+trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
 
   val redeliveryDelay:Long
   val maximumRedeliveries:Int
@@ -53,15 +54,6 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("failMsgHistory")
   }.maximumRedeliveries(0).handled
 
-//  //handle errors from t4skr
-//  handle[T4skrException] {
-//    transform(e => {
-//      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-//      e.getIn.setHeader("exception",getExceptionMessage(exception))
-//      e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("T4skr Exception: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
-//      )})
-//    to("failMsgHistory")
-//  }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
   //handle timeouts
   handle[TimeoutException] {
@@ -74,7 +66,26 @@ trait ADTErrorHandling extends  Preamble with DSL {
     to("failMsgHistory")
   }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
-  //handle unsupported messages
+
+  handle[ADTUnsupportedWardException]{
+    choice{
+      when(_.getIn.getHeader("ignoreUnknownWards",classOf[Boolean])){
+        log("Ignoring unknown ward")
+        transform(_.in[Message].generateACK())
+        to("msgHistory")
+      }
+      otherwise {
+        transform(e => {
+          val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+          e.getIn.setHeader("exception", getExceptionMessage(exception))
+          e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
+
+        })
+        to("failMsgHistory")
+      }
+    }
+  }.handled.maximumRedeliveries(0)
+
 
   handle[ADTUnsupportedMessageException] {
     transform(e => {
@@ -84,7 +95,7 @@ trait ADTErrorHandling extends  Preamble with DSL {
     }
     )
     to("failMsgHistory")
-  }.handled
+  }.handled.maximumRedeliveries(0)
 
   handle[ADTDuplicateMessageException] {
     transform(e =>{
@@ -93,6 +104,15 @@ trait ADTErrorHandling extends  Preamble with DSL {
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.DUPLICATE_KEY_IDENTIFIER))
     })
     to("failMsgHistory")
-  }.handled
+  }.handled.maximumRedeliveries(0)
 
+
+  handle[ADTConsistencyException] {
+    transform(e =>{
+      val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      e.getIn.setHeader("exception",getExceptionMessage(exception))
+      e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.APPLICATION_INTERNAL_ERROR))
+    })
+    to("failMsgHistory")
+  }.handled.maximumRedeliveries(0)
 }

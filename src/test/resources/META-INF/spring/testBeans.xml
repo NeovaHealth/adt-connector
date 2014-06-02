@@ -33,7 +33,8 @@
     <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 
  <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
-        <constructor-arg name="terserMap">
+          <constructor-arg name="mappings" ref="common_mappings"/>
+        <constructor-arg name="msgTypeMappings">
             <util:map>
                 <entry key="A01" value-ref="a01map"/>
                 <entry key="A02" value-ref="a02map"/>
@@ -62,6 +63,7 @@
               <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
               <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
               <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
+        <constructor-arg name="datesToParse" ref="datesToParse"/>
     </bean>
 
     <!--Context-->
@@ -71,15 +73,27 @@
     <!---->
 
     <!--Utility beans-->
-    <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+    <bean id="common_mappings" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+           <util:properties location="classpath:com.tactix4.t4ADT.ADT_COMMON.properties"/>
+        </constructor-arg>
+    </bean>
+
+    <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToSet">
         <constructor-arg>
             <util:properties location="classpath:com.tactix4.t4ADT.ADT_WARDS.properties"/>
         </constructor-arg>
     </bean>
 
+    <bean id="datesToParse" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+       <constructor-arg>
+           <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATESTOPARSE.properties"/>
+       </constructor-arg>
+    </bean>
+
     <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
         <constructor-arg>
-            <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATES.properties"/>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATEFORMATS.properties"/>
         </constructor-arg>
     </bean>
 
