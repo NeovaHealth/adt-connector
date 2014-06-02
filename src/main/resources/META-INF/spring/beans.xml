@@ -48,7 +48,9 @@
 
     <!--Route injection-->
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
-        <constructor-arg name="terserMap">
+
+        <constructor-arg name="mappings" ref="common_mappings"/>
+        <constructor-arg name="msgTypeOptionalMapings">
             <map>
                 <entry key="A01" value-ref="a01map"/>
                 <entry key="A11" value-ref="a11map"/>
@@ -77,6 +79,7 @@
         <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
         <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
         <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
+        <constructor-arg name="datesToParse" value="datesToParse"/>
     </bean>
     <!---->
 
@@ -87,6 +90,12 @@
     <!---->
 
     <!--Utility beans-->
+    <bean id="common_mappings" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+        <constructor-arg>
+           <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_COMMON.properties"/>
+        </constructor-arg>
+    </bean>
+
     <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToSet">
         <constructor-arg>
             <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_WARDS.properties"/>
@@ -95,7 +104,13 @@
 
     <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
        <constructor-arg>
-           <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_DATES.properties"/>
+           <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_DATEFORMATS.properties"/>
+       </constructor-arg>
+    </bean>
+
+    <bean id="datesToParse" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
+       <constructor-arg>
+           <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_DATESTOPARSE.properties"/>
        </constructor-arg>
     </bean>
 

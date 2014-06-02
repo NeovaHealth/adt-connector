@@ -11,7 +11,6 @@ import ca.uhn.hl7v2.model.Message
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.util.control.Exception._
 import scalaz._
 import Scalaz._
 
@@ -19,20 +18,15 @@ import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTi
 import org.joda.time.DateTime
 
 import com.tactix4.t4skr.{T4skrResult, T4skrConnector}
-import com.tactix4.t4skr.core.{T4skrId, VisitId, HospitalNo}
+import com.tactix4.t4skr.core.{WardId, T4skrId, VisitId, HospitalNo}
 import com.tactix4.t4openerp.connector.domain.Domain._
 import com.tactix4.t4openerp.connector._
 
 import com.typesafe.scalalogging.slf4j.Logging
+import scala.collection.JavaConversions._
 
 
-/**
- * A Camel Route for receiving ADT messages over an MLLP connector
- * via the mina2 component, validating them, then calling the associated
- * t4skrConnetor methods and returning an appropriate ack
- * Note: we block on the async t4skrConnector methods because the mina connection
- * is synchronous
- */
+//TODO: Cacheing
 
 class ADTApplicationException(msg: String, cause: Throwable = null) extends Exception(msg, cause)
 
@@ -46,53 +40,49 @@ class ADTUnsupportedWardException(msg: String = null, cause: Throwable = null) e
 
 class ADTDuplicateMessageException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)
 
-class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
+class ADTInRoute(val mappings: Map[String,String],
+                 val msgTypeMappings: Map[String, Map[String, String]],
                  val protocol: String,
                  val host: String,
                  val port: Int,
                  val username: String,
                  val password: String,
                  val database: String,
-                 val inputDateFormats: List[String],
                  val wards: Set[String],
                  val sexMap: Map[String, String],
+                 val inputDateFormats: List[String],
                  val toDateFormat: String,
+                 val datesToParse: List[String],
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
                  val maximumRedeliveries: Int,
                  val ignoreUnknownWards: Boolean) extends RouteBuilder with ADTProcessing with ADTErrorHandling with Logging {
 
   type VisitName = VisitId
-
   val connector = new T4skrConnector(protocol, host, port).startSession(username, password, database)
-
   val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
-  val datesToParse = List("dob", "visit_start_date_time", "discharge_date")
-
   val triggerEventHeader = "CamelHL7TriggerEvent"
-
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
-
 
   val updateVisitRoute = "direct:updateOrCreateVisit"
   val updatePatientRoute = "direct:updateOrCreatePatient"
   val msgHistory = "msgHistory"
-  val convertMsg = "direct:convertMsg"
 
-  val supportedMsgTypes = terserMap.keySet
+  val supportedMsgTypes = msgTypeMappings.keySet
 
-  def convertMsgType(e:Exchange, msgType:String) = {
-    val terser = getTerser(e)
-    terser.set("MSH-9-2", msgType)
-    e.getIn.setHeader("mappings", getCurrentMappings(terser,terserMap))
-  }
+  val optionalPatientFields = List("patient_identifier", "given_name",  "family_name",  "middle_names",  "title", "sex", "dob")
+  val optionalVisitFields = List("consultingDoctorCode", "consultingDoctorPrefix", "consultingDoctorGivenName", "consultingDoctorFamilyName","referringDoctorCode","referringDoctorPrefix", "referringDoctorGivenName", "referringDoctorFamilyName","service_code")
+
 
   def getPatientByHospitalNumber(hospitalNumber: HospitalNo): Option[T4skrId] =
     Await.result(connector.oeSession.search("t4clinical.patient", "other_identifier" === hospitalNumber).value, 2000 millis).fold(
       _ => None,
-      ids => ids.headOption
+      ids => {
+        println(ids)
+        ids.headOption
+      }
     )
 
   def getPatientByNHSNumber(nhsNumber: String): Option[T4skrId] =
@@ -110,6 +100,7 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
         a <- oe.array
         h <- a.headOption
         id <- h.int
+        _ = println(id)
       } yield id
     )
 
@@ -120,15 +111,13 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
     )
 
 
+  def getMapFromFields(m:List[String])(implicit t:Terser) ={
+    m.map(f => getMessageValue(f).map(v => f -> v)).flatten.toMap
+  }
+
   def visitExists(e: Exchange): Boolean = {
-    val t = getTerser(e)
-    t.set("MSH-9-2","A01")
-    val m = getCurrentMappings(t,terserMap)
-    val r = getVisitName(m,t).flatMap(getVisit).isDefined
-    logger.info("terser: " + t.toString)
-    logger.info("mappings: " + m)
-    logger.info("VisitExists::::::::::::>>> " + r)
-    r
+    e.getIn.getHeader("visit_id") != null
+//    getVisitName(getTerser(e)).flatMap(getVisit).isDefined
   }
 
   def patientExists(e: Exchange): Boolean = {
@@ -136,45 +125,25 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
     p != null && p.isDefined
   }
 
-  def getWardIdentifier(e: Exchange): Option[String] = {
-    val originalMsgType = msgType(e)
-    val terser = getTerser(e)
-    convertMsgType(e,"A01")
-    val result = for {
-      mappings <- getMappings(e)
-      r <- validateOptionalFields(List("ward_identifier"))(mappings,terser).get("ward_identifier")
-    } yield  r
-    originalMsgType.map(t => convertMsgType(e,t))
-    result
-  }
-
-  def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(e).fold(true)(w => wards contains w)
+  def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w => wards contains w)
 
   def msgType(e: Exchange): Option[String] = checkForNull(e.getIn.getHeader(triggerEventHeader, classOf[String]))
 
   def getMessage(e: Exchange): Message = e.getIn.getHeader("origMessage", classOf[Message])
 
   def mergeTargetExists(e: Exchange): Boolean = {
-    val m = e.getIn.getHeader("mappings", classOf[Map[String, String]])
-    val t = e.getIn.getHeader("terser", classOf[Terser])
-    getOldHospitalNumber(m, t).flatMap(getPatientByHospitalNumber).isDefined
+    getOldHospitalNumber(getTerser(e)).flatMap(getPatientByHospitalNumber).isDefined
   }
 
   def checkForNull[T](t : T) : Option[T] = (t != null) ? t.some | None
 
-  def getTerser(e:Exchange):Terser = {
-    e.getIn.getHeader("terser", classOf[Terser])
-  }
-  def getMappings(e:Exchange) : Option[Map[String,String]] = {
-    checkForNull(e.getIn.getHeader("mappings", classOf[Map[String, String]]))
-  }
-  
-  def getVisitName(e:Exchange) : Option[VisitName] = {
-    checkForNull(e.getIn.getHeader("visitName", classOf[Option[VisitName]])).flatten
-  }
+  def getTerser(e:Exchange):Terser =  e.getIn.getHeader("terser", classOf[Terser])
 
   def getPatientLinkedToHospitalNo(e:Exchange) : Option[T4skrId] ={
     checkForNull(e.getIn.getHeader("patientLinkedToHospitalNo", classOf[Option[T4skrId]])).flatten
+  }
+  def getPatientLinkedToVisitName(e:Exchange) : Option[T4skrId] ={
+    checkForNull(e.getIn.getHeader("patientLinkedToVisitName", classOf[Option[T4skrId]])).flatten
   }
   def getPatientLinkedToNHSNo(e:Exchange) : Option[T4skrId] ={
     checkForNull(e.getIn.getHeader("patientLinkedToNHSNo", classOf[Option[T4skrId]])).flatten
@@ -194,86 +163,42 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
   "direct:visitConflictCheck" ==> {
      //check for conflict with visits
       when(e => {
-        val vid = getVisitName(e)
-        val pid = getPatientLinkedToHospitalNo(e) 
-        val result = for {
-          v <- vid
-          p1 <- pid
-          p2 <- getPatientByVisitName(v)
-        } yield p1 != p2
-        result | false
-      }) {
-        process(e => throw new ADTConsistencyException("Hospital number: " + e.in("hospitalNo") + " is linked to patient: " + e.in("patientLinkedToHospitalNo") + " " +
-          " but visit: " + e.in("visitName") + " is linked to patient: " + e.in("patientLinkedToVisitId") + ""))
+        val pv = getPatientLinkedToVisitName(e)
+        val ph = getPatientLinkedToHospitalNo(e)
+        pv.isDefined && pv != ph
+      }){
+        process( e => throw new ADTConsistencyException("Hospital number: " + e.in("hospitalNo") + " is linked to patient: " + e.in("patientLinkedToHospitalNo") + " " +
+          " but visit: " + e.in("visitName") + " is linked to patient: " + e.in("patientLinkedToVisitName") + ""))
       }
-  }
-
-  def valueChanged[T](headerName: String, value:T, e:Exchange) = {
-    value != null && value != None && value != "" && e.getIn.getHeader(headerName) != value
-  }
-
-  "direct:updateHeaders" ==> {
-    log("about to update headers")
-    process(e => {
-      println("updating headers")
-      val t = getTerser(e)
-      val m = getCurrentMappings(t, terserMap)
-      val hid = getHospitalNumber(m, t)
-
-      val nhs =  getNHSNumber(m, t)
-
-      val visitName = getVisitName(m, t)
-
-      if (valueChanged("mappings", m, e)) {
-        e.getIn.setHeader("mappings", m)
-      }
-      if (valueChanged("hospitalNo", hid, e)) {
-        logger.error("old hospitalNo: " + e.in("hospitalNo") + " - new hospitalNo: " + hid)
-        e.getIn.setHeader("hospitalNo", hid)
-        e.getIn.setHeader("patientLinkedToHospitalNo", getPatientByHospitalNumber(hid))
-      }
-      if (valueChanged("NHSNo", nhs, e)) {
-        logger.error("old NHSNo: " + e.in("NHSNo") + " - new NHSNo: " + ~nhs)
-        e.getIn.setHeader("NHSNo", nhs)
-        e.getIn.setHeader("patientLinkedToNHSNo", nhs.flatMap(getPatientByNHSNumber))
-      }
-      if (valueChanged("visitName", visitName, e)) {
-        println("Updating visitname stuff")
-        logger.error("old visitName: " + e.in("visitName") + " - new VisitName: " + visitName)
-        e.getIn.setHeader("visitName", visitName)
-        val visitIdentifier = visitName.flatMap(getVisit)
-        logger.error("old visitId: " + e.in("visitId") + " - new Visitid: " + visitIdentifier)
-        e.getIn.setHeader("visitId", visitIdentifier)
-        val pltvn = visitName.flatMap(getPatientByVisitName)
-        logger.error("old PLTVN: " + e.in("patientLinkedToVisitName") + " - new PLTVN: " + pltvn)
-        e.getIn.setHeader("patientLinkedToVisitName", pltvn)
-      }
-      logger.error("updated headers: " + e.getIn.getHeaders)
-    })
-
   }
 
   "direct:setHeaders" ==> {
     process(e => {
       val message = e.in[Message]
       val t = new Terser(message)
-      val m = getCurrentMappings(t, terserMap)
-      val hid = getHospitalNumber(m, t)
-      val nhs = getNHSNumber(m, t)
-      val visitName = getVisitName(m, t)
+      val hid = getHospitalNumber(t)
+      val nhs = getNHSNumber(t)
+      val visitName = getVisitName(t)
 
       e.getIn.setHeader("origMessage", message)
       e.getIn.setHeader("terser", t)
+      e.getIn.setHeader("hospitalNo", hid)
+      e.getIn.setHeader("NHSNo", nhs)
+      e.getIn.setHeader("visitName", visitName)
       e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
 
-      e.getIn.setHeader("mappings", m)
-      e.getIn.setHeader("hospitalNo", hid)
-      e.getIn.setHeader("patientLinkedToHospitalNo", getPatientByHospitalNumber(hid))
-      e.getIn.setHeader("NHSNo", nhs)
+      e.getIn.setHeader("patientLinkedToHospitalNo", hid.flatMap(getPatientByHospitalNumber))
       e.getIn.setHeader("patientLinkedToNHSNo", nhs.flatMap(getPatientByNHSNumber))
-      e.getIn.setHeader("visitName", visitName)
-      e.getIn.setHeader("visitId", visitName.flatMap(getVisit))
       e.getIn.setHeader("patientLinkedToVisitName", visitName.flatMap(getPatientByVisitName))
+      e.getIn.setHeader("visitId", visitName.flatMap(getVisit))
+
+      val h = e.getIn.getHeaders.toMap
+      println("hospital No: " + h("hospitalNo"))
+      println("NHS No: " + h("NHSNo"))
+      println("Visit Name: " + h("visitName"))
+      println("patient t4skrId from hospitalNo:  " + h("patientLinkedToHospitalNo"))
+      println("patient t4skrId from NHS No:  " + h("patientLinkedToNHSNo"))
+      println("patient t4skrId from Visit Name:  " + h("patientLinkedToVisitName"))
 
     })
   }
@@ -310,7 +235,7 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
         when(e => ~msgType(e) == "A12") --> "direct:A12"
         when(e => ~msgType(e) == "A40") --> "direct:A40"
         otherwise{
-          throwException(new ADTUnsupportedWardException("unsupported msg type"))
+          throwException(new ADTUnsupportedWardException("Unsupported msg type"))
         }
       }
       -->(msgHistory)
@@ -319,112 +244,36 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
   }
 
 
-  convertMsg ==> {
-    when(_.in("convertTo") != null) {
-      process(e => convertMsgType(e, e.getIn.getHeader("convertTo",classOf[String])))
-      -->("direct:updateHeaders")
-    } otherwise {
-      throwException(new ADTApplicationException("convertMessage route must be called with 'convertTo' header set"))
-    }
-
-  }
-
-
   updatePatientRoute ==> {
-    setHeader("origType",e => ~msgType(e) )
     when(e => patientExists(e)) {
-      setHeader("convertTo","A31")
-      -->(convertMsg)
-      process(e => {
-        getTerser(e).set("MSH-9-2", "A31")
-        patientUpdate(e)
-      })
-
+      process(e => patientUpdate(e))
     } otherwise {
-      setHeader("convertTo","A28")
-      -->(convertMsg)
-      process(e =>  patientNew(e))
+      process(e => patientNew(e))
     }
-    setHeader("convertTo",header("origType"))
-    -->(convertMsg)
   }
 
   updateVisitRoute ==> {
-    setHeader("origType",e => ~msgType(e) )
-
     when(e => visitExists(e)) {
-      setHeader("convertTo","A31")
-      -->(convertMsg)
       process(e => visitUpdate(e))
     } otherwise {
-      filter(terser("PV1").isNotNull) --> "direct:visitNewRoute"
+      filter(terser("PV1").isNotNull) process (e => visitNew(e))
     }
-    setHeader("convertTo",header("origType"))
-    -->(convertMsg)
   }
 
-  "direct:visitNewRoute" ==> {
-    setHeader("convertTo","A01")
-    -->(convertMsg)
-    process(e => visitNew(e))
-  }
-
-  "direct:cancelVisitNewRoute" ==> {
-    setHeader("convertTo", "A11")
-    -->(convertMsg)
-    process(e => cancelVisitNew(e))
-  }
-
-  "direct:patientTransferRoute" ==> {
-    setHeader("convertTo", "A02")
-    -->(convertMsg)
-    process(e => patientTransfer(e))
-  }
-
-  "direct:cancelPatientTransferRoute" ==> {
-    setHeader("convertTo", "A12")
-    -->(convertMsg)
-    process(e => cancelPatientTransfer(e))
-  }
-
-  "direct:patientDischargeRoute" ==> {
-    setHeader("convertTo", "A03")
-    -->(convertMsg)
-    process(e => patientDischarge(e))
-  }
-
-  "direct:cancelPatientDischargeRoute" ==> {
-    setHeader("convertTo", "A13")
-    -->(convertMsg)
-    process(e => cancelPatientDischarge(e))
-  }
-
-  "direct:patientNewRoute" ==> {
-    setHeader("convertTo", "A28")
-    -->(convertMsg)
-    process(e => patientNew(e))
-  }
-
-  "direct:patientMergeRoute" ==> {
-    setHeader("convertTo", "A40")
-    -->(convertMsg)
-    process(e => patientMerge(e))
-  }
 
   "direct:A01" ==> {
     when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
     -->(updatePatientRoute)
-    -->("direct:visitNewRoute")
+    process(e => visitNew(e))
   }
 
 
   "direct:A11" ==> {
-
     -->(updatePatientRoute)
     when(e => !visitExists(e)) {
       log(LoggingLevel.WARN, "Calling cancel admit on visit that doesn't exist - ignoring")
     } otherwise {
-      -->("direct:cancelVisitNewRoute")
+      process(e => cancelVisitNew(e))
     }
   }
 
@@ -433,7 +282,7 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
     when(e => !visitExists(e)) {
       log(LoggingLevel.WARN, "Calling transferPatient for a visit that doesn't exist - ignoring")
     } otherwise {
-      -->("direct:patientTransferRoute")
+      process(e => patientTransfer(e))
     }
     wireTap(updateVisitRoute)
   }
@@ -443,7 +292,7 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
     when(e => !visitExists(e)){
       log(LoggingLevel.WARN, "Calling cancelTransferPatient for visit that doesn't exist - ignoring")
     } otherwise {
-      -->("direct:cancelPatientTransferRoute")
+      process(e => cancelPatientTransfer(e))
     }
     wireTap(updateVisitRoute)
   }
@@ -453,106 +302,113 @@ class ADTInRoute(implicit val terserMap: Map[String, Map[String, String]],
     when(e => !visitExists(e)) {
       log(LoggingLevel.WARN, "Calling discharge for a visit that doesn't exist - ignoring")
     } otherwise {
-      -->("direct:dischargePatientRoute")
+      process(e => patientDischarge(e))
     }
   }
   "direct:A13" ==> {
     -->(updatePatientRoute)
     when(e => !visitExists(e)) {
-      log(LoggingLevel.WARN, "Calling cancelDischarge on patient that doesn't exist - ignoring")
+      log(LoggingLevel.WARN, "Calling cancelDischarge on visit that doesn't exist - ignoring")
     } otherwise {
-      -->("direct:cancelDischargePatientRoute")
+      process(e => cancelPatientDischarge(e))
     }
     wireTap(updateVisitRoute)
   }
 
   "direct:A05A28" ==> {
     when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
-    -->("direct:patientNewRoute")
+    process(e => patientNew(e))
     wireTap(updateVisitRoute)
-
   }
   "direct:A40" ==> {
     when(e => !patientExists(e) || !mergeTargetExists(e)) throwException new ADTConsistencyException("Patients to merge did not exist")
-    -->("direct:patientMerge")
+    process(e => patientMerge(e))
     wireTap(updateVisitRoute)
   }
 
   "direct:A08A31" ==> {
-    log("about to go to updatePatientRoute")
     -->(updatePatientRoute)
-    log("about to go to updateVisitRoute")
     -->(updateVisitRoute)
   }
 
-  def extract[T](f: Terser => Map[String, String] => T4skrResult[T])(implicit e: Exchange): Unit = {
-    implicit val terser = getTerser(e)
-    implicit val mappings = getCurrentMappings(terser,terserMap)
+  def waitAndErr(x:ValidationNel[String,T4skrResult[_]]) = x.fold(
+      errors => throw new ADTFieldException(errors.shows),
+      r => Await.result(r.value,2000 millis).fold(
+        error => throw new ADTApplicationException(error),
+        _ => ()
+      )
+    )
 
-    val result = f(terser)(mappings)
-
-    Await.result(result.failMap(error => throw new ADTApplicationException(error)).value, timeOutMillis millis)
-    ()
+  def patientMerge(e:Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val ohn = getOldHospitalNumber.toSuccess("Could not locate old hospital number").toValidationNel
+    waitAndErr((hn |@| ohn)(connector.patientMerge))
+  }
+  def patientTransfer(e:Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
+    waitAndErr((hn |@| wi)(connector.patientTransfer))
   }
 
-  def patientMerge(implicit e: Exchange)= extract { terser => mappings =>
-    val requiredFields = validateRequiredFields(List(hospitalNumber, oldHospitalNumber))(mappings, terser)
-    connector.patientMerge(requiredFields(hospitalNumber), requiredFields(oldHospitalNumber))
+  def cancelPatientTransfer(e: Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
+    waitAndErr((hn |@| wi)(connector.patientTransferCancel))
   }
 
-  def cancelPatientTransfer(implicit e: Exchange) = extract { implicit terser => implicit m =>
-    val i = getHospitalNumber(m, implicitly)
-    val w = validateRequiredFields(List("ward_identifier"))(m, implicitly)
-    connector.patientTransfer(i, w("ward_identifier"))
-    //    connector.cancelPatientTransfer(i,w("ward_identifier"))
+  def visitNew(e:Exchange) : Unit = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
+    val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
+    val sdt = getMessageValue("visit_start_date_time").toSuccess("Could not locate visit start date time.").toValidationNel
+    val om = getMapFromFields(optionalVisitFields).successNel
+
+    waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)(connector.visitNew))
   }
 
-  def patientTransfer(implicit e: Exchange)= extract { implicit terser => implicit m =>
-    val i = getHospitalNumber(m, implicitly)
-    val w = validateRequiredFields(List("ward_identifier"))(m, implicitly)
-    connector.patientTransfer(i, w("ward_identifier"))
+  def patientUpdate(e:Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val om = getMapFromFields(optionalPatientFields).successNel
+    waitAndErr((hn |@| om)(connector.patientUpdate))
   }
 
-  def patientUpdate(implicit e: Exchange)= extract { implicit terser => implicit m =>
-    val i = getHospitalNumber(m, implicitly)
-    val o = validateAllOptionalFields(Map(hospitalNumber -> i))(m, implicitly)
-    connector.patientUpdate(i, o)
+  def patientDischarge(e: Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val dd = (getMessageValue("discharge_date") | new DateTime().toString(toDateTimeFormat)).successNel
+    waitAndErr((hn |@| dd)(connector.patientDischarge))
   }
 
-  def patientDischarge(implicit e: Exchange) = extract { implicit t => implicit m =>
-    val i = getHospitalNumber(m, implicitly)
-    val r = validateOptionalFields(List("discharge_date"))(m, implicitly)
-    val o = r.get("discharge_date") getOrElse new DateTime().toString(toDateTimeFormat)
-    connector.patientDischarge(i, o)
+  def cancelPatientDischarge(e: Exchange) = {
+    implicit val t = getTerser(e)
+    val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
+    waitAndErr(vi.map(connector.patientDischargeCancel))
+  }
+  def patientNew(e: Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val om = getMapFromFields(optionalPatientFields).successNel
+    waitAndErr((hn |@| om)(connector.patientNew))
   }
 
-  def cancelPatientDischarge(implicit e: Exchange) = extract { implicit t => implicit m =>
-    val r = validateRequiredFields(List("visit_identifier"))(m, implicitly)
-    connector.patientDischargeCancel(r("visit_identifier"))
+  def cancelVisitNew(e: Exchange) = {
+    implicit val t = getTerser(e)
+    val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
+    waitAndErr(vi.map(connector.visitCancel))
   }
 
-  def patientNew(implicit e: Exchange) = extract { implicit t => implicit m =>
-    val i = getHospitalNumber(m, implicitly)
-    val o = validateAllOptionalFields(Map(hospitalNumber -> i))(m, implicitly)
-    connector.patientNew(i, o)
-  }
+  def visitUpdate(e: Exchange) = {
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
+    val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
+    val sdt = getMessageValue("visit_start_date_time").toSuccess("Could not locate visit start date time.").toValidationNel
+    val om = getMapFromFields(optionalVisitFields).successNel
 
-  def cancelVisitNew(implicit e: Exchange) = extract { implicit t => implicit m =>
-    val r = validateRequiredFields(List("visit_identifier"))(m, implicitly)
-    connector.visitCancel(r("visit_identifier"))
-  }
-
-  def visitNew(implicit e: Exchange) = extract { implicit t => implicit m =>
-    val requiredFields = validateRequiredFields(List("ward_identifier", "visit_identifier", "visit_start_date_time"))(m, t)
-    val o = validateAllOptionalFields(requiredFields)(m, implicitly)
-    connector.visitNew(getHospitalNumber(m, t), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o)
-  }
-
-
-  def visitUpdate(implicit e: Exchange) = extract { implicit t => implicit m =>
-    val requiredFields = validateRequiredFields(List("ward_identifier", "visit_identifier", "visit_start_date_time"))(m, implicitly)
-    val o = validateAllOptionalFields(requiredFields)(m, implicitly)
-    connector.visitUpdate(getHospitalNumber(m, t), requiredFields("ward_identifier"), requiredFields("visit_identifier"), requiredFields("visit_start_date_time"), o)
-  }
-
-}
+    waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)(connector.visitUpdate))
+  }}

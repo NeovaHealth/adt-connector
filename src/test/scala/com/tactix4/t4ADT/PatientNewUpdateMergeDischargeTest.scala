@@ -44,6 +44,11 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
     sendMessageAndExpectResponse(TestVars.visitNew, "MSA|AA|")
   }
   @Test
+  def fbtestA01{
+    log.info("new visit for patientTwo")
+    sendMessageAndExpectError(TestVars.visitNewBroken, "Could not locate hospital number")
+  }
+  @Test
   def gtestA03 {
     log.info("discharge patientTwo")
     sendMessageAndExpectResponse(TestVars.patientDischarge, "MSA|AA|")
@@ -67,7 +72,7 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
   }
   @Test
   def lfail40{
-    sendMessageAndExpectError(TestVars.patientMergeADTNo_Identifier, "Required field missing")
+    sendMessageAndExpectError(TestVars.patientMergeADTNo_Identifier, "Patients to merge did not exist")
   }
 
 }
