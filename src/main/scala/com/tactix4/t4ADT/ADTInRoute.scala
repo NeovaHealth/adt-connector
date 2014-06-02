@@ -83,7 +83,7 @@ class ADTInRoute(val mappings: Map[String,String],
       -->(detectUnsupportedWards)
       -->(setHeaders)
       -->(detectIdConflict)
-      -->(detectIdConflict)
+      -->(detectVisitConflict)
       //split on msgType
       choice {
         when(msgEquals("A08")) --> A08Route
