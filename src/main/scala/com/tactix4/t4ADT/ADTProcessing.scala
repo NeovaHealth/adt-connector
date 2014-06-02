@@ -41,7 +41,9 @@ trait ADTProcessing extends ADTExceptions{
   }
 
   def parseSex(m: String): String = {
-    try sexMap(m)
+    try {
+      sexMap(m)
+    }
     catch {
       case e:Throwable => throw new ADTFieldException("Could not find value in sex map")
     }

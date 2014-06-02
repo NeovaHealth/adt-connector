@@ -21,10 +21,7 @@ trait T4skrQueries {
   def getPatientByHospitalNumber(hospitalNumber: HospitalNo): Option[T4skrId] =
     Await.result(connector.oeSession.search("t4clinical.patient", "other_identifier" === hospitalNumber).value, 2000 millis).fold(
       _ => None,
-      ids => {
-        println(ids)
-        ids.headOption
-      }
+      ids =>  ids.headOption
     )
 
   def getPatientByNHSNumber(nhsNumber: String): Option[T4skrId] =
@@ -42,7 +39,6 @@ trait T4skrQueries {
         a <- oe.array
         h <- a.headOption
         id <- h.int
-        _ = println(id)
       } yield id
     )
   }
