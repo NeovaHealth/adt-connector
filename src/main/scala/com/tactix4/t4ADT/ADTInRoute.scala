@@ -73,7 +73,8 @@ class ADTInRoute(val mappings: Map[String,String],
   val A40Route = "direct:A40"
 
 
-  "hl7listener" ==> {
+  "hl7listener" ==>  {
+
     unmarshal(hl7)
     SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")) .messageIdRepositoryRef("messageIdRepo") .skipDuplicate(false) .removeOnFailure(false) )(this) {
       setHeader("msgBody",e => e.getIn.getBody.toString)
@@ -103,17 +104,19 @@ class ADTInRoute(val mappings: Map[String,String],
       -->(msgHistory)
       process(e => e.in = e.in[Message].generateACK())
     }
-  }
+  } routeId "Main Route"
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
-  }
+  } routeId "Detect Duplicates"
+
   detectUnsupportedMsg ==> {
     when(e => !(supportedMsgTypes contains e.in(triggerEventHeader).toString)) throwException new ADTUnsupportedMessageException("Unsupported msg type")
-  }
+  } routeId "Detect Unsupported Msg"
+
   detectUnsupportedWards ==> {
     when(e => !isSupportedWard(e)) throwException new ADTUnsupportedWardException("Unsupported ward")
-  }
+  } routeId "Detect Unsupported Wards"
 
   detectIdConflict ==> {
      when(e => {
@@ -124,7 +127,7 @@ class ADTInRoute(val mappings: Map[String,String],
         process( e => throw new ADTConsistencyException("Hospital number: " +e.in("hospitalNo") + " is linked to patient: "+ e.in("patientLinkedToHospitalNo") +
           " but NHS number: " + e.in("NHSNo") + "is linked to patient: " + e.in("patientLinkedToNHSNo")))
       }
-  }
+  } routeId "Detect Id Conflict"
 
   detectVisitConflict ==> {
      //check for conflict with visits
@@ -136,7 +139,7 @@ class ADTInRoute(val mappings: Map[String,String],
         process( e => throw new ADTConsistencyException("Hospital number: " + e.in("hospitalNo") + " is linked to patient: " + e.in("patientLinkedToHospitalNo") + " " +
           " but visit: " + e.in("visitName") + " is linked to patient: " + e.in("patientLinkedToVisit") + ""))
       }
-  }
+  } routeId "Detect Visit Conflict"
 
   setHeaders ==> {
     process(e => {
@@ -160,7 +163,7 @@ class ADTInRoute(val mappings: Map[String,String],
       e.getIn.setHeader("patientLinkedToVisit", visitId.flatMap(getPatientByVisitId))
 
     })
-  }
+  } routeId "Set Headers"
 
   updatePatientRoute ==> {
     when(e => patientExists(e)) {
@@ -168,7 +171,7 @@ class ADTInRoute(val mappings: Map[String,String],
     } otherwise {
       process(e => patientNew(e))
     }
-  }
+  } routeId "Create/Update Patient"
 
   updateVisitRoute ==> {
     when(e => visitExists(e)) {
@@ -176,14 +179,16 @@ class ADTInRoute(val mappings: Map[String,String],
     } otherwise {
       when(_.in("visitName") != None) process (e => visitNew(e))
     }
-  }
+  } routeId "Create/Update Visit"
 
 
   A01Route ==> {
+
     when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
     -->(updatePatientRoute)
     process(e => visitNew(e))
-  }
+  } routeId "A01"
+
 
 
   A11Route ==> {
@@ -193,7 +198,7 @@ class ADTInRoute(val mappings: Map[String,String],
     } otherwise {
       process(e => cancelVisitNew(e))
     }
-  }
+  } routeId "A11"
 
   A02Route ==> {
     -->(updatePatientRoute)
@@ -203,7 +208,7 @@ class ADTInRoute(val mappings: Map[String,String],
       process(e => patientTransfer(e))
     }
     wireTap(updateVisitRoute)
-  }
+  } routeId "A02"
 
   A12Route ==> {
     -->(updatePatientRoute)
@@ -213,7 +218,7 @@ class ADTInRoute(val mappings: Map[String,String],
       process(e => cancelPatientTransfer(e))
     }
     wireTap(updateVisitRoute)
-  }
+  } routeId "A12"
 
   A03Route ==> {
     -->(updatePatientRoute)
@@ -222,7 +227,8 @@ class ADTInRoute(val mappings: Map[String,String],
     } otherwise {
       process(e => patientDischarge(e))
     }
-  }
+  } routeId "A03"
+
   A13Route ==> {
     -->(updatePatientRoute)
     when(e => !visitExists(e)) {
@@ -231,23 +237,24 @@ class ADTInRoute(val mappings: Map[String,String],
       process(e => cancelPatientDischarge(e))
     }
     wireTap(updateVisitRoute)
-  }
+  } routeId "A13"
 
   A05A28Route ==> {
     when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
     process(e => patientNew(e))
     wireTap(updateVisitRoute)
-  }
+  } routeId "A05A28"
+
   A40Route ==> {
     when(e => !patientExists(e) || !mergeTargetExists(e)) throwException new ADTConsistencyException("Patients to merge did not exist")
     process(e => patientMerge(e))
     wireTap(updateVisitRoute)
-  }
+  } routeId "A40"
 
   A08A31Route ==> {
     -->(updatePatientRoute)
     wireTap(updateVisitRoute)
-  }
+  } routeId "A08A31"
 
 
 

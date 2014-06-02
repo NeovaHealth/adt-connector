@@ -49,11 +49,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>nl.grons</groupId>
-            <artifactId>metrics-scala_2.10</artifactId>
-            <version>3.0.4</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test-spring</artifactId>
             <version>${camel-version}</version>
@@ -223,9 +218,6 @@
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                         <Import-Package>
                             javax.sql,
-                            nl.grons.metrics,
-                            nl.grons.metrics.scala,
-                            com.codahale.metrics,
                             ca.uhn.hl7v2,
                             ca.uhn.hl7v2.model,
                             ca.uhn.hl7v2.util,
