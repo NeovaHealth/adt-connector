@@ -1,6 +1,9 @@
 package com.tactix4.t4ADT
 
 import com.tactix4.t4ADT
+import scalaz._
+import Scalaz._
+import org.scalacheck.Gen
 
 /**
  * Created by max on 03/06/14.
@@ -37,17 +40,11 @@ case object Start extends ADTState {
     CancelTransferEvent -> Admitted,
     CancelDischargeEvent -> Admitted,
     UpdatePatientEvent -> Admitted,
-    MergePatientsEvent -> Admitted
+    MergePatientsEvent -> Admitted,
+    CreatePatientEvent -> PatientCreated
   )
 }
 
-case object Unadmitted extends ADTState {
-  val transitions = Map[Event,ADTState](
-    AdmitEvent -> Admitted,
-    CreatePatientEvent -> PatientCreated,
-    UpdatePatientEvent -> PatientCreated
-  )
-}
 
 case object PatientCreated extends ADTState{
   override val transitions: Map[Event, ADTState] = Map[Event,ADTState](
@@ -73,6 +70,23 @@ case object Discharged extends ADTState {
 }
 
 trait VisitGen {
-  import scala.util.Random
-  val visitGenerator = scalaz.State[ADTState, Event]((s: ADTState) => Random.shuffle(s.transitions).head.swap)
+
+
+  val visitGenerator = StateT[Gen, ADTState, Event]((s: ADTState) => Gen.oneOf(s.transitions.toSeq).map(_.swap))
+
+
+  import org.scalacheck.{Gen, Arbitrary, Shrink}
+  import Gen.{sized, value}
+
+  implicit val ArbitraryMonad: Monad[Arbitrary] = new Monad[Arbitrary] {
+    def bind[A, B](fa: Arbitrary[A])(f: A => Arbitrary[B]) = Arbitrary(fa.arbitrary.flatMap(f(_).arbitrary))
+    def point[A](a: => A) = Arbitrary(sized(_ => Gen.const(a)))
+    override def map[A, B](fa: Arbitrary[A])(f: A => B) = Arbitrary(fa.arbitrary.map(f))
+  }
+
+  implicit val GenMonad: Monad[Gen] = new Monad[Gen] {
+    def point[A](a: => A) = sized(_ => Gen.const(a))
+    def bind[A, B](fa: Gen[A])(f: A => Gen[B]) = fa flatMap f
+    override def map[A, B](fa: Gen[A])(f: A => B) = fa map f
+  }
 }
