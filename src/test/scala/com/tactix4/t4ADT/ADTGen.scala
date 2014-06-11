@@ -15,8 +15,8 @@ trait ADTGen extends VisitGen{
 
   case class Patient(hospitalNo:String,nhsNumber:Option[String],givenName: Option[String], middleNames: Option[String], familyName: Option[String], title: Option[String], mothersMaidenName: Option[String], dob: Option[DateTime], sex: Option[String], streetAddress: Option[String], city: Option[String], state: Option[String], zip: Option[String], country: Option[String], phone: Option[String]){
   }
-  case class Doctor(givenName: Option[String], middleNames: Option[String], familyName: Option[String], title: Option[String], id: String) {
-    override val toString = s"${~title} ${~givenName} ${~familyName}".trim.replaceAll("  "," ")
+  case class Doctor(givenName: String, middleNames: String, familyName: String, title: String, id: String) {
+    override val toString = s"$title $givenName $familyName".trim.replaceAll("  "," ")
   }
 
   case class MSHSegment(msgType:String,date:String, id:String){
@@ -31,11 +31,12 @@ trait ADTGen extends VisitGen{
 
   case class PV1Segment(wardCode:String,bed:Option[Int],wardName:Option[String],consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:Option[String],patientType:Option[String],visitID:VisitId,admitDate:Option[DateTime],dischargeDate:Option[DateTime]){
     override def toString:String =
-    s"PV1|1|I|$wardCode^^${~bed}^^^^^^${~wardName}|11||||${referringDoctor.id}^${~referringDoctor.familyName}^${~referringDoctor.givenName}^${~referringDoctor.middleNames}^^${~referringDoctor.title}|" +
-      s"${consultingDoctor.id}^${~consultingDoctor.familyName}^${~consultingDoctor.givenName}^${~consultingDoctor.middleNames}^^${~consultingDoctor.title}|${~hospitalService}|||||||" +
-      s"${admittingDoctor.id}^${~admittingDoctor.familyName}^${~admittingDoctor.givenName}^${~admittingDoctor.middleNames}^^${~admittingDoctor.title}|${~patientType}|$visitID|||||||" +
+    s"PV1|1|I|$wardCode^^${~bed}^^^^^^${~wardName}|11||||${referringDoctor.id}^${referringDoctor.familyName}^${referringDoctor.givenName}^${referringDoctor.middleNames}^^${referringDoctor.title}|" +
+      s"${consultingDoctor.id}^${consultingDoctor.familyName}^${consultingDoctor.givenName}^${consultingDoctor.middleNames}^^${consultingDoctor.title}|${~hospitalService}|||||||" +
+      s"${admittingDoctor.id}^${admittingDoctor.familyName}^${admittingDoctor.givenName}^${admittingDoctor.middleNames}^^${admittingDoctor.title}|${~patientType}|$visitID|||||||" +
       s"||||||||||||||||||${~admitDate.map(_.toString(toDateTimeFormat))}|${~dischargeDate.map(_.toString(toDateTimeFormat))}"
   }
+
   case class ADTMsg(msh:MSHSegment,evn:EVNSegment,pid:PIDSegment,pv1:PV1Segment){
     override def toString:String =
     s"$msh\r$evn\r$pid\r$pv1"
@@ -54,17 +55,27 @@ trait ADTGen extends VisitGen{
   val hospitalServices = List("110", "160")
   val patientTypes = List("01")
 
-  val wards = Map("E8" -> "Ward E8", "E9" -> "Ward E9")
+  val wards = Map("WARD E8" -> "E8", "WARD E9" -> "E9")
 
   def modifyPid(pid:PIDSegment):Gen[PIDSegment] = {
     pid.copy(p = pid.p.copy(givenName = pid.p.givenName.reverse))
   }
 
-//  def modifyPv1(pv1:PV1Segment):Gen[PV1Segment] = {
-//    for {
-//
-//    }
-//  }
+  def modifyPv1(pv1:PV1Segment):Gen[PV1Segment] = {
+    for {
+      np <- PV1(pv1.admitDate,pv1.dischargeDate)
+      cd <- Gen.frequency((5,pv1.consultingDoctor), (1, np.consultingDoctor))
+      wc <- Gen.frequency((5, pv1.wardCode),(1, np.wardCode))
+      a = wardCodePV1Lens.set(pv1,wc)
+      b = consultingDoctorLens.set(a,cd)
+    } yield b
+  }
+
+
+  val consultingDoctorLens: Lens[PV1Segment, Doctor] = Lens.lensu(
+    get = (_:PV1Segment).consultingDoctor,
+    set = (pv1:PV1Segment, d: Doctor) => pv1.copy(consultingDoctor = d)
+  )
 
   val admitDatePV1Lens: Lens[PV1Segment, Option[DateTime]] = Lens.lensu(
     get = (_: PV1Segment).admitDate,
@@ -99,76 +110,88 @@ trait ADTGen extends VisitGen{
 
   val dischargeDate = pv1VisitStateLens >=> dischargeDatePV1Lens
 
-  val vs = StateT[Gen,VisitState, ADTMsg]{ s => val result = s.event match {
 
-    case NothingEvent => for {
-      msg <- genMsg("XX",s)
-    } yield s -> msg
+  val vs = StateT[Gen,VisitState, ADTMsg]{ s =>
 
-    case AdmitEvent => for {
-      ns <- Gen.const(admitDate.set(s, DateTime.now().some))
-      msg <- genMsg("A01",ns)
-      e <- visitGenerator.eval(Admitted)
-    } yield ns.copy(event = e) -> msg
+    val result = s.event match {
 
-    case CancelAdmitEvent => for {
-      ns <- Gen.const(admitDate.set(s,None))
-      msg <- genMsg("A11",ns)
-      e <- visitGenerator.eval(VisitEnd)
-    } yield ns.copy(event = e) -> msg
+      case NothingEvent => for {
+        msg <- genMsg("XX",s)
+      } yield s -> msg
 
-    case TransferEvent => for {
-      (wc,wn) <- Gen.oneOf(wards.toSeq)
-      ns <- Gen.const(wardCode.set(s,wc))
-      ns2 <- Gen.const(wardName.set(ns,wn.some))
-      msg <- genMsg("A02", ns2)
-      e <- visitGenerator.eval(Admitted)
-    } yield  ns2.copy(event = e) -> msg
+      case AdmitEvent => for {
+        ns <- Gen.const(admitDate.set(s, DateTime.now().some))
+        e <- visitGenerator.eval(Admitted)
+        msg <- genMsg("A01",ns)
+      } yield ns.copy(event = e) -> msg
 
-    case CancelTransferEvent => for {
-      (wc,wn) <- Gen.oneOf(wards.toSeq)
-      ns <- Gen.const(wardCode.set(s,wc))
-      ns2 <- Gen.const(wardName.set(ns,wn.some))
-      msg <- genMsg("A12", ns2)
-      e <- visitGenerator.eval(Admitted)
-    } yield  ns2.copy(event = e) -> msg
+      case CancelAdmitEvent => for {
+        ns <- Gen.const(admitDate.set(s,None))
+        e <- visitGenerator.eval(VisitEnd)
+        msg <- genMsg("A11",ns)
+      } yield ns.copy(event = e) -> msg
 
-    case DischargeEvent => for {
-      ns <- Gen.const(dischargeDate.set(s, DateTime.now().some))
-      msg <- genMsg("A03",ns)
-      e <- visitGenerator.eval(Discharged)
-    } yield ns.copy(event = e) -> msg
+      case TransferEvent => for {
+        (wn,wc) <- Gen.oneOf(wards.toSeq)
+        ns <- Gen.const(wardCode.set(s,wc))
+        ns2 <- Gen.const(wardName.set(ns,wn.some))
+        e <- visitGenerator.eval(Admitted)
+        npv <- modifyPv1(ns2.pv)
+        ns3 <- Gen.const(pv1VisitStateLens.set(ns2,npv))
+        msg <- genMsg("A02", ns3)
+      } yield  ns3.copy(event = e) -> msg
 
-    case CancelDischargeEvent => for{
-      ns <- Gen.const(dischargeDate.set(s, None))
-      msg <- genMsg("A13",ns)
-      e <- visitGenerator.eval(Admitted)
-    } yield ns.copy(event = e) -> msg
-    case UpdatePatientEvent => for {
-      np <- modifyPid(s.pid)
-      ns <- Gen.const(pidVisitStateLens.set(s,np))
-      msg <- Gen.oneOf(genMsg("A08", ns), genMsg("A31", ns))
-      e <- visitGenerator.eval(Admitted)
-    } yield ns.copy(event = e) -> msg
+      case CancelTransferEvent => for {
+        (wn,wc) <- Gen.oneOf(wards.toSeq)
+        ns <- Gen.const(wardCode.set(s,wc))
+        ns2 <- Gen.const(wardName.set(ns,wn.some))
+        e <- visitGenerator.eval(Admitted)
+        npv <- modifyPv1(ns2.pv)
+        ns3 <- Gen.const(pv1VisitStateLens.set(ns2,npv))
+        msg <- genMsg("A12", ns3)
+      } yield  ns3.copy(event = e) -> msg
 
-    case CreatePatientEvent => for {
-      np <- PID
-      ns <- Gen.const(pidVisitStateLens.set(s,np))
-      msg <- Gen.oneOf(genMsg("A05",ns),genMsg("A28",ns))
-      e <- visitGenerator.eval(PatientCreated)
-    } yield ns.copy(event = e) -> msg
+      case DischargeEvent => for {
+        ns <- Gen.const(dischargeDate.set(s, DateTime.now().some))
+        msg <- genMsg("A03",ns)
+        e <- visitGenerator.eval(Discharged)
+      } yield ns.copy(event = e) -> msg
+
+      case CancelDischargeEvent => for{
+        ns <- Gen.const(dischargeDate.set(s, None))
+        npv <- modifyPv1(ns.pv)
+        ns2 <- Gen.const(pv1VisitStateLens.set(ns,npv))
+        e <- visitGenerator.eval(Admitted)
+        msg <- genMsg("A13",ns2)
+      } yield ns2.copy(event = e) -> msg
+
+      case UpdatePatientEvent => for {
+        np <- modifyPid(s.pid)
+        npv <- modifyPv1(s.pv)
+        ns <- Gen.const(pidVisitStateLens.set(s,np))
+        ns2 <- Gen.const(pv1VisitStateLens.set(s,npv))
+        msg <- Gen.oneOf(genMsg("A08", ns2), genMsg("A31", ns2))
+        e <- visitGenerator.eval(Admitted)
+      } yield ns2.copy(event = e) -> msg
+
+      case CreatePatientEvent => for {
+        np <- PID
+        ns <- Gen.const(pidVisitStateLens.set(s,np))
+        msg <- Gen.oneOf(genMsg("A05",ns),genMsg("A28",ns))
+        e <- visitGenerator.eval(PatientCreated)
+      } yield ns.copy(event = e) -> msg
       //TODO this won't work
-    case MergePatientsEvent => for {
-      ns <- Gen.const(s)
-      msg <- genMsg("A40",ns)
-      e <- visitGenerator.eval(Admitted)
-    } yield ns.copy(event = e) -> msg
-  }
-  result
+
+      case MergePatientsEvent => for {
+        ns <- Gen.const(s)
+        msg <- genMsg("A40",ns)
+        e <- visitGenerator.eval(Admitted)
+      } yield ns.copy(event = e) -> msg
+    }
+    result
   }
 
   val createVisit: Gen[List[ADTMsg]] = {
-//    val visitEvents:Gen[List[Event]] = visitGenerator.replicateM(10).eval(Start).map(_.takeWhile (_ != NothingEvent))
     for {
        pv1 <- PV1(None,None)
        pid <- PID
@@ -236,14 +259,14 @@ trait ADTGen extends VisitGen{
   val genDoctor = for {
     l <- Gen.choose(0, doctors.size - 1)
     d = Source.fromFile("src/test/resources/fake_doctors.csv").getLines().drop(l).next.split(",")
-    ds = d.map(x => Gen.option(Gen.const(x)))
+    ds = d.map(x => Gen.const(x))
     gn <- ds(2)
     mn <- ds(3)
     fn <- ds(4)
     t <- ds(1)
-    id = d(8).replace(" ", "")
+    id = (d(8) + d(12)).replace(" ", "")
     //TODO: put title back
-  } yield Doctor(gn,mn,fn,None,id)
+  } yield Doctor(gn,mn,fn,"",id)
 
   def PID: Gen[PIDSegment] = {
     for {
@@ -253,9 +276,9 @@ trait ADTGen extends VisitGen{
 
   def PV1(admitDate: Option[DateTime], dischargeDate: Option[DateTime]): Gen[PV1Segment] = {
     for {
-      wardCode <- Gen.oneOf(wards.keys.toList)
+      wardName <- Gen.oneOf(wards.keys.toList)
       bed <- Gen.option(Gen.choose(1, 24))
-      wardName = wards(wardCode)
+      wardCode = wards(wardName)
       consultingDoctor <- genDoctor
       referringDoctor <- genDoctor
       admittingDoctor <- genDoctor

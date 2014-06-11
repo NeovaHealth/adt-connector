@@ -98,10 +98,15 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
           assert(plp == None)
         }
         else {
-          assert(plp == pv1.wardName.map(_.toUpperCase))
-          assert(plp == wards.get(pv1.wardCode).map(_.toUpperCase))
+//          assert(plp == pv1.wardName.map(_.toUpperCase))
+          log.error("plp: " + plp)
+          log.error("pv1.wardCode: " + pv1.wardCode)
+          log.error("wards.get: " + wards.get(pv1.wardCode))
+          assert(plp.flatMap(wards.get) == Some(pv1.wardCode))
         }
-        assert((cdc.isEmpty ? (None:Option[String]) | Some(cdc)) == (cs.isEmpty ? (None:Option[String]) | cs))
+        log.error("cdc: " +cdc)
+        log.error("cs: " + cs)
+        assert((cdc.isEmpty ? (None:Option[String]) | Some(cdc)) == (cs.getOrElse("").isEmpty ? (None:Option[String]) | cs))
         if(msgType != "A11")  assert(vs == pv1.admitDate.map(_.toString(oerpDateTimeFormat)))
 
         if(msgType == "A13"){

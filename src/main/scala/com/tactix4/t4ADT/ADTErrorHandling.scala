@@ -8,12 +8,13 @@ import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
 import java.net.ConnectException
 import com.tactix4.t4ADT.exceptions._
+import com.typesafe.scalalogging.slf4j.Logging
 
 /**
  * @author max@tactix4.com
  *         11/10/2013
  */
-trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
+trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Logging{
 
   val redeliveryDelay:Long
   val maximumRedeliveries:Int
@@ -28,6 +29,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
   handle[ConnectException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      logger.info(exception.getMessage,exception)
       e.getIn.setHeader("exception",getExceptionMessage(exception))
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Connect Exception: "  + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR))
      })
@@ -38,6 +40,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
   handle[ADTFieldException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      logger.info(exception.getMessage,exception)
       e.getIn.setHeader("exception",getExceptionMessage(exception))
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Validation Error: "  + getExceptionMessage(exception), ErrorCode.REQUIRED_FIELD_MISSING))
      })
@@ -48,6 +51,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
   handle[ADTApplicationException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      logger.info(exception.getMessage,exception)
       e.getIn.setHeader("exception",getExceptionMessage(exception))
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Internal Application Error: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
@@ -77,6 +81,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
       otherwise {
         transform(e => {
           val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+          logger.info(exception.getMessage,exception)
           e.getIn.setHeader("exception", getExceptionMessage(exception))
           e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
 
@@ -90,6 +95,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
   handle[ADTUnsupportedMessageException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
+      logger.info(exception.getMessage,exception)
       e.getIn.setHeader("exception",getExceptionMessage(exception))
       e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
     }
@@ -101,6 +107,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
     transform(e =>{
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
       e.getIn.setHeader("exception",getExceptionMessage(exception))
+      logger.info(exception.getMessage,exception)
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.DUPLICATE_KEY_IDENTIFIER))
     })
     to("failMsgHistory")
@@ -111,6 +118,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions {
     transform(e =>{
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
       e.getIn.setHeader("exception",getExceptionMessage(exception))
+      logger.info(exception.getMessage,exception)
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.APPLICATION_INTERNAL_ERROR))
     })
     to("failMsgHistory")

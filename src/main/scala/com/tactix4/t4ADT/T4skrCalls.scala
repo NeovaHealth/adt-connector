@@ -78,14 +78,14 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     )
 
   def patientMerge(e:Exchange) = {
-    logger.debug("Calling patientMerge")
+    logger.info("Calling patientMerge")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val ohn = getOldHospitalNumber.toSuccess("Could not locate old hospital number").toValidationNel
     waitAndErr((hn |@| ohn)(connector.patientMerge))
   }
   def patientTransfer(e:Exchange) = {
-    logger.debug("Calling patientTransfer")
+    logger.info("Calling patientTransfer")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
@@ -93,7 +93,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
   }
 
   def cancelPatientTransfer(e: Exchange) = {
-    logger.debug("Calling cancelPatientTransfer")
+    logger.info("Calling cancelPatientTransfer")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
@@ -101,19 +101,19 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
   }
 
   def visitNew(e:Exchange) : Unit = {
-    logger.debug("Calling visitNew")
+    logger.info("Calling visitNew")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    val sdt = getMessageValue("visit_start_date_time").toSuccess("Could not locate visit start date time.").toValidationNel
+    val sdt = (getMessageValue("visit_start_date_time") |  new DateTime().toString(toDateTimeFormat)).successNel
     val om = getMapFromFields(optionalVisitFields).successNel
 
     waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)(connector.visitNew))
   }
 
   def patientUpdate(e:Exchange) = {
-    logger.debug("calling patientUpdate")
+    logger.info("calling patientUpdate")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val om = getMapFromFields(optionalPatientFields).successNel
@@ -121,7 +121,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
   }
 
   def patientDischarge(e: Exchange) = {
-    logger.debug("calling patientDischarge")
+    logger.info("calling patientDischarge")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val dd = (getMessageValue("discharge_date") | new DateTime().toString(toDateTimeFormat)).successNel
@@ -129,13 +129,13 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
   }
 
   def cancelPatientDischarge(e: Exchange) = {
-    logger.debug("calling cancelPatientDischarge")
+    logger.info("calling cancelPatientDischarge")
     implicit val t = getTerser(e)
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
     waitAndErr(vi.map(connector.patientDischargeCancel))
   }
   def patientNew(e: Exchange) = {
-    logger.debug("calling patientNew")
+    logger.info("calling patientNew")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val om = getMapFromFields(optionalPatientFields).successNel
@@ -143,14 +143,14 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
   }
 
   def cancelVisitNew(e: Exchange) = {
-    logger.debug("calling cancelVisitNew")
+    logger.info("calling cancelVisitNew")
     implicit val t = getTerser(e)
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
     waitAndErr(vi.map(connector.visitCancel))
   }
 
   def visitUpdate(e: Exchange) = {
-    logger.debug("calling visitUpdate")
+    logger.info("calling visitUpdate")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
