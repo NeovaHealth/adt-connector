@@ -80,6 +80,7 @@
         <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
         <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
         <constructor-arg name="datesToParse" ref="datesToParse"/>
+        <constructor-arg name="ratePer2Seconds" value="${ratePer2Seconds}"/>
     </bean>
     <!---->
 

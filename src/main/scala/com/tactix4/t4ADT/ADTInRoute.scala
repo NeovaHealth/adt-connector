@@ -36,7 +36,8 @@ class ADTInRoute(val mappings: Map[String,String],
                  val timeOutMillis: Int,
                  val redeliveryDelay: Long,
                  val maximumRedeliveries: Int,
-                 val ignoreUnknownWards: Boolean) extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
+                 val ignoreUnknownWards: Boolean,
+                val ratePer2Seconds:Int) extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
   type VisitName = VisitId
   val connector = new T4skrConnector(protocol, host, port).startSession(username, password, database)
@@ -72,39 +73,43 @@ class ADTInRoute(val mappings: Map[String,String],
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
+  val incomingQueue = "seda:incoming"
 
-  "hl7listener" ==>  {
+  "hl7listener" --> incomingQueue routeId("incoming")
 
-    unmarshal(hl7)
-    SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")) .messageIdRepositoryRef("messageIdRepo") .skipDuplicate(false) .removeOnFailure(false) )(this) {
-      setHeader("msgBody",e => e.getIn.getBody.toString)
-      -->(detectDuplicates)
-      -->(detectUnsupportedMsg)
-      -->(detectUnsupportedWards)
-      -->(setHeaders)
-      -->(detectIdConflict)
-      -->(detectVisitConflict)
-      //split on msgType
-      choice {
-        when(msgEquals("A08")) --> A08Route
-        when(msgEquals("A31")) --> A31Route
-        when(msgEquals("A05")) --> A05Route
-        when(msgEquals("A28")) --> A28Route
-        when(msgEquals("A01")) --> A01Route
-        when(msgEquals("A11")) --> A11Route
-        when(msgEquals("A03")) --> A03Route
-        when(msgEquals("A13")) --> A13Route
-        when(msgEquals("A02")) --> A02Route
-        when(msgEquals("A12")) --> A12Route
-        when(msgEquals("A40")) --> A40Route
-        otherwise{
-          throwException(new ADTUnsupportedWardException("Unsupported msg type"))
+  incomingQueue ==> {
+    throttle(ratePer2Seconds per(2 seconds)) {
+      unmarshal(hl7)
+      SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
+        setHeader("msgBody", e => e.getIn.getBody.toString)
+        -->(detectDuplicates)
+        -->(detectUnsupportedMsg)
+        -->(detectUnsupportedWards)
+        -->(setHeaders)
+        -->(detectIdConflict)
+        -->(detectVisitConflict)
+        //split on msgType
+        choice {
+          when(msgEquals("A08")) --> A08Route
+          when(msgEquals("A31")) --> A31Route
+          when(msgEquals("A05")) --> A05Route
+          when(msgEquals("A28")) --> A28Route
+          when(msgEquals("A01")) --> A01Route
+          when(msgEquals("A11")) --> A11Route
+          when(msgEquals("A03")) --> A03Route
+          when(msgEquals("A13")) --> A13Route
+          when(msgEquals("A02")) --> A02Route
+          when(msgEquals("A12")) --> A12Route
+          when(msgEquals("A40")) --> A40Route
+          otherwise {
+            throwException(new ADTUnsupportedWardException("Unsupported msg type"))
+          }
         }
+        -->(msgHistory)
+        process(e => e.in = e.in[Message].generateACK())
       }
-      -->(msgHistory)
-      process(e => e.in = e.in[Message].generateACK())
-    }
-  } routeId "Main Route"
+    } routeId "Main Route"
+  }
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
@@ -255,7 +260,5 @@ class ADTInRoute(val mappings: Map[String,String],
     -->(updatePatientRoute)
     wireTap(updateVisitRoute)
   } routeId "A08A31"
-
-
 
 }

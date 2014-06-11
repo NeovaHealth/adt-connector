@@ -155,7 +155,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    val sdt = getMessageValue("visit_start_date_time").toSuccess("Could not locate visit start date time.").toValidationNel
+    val sdt = (getMessageValue("visit_start_date_time") | new DateTime().toString(toDateTimeFormat)).successNel
     val om = getMapFromFields(optionalVisitFields).successNel
 
     waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)(connector.visitUpdate))
