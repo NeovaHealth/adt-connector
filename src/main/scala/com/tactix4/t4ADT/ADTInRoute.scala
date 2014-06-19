@@ -17,7 +17,7 @@ import com.tactix4.t4skr.core._
 import com.typesafe.scalalogging.slf4j.Logging
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import com.tactix4.t4ADT.exceptions.ADTExceptions
-
+import scala.util.matching.Regex
 
 
 class ADTInRoute(val mappings: Map[String,String],
@@ -28,7 +28,7 @@ class ADTInRoute(val mappings: Map[String,String],
                  val username: String,
                  val password: String,
                  val database: String,
-                 val wards: Set[String],
+                 val wards: List[Regex],
                  val sexMap: Map[String, String],
                  val inputDateFormats: List[String],
                  val toDateFormat: String,

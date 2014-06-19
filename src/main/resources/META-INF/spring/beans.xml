@@ -97,7 +97,7 @@
         </constructor-arg>
     </bean>
 
-    <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToSet">
+    <bean id="validWards" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToListRegex">
         <constructor-arg>
             <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_WARDS.properties"/>
         </constructor-arg>

@@ -7,6 +7,8 @@ package com.tactix4.t4ADT.utils
  * To change this template use File | Settings | File Templates.
  */
 import scala.collection.JavaConversions._
+import scala.util.matching.Regex
+
 object SpringHelper {
 
   def propertiesToMap(p: java.util.Properties) : Map[String,String] = {
@@ -20,6 +22,13 @@ object SpringHelper {
     val l = scala.collection.mutable.MutableList[String]()
     for( n : String <- p.stringPropertyNames){
       l += p.getProperty(n)
+    }
+    l.toList
+  }
+  def propertiesToListRegex(p:java.util.Properties): List[Regex] = {
+    val l = scala.collection.mutable.MutableList[Regex]()
+    for( n : String <- p.stringPropertyNames){
+      l += p.getProperty(n).r
     }
     l.toList
   }

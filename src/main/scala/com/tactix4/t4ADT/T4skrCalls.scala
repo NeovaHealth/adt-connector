@@ -20,13 +20,14 @@ import ca.uhn.hl7v2.util.Terser
 import org.joda.time.DateTime
 import com.tactix4.t4ADT.exceptions.ADTExceptions
 import com.typesafe.scalalogging.slf4j.Logging
+import scala.util.matching.Regex
 
 /**
  * Created by max on 02/06/14.
  */
 trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with Logging {
 
-  val wards:Set[String]
+  val wards:List[Regex]
   val triggerEventHeader = "CamelHL7TriggerEvent"
 
 
@@ -52,7 +53,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     getOldHospitalNumber(getTerser(e)).flatMap(getPatientByHospitalNumber).isDefined
   }
 
-  def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w => wards contains w)
+  def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w =>wards.exists(_.findFirstIn(w).isDefined))
 
   def msgEquals(t: String)(e: Exchange): Boolean = t == e.getIn.getHeader(triggerEventHeader, classOf[String])
 
