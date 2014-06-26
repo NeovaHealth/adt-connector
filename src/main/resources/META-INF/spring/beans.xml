@@ -81,6 +81,7 @@
         <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
         <constructor-arg name="datesToParse" ref="datesToParse"/>
         <constructor-arg name="ratePer2Seconds" value="${ratePer2Seconds}"/>
+        <constructor-arg name="bedRegex" ref="bedStringToRegex"/>
     </bean>
     <!---->
 
@@ -91,6 +92,10 @@
     <!---->
 
     <!--Utility beans-->
+    <bean id="bedStringToRegex" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="stringToRegex">
+        <constructor-arg value="${bedRegex}"/>
+    </bean>
+
     <bean id="common_mappings" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
            <util:properties location="file:etc/tactix4/com.tactix4.t4ADT.ADT_COMMON.properties"/>

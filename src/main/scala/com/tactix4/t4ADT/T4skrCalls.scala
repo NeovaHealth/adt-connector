@@ -32,7 +32,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
 
 
   val optionalPatientFields = List("patient_identifier", "given_name",  "family_name",  "middle_names",  "title", "sex", "dob")
-  val optionalVisitFields = List("consultingDoctorCode", "consultingDoctorPrefix", "consultingDoctorGivenName", "consultingDoctorFamilyName","referringDoctorCode","referringDoctorPrefix", "referringDoctorGivenName", "referringDoctorFamilyName","service_code")
+  val optionalVisitFields = List("consultingDoctorCode", "consultingDoctorPrefix", "consultingDoctorGivenName", "consultingDoctorFamilyName","referringDoctorCode","referringDoctorPrefix", "referringDoctorGivenName", "referringDoctorFamilyName","service_code", "bed")
 
 
   def getMapFromFields(m:List[String])(implicit t:Terser) ={
@@ -59,7 +59,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
 
   def checkForNull[T](t : T) : Option[T] = (t != null) ? t.some | None
 
-  def getTerser(e:Exchange):Terser =  e.getIn.getHeader("terser", classOf[Terser])
+  def getTerser(e:Exchange):Terser = e.getIn.getHeader("terser", classOf[Terser])
 
   def getPatientLinkedToHospitalNo(e:Exchange) : Option[T4skrId] =
     checkForNull(e.getIn.getHeader("patientLinkedToHospitalNo", classOf[Option[T4skrId]])).flatten
@@ -85,12 +85,14 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     val ohn = getOldHospitalNumber.toSuccess("Could not locate old hospital number").toValidationNel
     waitAndErr((hn |@| ohn)(connector.patientMerge))
   }
+
   def patientTransfer(e:Exchange) = {
     logger.info("Calling patientTransfer")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
-    waitAndErr((hn |@| wi)(connector.patientTransfer))
+    val bn = getMessageValue("bed").successNel[String]
+    waitAndErr((hn |@| wi |@| bn)(connector.patientTransfer))
   }
 
   def cancelPatientTransfer(e: Exchange) = {
@@ -98,7 +100,8 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
-    waitAndErr((hn |@| wi)(connector.patientTransferCancel))
+    val bn = getMessageValue("bed").successNel[String]
+    waitAndErr((hn |@| wi |@| bn)(connector.patientTransferCancel))
   }
 
   def visitNew(e:Exchange) : Unit = {

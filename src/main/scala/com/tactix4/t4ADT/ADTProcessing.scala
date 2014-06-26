@@ -5,6 +5,7 @@ import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormatter
 import scala.util.control.Exception._
 import com.tactix4.t4skr.core.{HospitalNo, VisitId}
+import scala.util.matching.Regex
 import scalaz._
 import Scalaz._
 import com.tactix4.t4ADT.exceptions.ADTExceptions
@@ -25,6 +26,7 @@ trait ADTProcessing extends ADTExceptions{
   val oldHospitalNumber = "old_other_identifier"
   val EmptyStringMatcher = """^"?\s*"?$""".r
   val Sex = """(?i)^sex$""".r
+  val bedR:Regex = """Bed \d\d""".r
 
 
   /**
@@ -47,6 +49,8 @@ trait ADTProcessing extends ADTExceptions{
       case e:Throwable => throw new ADTFieldException("Could not find value in sex map")
     }
   }
+
+  def extractBedName(s:String) : Option[String] = bedR.findFirstIn(s)
 
   def getMsgType(implicit terser:Terser) : Option[String] = getValueFromPath("MSH-9-2")
 
@@ -71,7 +75,8 @@ trait ADTProcessing extends ADTExceptions{
 
     (msgTypeOverride orElse mappings.get(name).flatMap(getValueFromPath)).map(
       s => {
-        if(datesToParse contains name) parseDate(s)
+        if(name == "bed") extractBedName(s) | s
+        else if(datesToParse contains name) parseDate(s)
         else if(Sex.findFirstIn(s).isDefined) parseSex(s)
         else s
         }

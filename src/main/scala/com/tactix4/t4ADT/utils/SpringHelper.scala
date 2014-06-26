@@ -11,6 +11,8 @@ import scala.util.matching.Regex
 
 object SpringHelper {
 
+  def stringToRegex(s:String):Regex = s.r
+
   def propertiesToMap(p: java.util.Properties) : Map[String,String] = {
     val m = scala.collection.mutable.Map[String,String]()
     for( n : String <- p.stringPropertyNames){

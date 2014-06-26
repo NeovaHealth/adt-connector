@@ -37,6 +37,7 @@ class ADTInRoute(val mappings: Map[String,String],
                  val redeliveryDelay: Long,
                  val maximumRedeliveries: Int,
                  val ignoreUnknownWards: Boolean,
+                 val bedRegex:Regex,
                 val ratePer2Seconds:Int) extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
   type VisitName = VisitId

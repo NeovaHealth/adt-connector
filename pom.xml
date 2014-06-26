@@ -5,7 +5,7 @@
     <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
     <description>Tactix4 T4skr ADT</description>
-    <version>0.1</version>
+    <version>0.1.1</version>
     <name>Tactix4 T4skr ADT</name>
     <organization>
         <name>com.tactix4</name>
@@ -21,7 +21,7 @@
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.5</scalaz-version>
-        <t4skr-connector-version>2.0.1</t4skr-connector-version>
+        <t4skr-connector-version>2.0.2</t4skr-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.0.2</typesafe-config-version>
