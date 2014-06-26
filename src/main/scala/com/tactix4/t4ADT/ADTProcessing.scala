@@ -76,7 +76,7 @@ trait ADTProcessing extends ADTExceptions{
       s => {
         if(name == "bed") extractBedName(s) | s
         else if(datesToParse contains name) parseDate(s)
-        else if(Sex.findFirstIn(s).isDefined) parseSex(s)
+        else if(Sex.findFirstIn(name).isDefined) parseSex(s)
         else s
         }
     )
