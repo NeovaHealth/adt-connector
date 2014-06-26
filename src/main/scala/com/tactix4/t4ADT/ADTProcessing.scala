@@ -26,11 +26,10 @@ trait ADTProcessing extends ADTExceptions{
   val oldHospitalNumber = "old_other_identifier"
   val EmptyStringMatcher = """^"?\s*"?$""".r
   val Sex = """(?i)^sex$""".r
-  val bedR:Regex = """Bed \d\d""".r
+  val bedRegex:Regex
 
 
-  /**
-   * Convenience method to check a valid date
+  /** * Convenience method to check a valid date
    *
    * @param date the date string
    */
@@ -50,7 +49,7 @@ trait ADTProcessing extends ADTExceptions{
     }
   }
 
-  def extractBedName(s:String) : Option[String] = bedR.findFirstIn(s)
+  def extractBedName(s:String) : Option[String] = bedRegex.findFirstIn(s)
 
   def getMsgType(implicit terser:Terser) : Option[String] = getValueFromPath("MSH-9-2")
 
