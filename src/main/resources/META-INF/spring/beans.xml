@@ -41,9 +41,9 @@
         <constructor-arg value="t4ADT_processor" />
     </bean>
 
-    <camel:endpoint id="failMsgHistory" uri="sql:insert into ${fail_msg_store_table} (id, type, timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>
+    <camel:endpoint id="failMsgHistory" uri="sql:insert into ${fail_msg_store_table} (id, type, hospital_number,visit_id,timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#hospitalNoString,:#visitNameString,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>
 
-    <camel:endpoint id="msgHistory" uri="sql:insert into ${msg_store_table} (id, type, timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#CamelHL7Timestamp,:#msgBody)"/>
+    <camel:endpoint id="msgHistory" uri="sql:insert into ${msg_store_table} (id, type, hospital_number,visit_id,timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#hospitalNoString,:#visitNameString,:#CamelHL7Timestamp,:#msgBody)"/>
     <!---->
 
     <!--Route injection-->

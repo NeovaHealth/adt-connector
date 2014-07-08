@@ -53,7 +53,8 @@ class ADTInRoute(val mappings: Map[String,String],
   val detectDuplicates = "direct:detectDuplicates"
   val detectUnsupportedMsg = "direct:detectUnsupportedMsgs"
   val detectUnsupportedWards = "direct:detectUnsupportedWards"
-  val setHeaders = "direct:setHeaders"
+  val setBasicHeaders = "direct:setBasicHeaders"
+  val setExtraHeaders = "direct:setExtraHeaders"
   val detectIdConflict = "direct:idConflictCheck"
   val detectVisitConflict = "direct:visitConflictCheck"
 
@@ -83,10 +84,11 @@ class ADTInRoute(val mappings: Map[String,String],
       unmarshal(hl7)
       SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
         setHeader("msgBody", e => e.getIn.getBody.toString)
+        -->(setBasicHeaders)
         -->(detectDuplicates)
         -->(detectUnsupportedMsg)
         -->(detectUnsupportedWards)
-        -->(setHeaders)
+        -->(setExtraHeaders)
         -->(detectIdConflict)
         -->(detectVisitConflict)
         //split on msgType
@@ -147,29 +149,35 @@ class ADTInRoute(val mappings: Map[String,String],
       }
   } routeId "Detect Visit Conflict"
 
-  setHeaders ==> {
-    process(e => {
-      val message = e.in[Message]
-      val t = new Terser(message)
-      val hid = getHospitalNumber(t)
-      val nhs = getNHSNumber(t)
-      val visitName = getVisitName(t)
-      val visitId = visitName.flatMap(getVisit)
+ setBasicHeaders ==> {
+   process(e => {
+     val message = e.in[Message]
+     val t = new Terser(message)
 
-      e.getIn.setHeader("origMessage", message)
-      e.getIn.setHeader("terser", t)
-      e.getIn.setHeader("hospitalNo", hid)
-      e.getIn.setHeader("NHSNo", nhs)
-      e.getIn.setHeader("visitName", visitName)
-      e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
+     e.getIn.setHeader("origMessage", message)
+     e.getIn.setHeader("terser", t)
+     e.getIn.setHeader("hospitalNo", getHospitalNumber(t))
+     e.getIn.setHeader("hospitalNoString", ~getHospitalNumber(t))
+     e.getIn.setHeader("NHSNo", getNHSNumber(t))
+     e.getIn.setHeader("visitName", getVisitName(t))
+     e.getIn.setHeader("visitNameString", ~getVisitName(t))
+     e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
+   })
+ }
+
+  setExtraHeaders ==> {
+    process(e => {
+      val hid = e.getIn.getHeader("hospitalNumber",None,classOf[Option[String]])
+      val nhs = e.getIn.getHeader("NHSNo",None,classOf[Option[String]])
+      val visitName = e.getIn.getHeader("visitName",None,classOf[Option[String]])
+      val visitId = visitName.flatMap(getVisit)
 
       e.getIn.setHeader("patientLinkedToHospitalNo", hid.flatMap(getPatientByHospitalNumber))
       e.getIn.setHeader("patientLinkedToNHSNo", nhs.flatMap(getPatientByNHSNumber))
       e.getIn.setHeader("visitId", visitId)
       e.getIn.setHeader("patientLinkedToVisit", visitId.flatMap(getPatientByVisitId))
-
     })
-  } routeId "Set Headers"
+  }
 
   updatePatientRoute ==> {
     when(e => patientExists(e)) {
