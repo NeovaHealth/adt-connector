@@ -49,6 +49,10 @@ trait ADTProcessing extends ADTExceptions{
     }
   }
 
+
+
+
+
   def extractBedName(s:String) : Option[String] = bedRegex.findFirstIn(s)
 
   def getMsgType(implicit terser:Terser) : Option[String] = getValueFromPath("MSH-9-2")
@@ -60,6 +64,8 @@ trait ADTProcessing extends ADTExceptions{
   def getNHSNumber(implicit terser:Terser): Option[String] =  getMessageValue("patient_identifier")
 
   def getVisitName(implicit terser:Terser) : Option[VisitId] =  getMessageValue("visit_identifier")
+
+  def getEventReasonCode(implicit terser:Terser) : Option[String] =  getMessageValue("event_reason_code")
 
   def getWardIdentifier(implicit terser:Terser): Option[String] =  getMessageValue("ward_identifier")
 

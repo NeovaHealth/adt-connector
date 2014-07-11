@@ -16,6 +16,10 @@ object SpringHelper {
     newRegex
   }
 
+  def ourMap(m:Map[String,String]) = m
+
+  def test: Map[String, Set[String]] = Map("A08" -> Set("101","102"))
+
   def propertiesToMap(p: java.util.Properties) : Map[String,String] = {
     val m = scala.collection.mutable.Map[String,String]()
     for( n : String <- p.stringPropertyNames){

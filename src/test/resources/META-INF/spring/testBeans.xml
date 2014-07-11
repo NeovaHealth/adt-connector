@@ -6,7 +6,8 @@
        xsi:schemaLocation="
 		http://www.springframework.org/schema/util  http://www.springframework.org/schema/util/spring-util-3.0.xsd
 	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+    ">
 
 
     <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
@@ -32,8 +33,8 @@
 
     <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 
- <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
-          <constructor-arg name="mappings" ref="common_mappings"/>
+    <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute">
+        <constructor-arg name="mappings" ref="common_mappings"/>
         <constructor-arg name="msgTypeMappings">
             <util:map>
                 <entry key="A01" value-ref="a01map"/>
@@ -49,24 +50,26 @@
                 <entry key="A40" value-ref="a40map"/>
             </util:map>
         </constructor-arg>
-              <constructor-arg name="protocol" value="${protocol}"/>
-              <constructor-arg name="host" value="${hostname}"/>
-              <constructor-arg name="port" value="${port}"/>
-              <constructor-arg name="username" value="${username}"/>
-              <constructor-arg name="password" value="${password}"/>
-              <constructor-arg name="database" value="${database}"/>
-              <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
-              <constructor-arg name="wards" ref="validWards"/>
-              <constructor-arg name="sexMap" ref="sexMap"/>
-              <constructor-arg name="toDateFormat" value="${to_date_format}"/>
-              <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
-              <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
-              <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
-              <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
+        <constructor-arg name="protocol" value="${protocol}"/>
+        <constructor-arg name="host" value="${hostname}"/>
+        <constructor-arg name="port" value="${port}"/>
+        <constructor-arg name="username" value="${username}"/>
+        <constructor-arg name="password" value="${password}"/>
+        <constructor-arg name="database" value="${database}"/>
+        <constructor-arg name="inputDateFormats" ref="inputDateFormats"/>
+        <constructor-arg name="wards" ref="validWards"/>
+        <constructor-arg name="sexMap"  ref="sexMap"/>
+        <constructor-arg name="toDateFormat" value="${to_date_format}"/>
+        <constructor-arg name="timeOutMillis" value="${time_out_millis}"/>
+        <constructor-arg name="maximumRedeliveries" value="${maximum_redeliveries}"/>
+        <constructor-arg name="redeliveryDelay" value="${redelivery_delay}"/>
+        <constructor-arg name="ignoreUnknownWards" value="${ignoreUnknownWards}"/>
         <constructor-arg name="datesToParse" ref="datesToParse"/>
-     <constructor-arg name="ratePer2Seconds" value="${ratePer2Seconds}"/>
-     <constructor-arg name="bedRegex" ref="bedStringToRegex"/>
+        <constructor-arg name="ratePer2Seconds" value="${ratePer2Seconds}"/>
+        <constructor-arg name="bedRegex" ref="bedStringToRegex"/>
+        <constructor-arg name="validReasonCodes" ref="reasonCodes"/>
     </bean>
+
 
     <!--Context-->
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
@@ -75,12 +78,14 @@
     <!---->
 
     <!--Utility beans-->
+    <bean id="reasonCodes" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="test"/>
+
     <bean id="bedStringToRegex" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="stringToRegex">
         <constructor-arg value="${bedRegex}"/>
     </bean>
     <bean id="common_mappings" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
-           <util:properties location="classpath:com.tactix4.t4ADT.ADT_COMMON.properties"/>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_COMMON.properties"/>
         </constructor-arg>
     </bean>
 
@@ -91,9 +96,9 @@
     </bean>
 
     <bean id="datesToParse" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
-       <constructor-arg>
-           <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATESTOPARSE.properties"/>
-       </constructor-arg>
+        <constructor-arg>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_DATESTOPARSE.properties"/>
+        </constructor-arg>
     </bean>
 
     <bean id="inputDateFormats" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToList">
@@ -104,7 +109,7 @@
 
     <bean id="sexMap" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
-           <util:properties location="classpath:com.tactix4.t4ADT.ADT_SEX.properties"/>
+            <util:properties location="classpath:com.tactix4.t4ADT.ADT_SEX.properties"/>
         </constructor-arg>
     </bean>
 
@@ -128,7 +133,7 @@
             <util:properties location="classpath:com.tactix4.t4ADT.ADT_A12.properties"/>
         </constructor-arg>
     </bean>
-       <bean id="a05map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
+    <bean id="a05map" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToMap">
         <constructor-arg>
             <util:properties location="classpath:com.tactix4.t4ADT.ADT_A05.properties"/>
         </constructor-arg>

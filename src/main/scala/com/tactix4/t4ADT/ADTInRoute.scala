@@ -1,5 +1,6 @@
 package com.tactix4.t4ADT
 
+import com.typesafe.config.ConfigFactory
 import org.apache.camel.model.dataformat.HL7DataFormat
 import org.apache.camel.{LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.builder.RouteBuilder
@@ -18,6 +19,8 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import com.tactix4.t4ADT.exceptions.ADTExceptions
 import scala.util.matching.Regex
+import org.constretto._
+import Constretto._
 
 
 class ADTInRoute(val mappings: Map[String,String],
@@ -37,10 +40,14 @@ class ADTInRoute(val mappings: Map[String,String],
                  val redeliveryDelay: Long,
                  val maximumRedeliveries: Int,
                  val ignoreUnknownWards: Boolean,
+                 val validReasonCodes:Map[String,Set[String]],
                  val bedRegex:Regex,
                 val ratePer2Seconds:Int) extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
   type VisitName = VisitId
+
+  val config = ConfigFactory.load("com.tactix4.t4ADT.properties")
+
   val connector = new T4skrConnector(protocol, host, port).startSession(username, password, database)
   val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
   val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
@@ -77,7 +84,12 @@ class ADTInRoute(val mappings: Map[String,String],
 
   val incomingQueue = "seda:incoming"
 
-  "hl7listener" --> incomingQueue routeId("incoming")
+  val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
+
+  val reasonCode = (e:Exchange) => e.getIn.getHeader("eventReasonCode",classOf[String])
+
+
+  "hl7listener" --> incomingQueue routeId "incoming"
 
   incomingQueue ==> {
     throttle(ratePer2Seconds per(2 seconds)) {
@@ -159,6 +171,7 @@ class ADTInRoute(val mappings: Map[String,String],
      e.getIn.setHeader("hospitalNo", getHospitalNumber(t))
      e.getIn.setHeader("hospitalNoString", ~getHospitalNumber(t))
      e.getIn.setHeader("NHSNo", getNHSNumber(t))
+     e.getIn.setHeader("eventReasonCode",getEventReasonCode(t))
      e.getIn.setHeader("visitName", getVisitName(t))
      e.getIn.setHeader("visitNameString", ~getVisitName(t))
      e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
@@ -267,7 +280,11 @@ class ADTInRoute(val mappings: Map[String,String],
 
   A08A31Route ==> {
     -->(updatePatientRoute)
-    wireTap(updateVisitRoute)
-  } routeId "A08A31"
+    filter(e => ! (validReasonCodes(msgType(e)) contains  reasonCode(e))) {
+      wireTap(updateVisitRoute)
+    }
+  } routeId "A08A31
+
 
 }
+

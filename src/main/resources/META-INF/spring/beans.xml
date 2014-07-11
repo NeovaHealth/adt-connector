@@ -3,12 +3,22 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:util="http://www.springframework.org/schema/util"
        xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:constretto="http://constretto.org/schema/constretto"
        xsi:schemaLocation="
 		http://www.springframework.org/schema/util  http://www.springframework.org/schema/util/spring-util-3.0.xsd
 	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+        http://constretto.org/schema/constretto http://constretto.org/schema/constretto/constretto-1.2.xsd ">
 
-     <!--Configuration-->
+    <constretto:configuration annotation-config="true" property-placeholder="true">
+        <constretto:stores>
+            <constretto:properties-store>
+                <constretto:resource location="classpath:test1.properties"/>
+            </constretto:properties-store>
+        </constretto:stores>
+    </constretto:configuration>
+
+    <!--Configuration-->
     <bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="location" value="file:etc/tactix4/com.tactix4.t4ADT.properties"/>
     </bean>
@@ -92,6 +102,7 @@
     <!---->
 
     <!--Utility beans-->
+    <bean id ="reasonCodeMap" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="propertiesToSet"
     <bean id="bedStringToRegex" class="com.tactix4.t4ADT.utils.SpringHelper" factory-method="stringToRegex">
         <constructor-arg value="${bedRegex}"/>
     </bean>
