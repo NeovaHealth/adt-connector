@@ -2,7 +2,7 @@ package com.tactix4.t4ADT
 
 import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception, ErrorCode}
 import ca.uhn.hl7v2.model.Message
-import org.apache.camel.Exchange
+import org.apache.camel.{LoggingLevel, Exchange}
 import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
@@ -74,14 +74,15 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
   handle[ADTUnsupportedWardException]{
     choice{
       when(_.getIn.getHeader("ignoreUnknownWards",classOf[Boolean])){
-        log("Ignoring unknown ward")
+        log(LoggingLevel.INFO,"Ignoring unknown ward")
         transform(_.in[Message].generateACK())
         to("msgHistory")
       }
       otherwise {
+        log(LoggingLevel.ERROR,"Unknown ward")
         transform(e => {
           val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
-          logger.info(exception.getMessage,exception)
+          logger.error(exception.getMessage,exception)
           e.getIn.setHeader("exception", getExceptionMessage(exception))
           e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
 

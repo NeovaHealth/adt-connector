@@ -31,7 +31,7 @@ trait ADTGen extends VisitGen{
 
   case class PV1Segment(wardCode:String,bed:Option[Int],wardName:Option[String],consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:Option[String],patientType:Option[String],visitID:VisitId,admitDate:Option[DateTime],dischargeDate:Option[DateTime]){
     override def toString:String =
-    s"PV1|1|I|$wardCode^^${~bed}^^^^^^${~wardName}|11||||${referringDoctor.id}^${referringDoctor.familyName}^${referringDoctor.givenName}^${referringDoctor.middleNames}^^${referringDoctor.title}|" +
+    s"PV1|1|I|$wardCode^^${bed.map(_.toString) | ""}^^^^^^${~wardName}|11||||${referringDoctor.id}^${referringDoctor.familyName}^${referringDoctor.givenName}^${referringDoctor.middleNames}^^${referringDoctor.title}|" +
       s"${consultingDoctor.id}^${consultingDoctor.familyName}^${consultingDoctor.givenName}^${consultingDoctor.middleNames}^^${consultingDoctor.title}|${~hospitalService}|||||||" +
       s"${admittingDoctor.id}^${admittingDoctor.familyName}^${admittingDoctor.givenName}^${admittingDoctor.middleNames}^^${admittingDoctor.title}|${~patientType}|$visitID|||||||" +
       s"||||||||||||||||||${~admitDate.map(_.toString(toDateTimeFormat))}|${~dischargeDate.map(_.toString(toDateTimeFormat))}"
@@ -55,7 +55,7 @@ trait ADTGen extends VisitGen{
   val hospitalServices = List("110", "160")
   val patientTypes = List("01")
 
-  val wards = Map("WARD E8" -> "E8", "WARD E9" -> "E9")
+  val wards = Map("ELIZABETH FRY" -> "EFMB", "ELIZABETH FRY VIRTUAL WARD" -> "EFVW")
 
   def modifyPid(pid:PIDSegment):Gen[PIDSegment] = {
     pid.copy(p = pid.p.copy(givenName = pid.p.givenName.reverse))
@@ -285,7 +285,7 @@ trait ADTGen extends VisitGen{
       hospitalService <- Gen.option(Gen.oneOf(hospitalServices))
       patientType <- Gen.option(Gen.oneOf(patientTypes))
       visitID <- Gen.listOfN(10, Gen.alphaNumChar).map(_.mkString)
-    } yield PV1Segment(wardCode,bed,Some(wardName),consultingDoctor,referringDoctor,admittingDoctor,hospitalService,patientType,visitID,admitDate,dischargeDate)
+    } yield PV1Segment(wardCode,None,Some(wardName),consultingDoctor,referringDoctor,admittingDoctor,hospitalService,patientType,visitID,admitDate,dischargeDate)
   }
 
 }

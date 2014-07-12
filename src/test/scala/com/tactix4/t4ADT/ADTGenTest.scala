@@ -23,24 +23,21 @@ import com.tactix4.t4openerp.connector
 import scalaz._
 import Scalaz._
 import org.scalacheck.Gen
+import org.scalacheck.Prop.{forAll, BooleanOperators}
 
 
 /**
  * Created by max on 06/06/14.
  */
 class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen with Matchers with TripleEqualsSupport {
+  val config = ConfigFactory.load("com.tactix4.t4ADT.conf")
 
-  val prop = new Properties()
-  prop.load(new FileInputStream("src/test/resources/com.tactix4.t4ADT.properties"))
-
- val conf = ConfigFactory.parseProperties(prop)
-
-  val username = conf.getString("username")
-  val password = conf.getString("password")
-  val database = conf.getString("database")
-  val protocol = conf.getString("protocol")
-  val host = conf.getString("hostname")
-  val port = conf.getInt("port")
+  val protocol: String = config.getString("openERP.protocol")
+  val host: String = config.getString("openERP.hostname")
+  val port: Int = config.getInt("openERP.port")
+  val username: String = config.getString("openERP.username")
+  val password: String = config.getString("openERP.password")
+  val database: String = config.getString("openERP.database")
 
   val connector = new T4skrConnector(protocol, host, port).startSession(username, password, database)
 
@@ -67,18 +64,20 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
   def randomVisitTest() = {
     check {
       forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
-        log.info("Testing the visit: " + msgs.map(_.evn.msgType).mkString(" - "))
-        msgs.foreach(msg =>{
-          if (msg.msh.msgType != "A40") {
-            log.info("sending: \n" + msg.toString.replace("\r", "\n"))
-            val result = template.sendBody(URI, ExchangePattern.InOut, msg.toString).toString
-            log.info("got result: \n" + result.replace("\r","\n"))
-            assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
-            checkPID(msg.pid)
-            checkVisit(msg.msh.msgType,msg.pv1)
-          }
-        })
-        true
+          log.info("Testing the visit: " + msgs.map(_.evn.msgType).mkString(" - "))
+          msgs.foreach(msg => {
+            if (msg.msh.msgType != "A40") {
+              log.info("sending: \n" + msg.toString.replace("\r", "\n"))
+              val result:String = template.requestBody(URI, msg.toString, classOf[String])
+              log.info("got result: \n" + result.replace("\r", "\n"))
+              assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
+              Thread.sleep(2000)
+              checkPID(msg.pid)
+              checkVisit(msg.msh.msgType, msg.pv1)
+            }
+          })
+          true
+
       }
     }
   }
@@ -86,10 +85,11 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
   def checkVisit(msgType:String, pv1:PV1Segment) : Unit = {
     val response = Await.result(connector.oeSession.searchAndRead("t4clinical.patient.visit", DomainTuple("name", com.tactix4.t4openerp.connector.domain.Equality(),OEString(pv1.visitID)), List("pos_location_parent", "pos_location","consultants_string", "visit_start","visit_end")).value,5 seconds)
     response.fold(
-    (message: ErrorMessage) => fail(message),
+    (message: ErrorMessage) => fail("Check Visit failed: " + message),
       (v:List[OEDictionary]) => v.headOption.map(d =>{
         //(wardCode:String,bed:Int,wardName:String,consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:String,patientType:String,visitID:VisitId,admitDate:String,dischargeDate:String
         val plp = d.get("pos_location").flatMap(_.array).flatMap(_(1).string).map(_.toUpperCase())
+        log.info("pos_location:" + plp)
         val cs = d.get("consultants_string").flatMap(_.string)
         val cdc = pv1.consultingDoctor.toString
         val vs = d.get("visit_start").flatMap(_.string)
@@ -113,7 +113,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
   def checkPID(pid:PIDSegment): Unit = {
     val response = Await.result(connector.oeSession.searchAndRead("t4clinical.patient", DomainTuple("other_identifier",com.tactix4.t4openerp.connector.domain.Equality(), OEString(pid.p.hospitalNo)), List("given_name","family_name","middle_names","title","dob","sex")).value,5 seconds)
     response.fold(
-      (message: ErrorMessage) => fail(message),
+      (message: ErrorMessage) => fail("Check PID failed: " + message),
       (v: List[OEDictionary]) => v.headOption.map(d =>{
         val gn = d.get("given_name").flatMap(_.string)
         val mns = d.get("middle_names").flatMap(_.string)
@@ -126,7 +126,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
         assert(fn == pid.p.familyName)
         assert( t == pid.p.title.flatMap(t2 => titleMap.get(t2)))
         assert(dob == pid.p.dob.map(_.toString(oerpDateTimeFormat)))
-        assert(sex == pid.p.sex)
+        assert(sex == pid.p.sex.map(_.toUpperCase))
       }) orElse fail(s"no result from server for patient ${pid.p.hospitalNo}")
     )
 

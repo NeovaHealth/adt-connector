@@ -1,6 +1,9 @@
 package com.tactix4.t4ADT
 
-import com.typesafe.config.ConfigFactory
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
 import org.apache.camel.model.dataformat.HL7DataFormat
 import org.apache.camel.{LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.builder.RouteBuilder
@@ -19,34 +22,35 @@ import com.typesafe.scalalogging.slf4j.Logging
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import com.tactix4.t4ADT.exceptions.ADTExceptions
 import scala.util.matching.Regex
-import org.constretto._
-import Constretto._
+import scala.collection.JavaConversions._
 
 
-class ADTInRoute(val mappings: Map[String,String],
-                 val msgTypeMappings: Map[String, Map[String, String]],
-                 val protocol: String,
-                 val host: String,
-                 val port: Int,
-                 val username: String,
-                 val password: String,
-                 val database: String,
-                 val wards: List[Regex],
-                 val sexMap: Map[String, String],
-                 val inputDateFormats: List[String],
-                 val toDateFormat: String,
-                 val datesToParse: List[String],
-                 val timeOutMillis: Int,
-                 val redeliveryDelay: Long,
-                 val maximumRedeliveries: Int,
-                 val ignoreUnknownWards: Boolean,
-                 val validReasonCodes:Map[String,Set[String]],
-                 val bedRegex:Regex,
-                val ratePer2Seconds:Int) extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
+class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
   type VisitName = VisitId
 
-  val config = ConfigFactory.load("com.tactix4.t4ADT.properties")
+  val f = new File("etc/tactix4/com.tactix4.t4ADT.conf")
+
+  val config: Config = ConfigFactory.parseFile(f)
+
+  val protocol: String = config.getString("openERP.protocol")
+  val host: String = config.getString("openERP.hostname")
+  val port: Int = config.getInt("openERP.port")
+  val username: String = config.getString("openERP.username")
+  val password: String = config.getString("openERP.password")
+  val database: String = config.getString("openERP.database")
+  val wards : List[Regex] = config.getStringList("misc.ward_names").map(_.r).toList
+  val sexMap: Map[String, String] = config.getObject("ADT_mappings.sex_map").toMap.mapValues(_.unwrapped().asInstanceOf[String])
+  val inputDateFormats: List[String] = config.getStringList("misc.valid_date_formats").toList
+  val toDateFormat: String = config.getString("openERP.to_date_format")
+  val datesToParse: Set[String] = config.getStringList("ADT_mappings.dates_to_parse").toSet
+  val timeOutMillis: Long = config.getDuration("camel_redelivery.time_out",TimeUnit.MILLISECONDS)
+  val redeliveryDelay: Long = config.getDuration("camel_redelivery.delay",TimeUnit.MILLISECONDS)
+  val maximumRedeliveries: Int = config.getInt("camel_redelivery.maximum_redeliveries")
+  val ignoreUnknownWards: Boolean = config.getBoolean("misc.ignore_unknown_wards")
+  val bedRegex:Regex = config.getString("misc.bed_regex").r
+  val ratePer2Seconds:Int = config.getInt("misc.rate_per_2_seconds")
+  val supportedMsgTypes = config.getStringList("misc.supported_msg_types")
 
   val connector = new T4skrConnector(protocol, host, port).startSession(username, password, database)
   val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
@@ -65,7 +69,6 @@ class ADTInRoute(val mappings: Map[String,String],
   val detectIdConflict = "direct:idConflictCheck"
   val detectVisitConflict = "direct:visitConflictCheck"
 
-  val supportedMsgTypes = msgTypeMappings.keySet
 
   val A08A31Route = "direct:A0831"
   val A05A28Route = "direct:A05A28"
@@ -86,8 +89,7 @@ class ADTInRoute(val mappings: Map[String,String],
 
   val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
 
-  val reasonCode = (e:Exchange) => e.getIn.getHeader("eventReasonCode",classOf[String])
-
+  def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
 
   "hl7listener" --> incomingQueue routeId "incoming"
 
@@ -117,7 +119,7 @@ class ADTInRoute(val mappings: Map[String,String],
           when(msgEquals("A12")) --> A12Route
           when(msgEquals("A40")) --> A40Route
           otherwise {
-            throwException(new ADTUnsupportedWardException("Unsupported msg type"))
+            throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
           }
         }
         -->(msgHistory)
@@ -180,7 +182,7 @@ class ADTInRoute(val mappings: Map[String,String],
 
   setExtraHeaders ==> {
     process(e => {
-      val hid = e.getIn.getHeader("hospitalNumber",None,classOf[Option[String]])
+      val hid = e.getIn.getHeader("hospitalNo",None,classOf[Option[String]])
       val nhs = e.getIn.getHeader("NHSNo",None,classOf[Option[String]])
       val visitName = e.getIn.getHeader("visitName",None,classOf[Option[String]])
       val visitId = visitName.flatMap(getVisit)
@@ -210,7 +212,6 @@ class ADTInRoute(val mappings: Map[String,String],
 
 
   A01Route ==> {
-
     when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
     -->(updatePatientRoute)
     process(e => visitNew(e))
@@ -280,11 +281,13 @@ class ADTInRoute(val mappings: Map[String,String],
 
   A08A31Route ==> {
     -->(updatePatientRoute)
-    filter(e => ! (validReasonCodes(msgType(e)) contains  reasonCode(e))) {
+    filter(e => (for {
+                  codes <- getReasonCodes(e)
+                  mycode <- reasonCode(e)
+                } yield codes contains mycode) | true ) {
       wireTap(updateVisitRoute)
     }
-  } routeId "A08A31
-
+  } routeId "A08A31"
 
 }
 

@@ -17,7 +17,7 @@
         <bundle>wrap:mvn:net.databinder.dispatch/dispatch-core_2.10/0.11.0</bundle>
         <bundle>mvn:joda-time/joda-time/2.3</bundle>
         <bundle>mvn:io.netty/netty/3.6.3.Final</bundle>
-        <bundle>mvn:com.typesafe/config/1.0.2</bundle>
+        <bundle>mvn:com.typesafe/config/1.2.1</bundle>
         <bundle>wrap:mvn:org.springframework.scala/spring-scala_2.10/1.0.0.RC1</bundle>
         <bundle>mvn:com.tactix4/t4xmlrpc_2.10/2.0.1</bundle>
         <bundle>mvn:com.tactix4/t4openerp-connector_2.10/2.0.0</bundle>

@@ -2,6 +2,7 @@ package com.tactix4.t4ADT
 
 
 import com.tactix4.t4skr.{T4skrResult, T4skrSession}
+import com.typesafe.config.Config
 
 
 import scala.concurrent.Await
@@ -21,6 +22,7 @@ import org.joda.time.DateTime
 import com.tactix4.t4ADT.exceptions.ADTExceptions
 import com.typesafe.scalalogging.slf4j.Logging
 import scala.util.matching.Regex
+import scala.collection.JavaConversions._
 
 /**
  * Created by max on 02/06/14.
@@ -28,11 +30,11 @@ import scala.util.matching.Regex
 trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with Logging {
 
   val wards:List[Regex]
+  val config:Config
   val triggerEventHeader = "CamelHL7TriggerEvent"
 
-
-  val optionalPatientFields = List("patient_identifier", "given_name",  "family_name",  "middle_names",  "title", "sex", "dob")
-  val optionalVisitFields = List("consultingDoctorCode", "consultingDoctorPrefix", "consultingDoctorGivenName", "consultingDoctorFamilyName","referringDoctorCode","referringDoctorPrefix", "referringDoctorGivenName", "referringDoctorFamilyName","service_code", "bed")
+  lazy val optionalPatientFields: List[String] = config.getStringList("ADT_mappings.optional_patient_fields").toList
+  lazy val optionalVisitFields: List[String] = config.getStringList("ADT_mappings.optional_visit_fields").toList
 
 
   def getMapFromFields(m:List[String])(implicit t:Terser) ={

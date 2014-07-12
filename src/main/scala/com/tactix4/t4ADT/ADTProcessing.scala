@@ -1,6 +1,8 @@
 package com.tactix4.t4ADT
 
 import ca.uhn.hl7v2.util.Terser
+import com.typesafe.config.Config
+import org.apache.camel.Exchange
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormatter
 import scala.util.control.Exception._
@@ -9,6 +11,7 @@ import scala.util.matching.Regex
 import scalaz._
 import Scalaz._
 import com.tactix4.t4ADT.exceptions.ADTExceptions
+import scala.collection.JavaConversions._
 
 /**
  * @author max@tactix4.com
@@ -16,12 +19,11 @@ import com.tactix4.t4ADT.exceptions.ADTExceptions
  */
 trait ADTProcessing extends ADTExceptions{
 
+  val config: Config
   val fromDateTimeFormat:DateTimeFormatter
   val toDateTimeFormat:DateTimeFormatter
-  val datesToParse:List[String]
+  val datesToParse:Set[String]
   val sexMap:Map[String,String]
-  val mappings:Map[String,String]
-  val msgTypeMappings:Map[String, Map[String,String]]
   val hospitalNumber = "other_identifier"
   val oldHospitalNumber = "old_other_identifier"
   val EmptyStringMatcher = """^"?\s*"?$""".r
@@ -43,15 +45,11 @@ trait ADTProcessing extends ADTExceptions{
 
   def parseSex(m: String): String = {
     try {
-      sexMap(m)
+      sexMap(m.toUpperCase)
     } catch {
       case e:Throwable => throw new ADTFieldException("Could not find value in sex map")
     }
   }
-
-
-
-
 
   def extractBedName(s:String) : Option[String] = bedRegex.findFirstIn(s)
 
@@ -69,24 +67,21 @@ trait ADTProcessing extends ADTExceptions{
 
   def getWardIdentifier(implicit terser:Terser): Option[String] =  getMessageValue("ward_identifier")
 
+  def getReasonCodes(implicit e:Exchange) : Option[Set[String]] = for {
+    msgType <- getMsgType(e.getIn.getHeader("terser",None, classOf[Terser]))
+    reasonCodes <- allCatch opt config.getConfig(s"ADT_mappings.$msgType").getStringList("reason_codes").toSet
+  } yield reasonCodes
+
   def getMessageValue(name:String)(implicit terser:Terser):Option[String] = {
-
-    val msgTypeOverride = for {
-      mt <- getMsgType(terser)
-      mm <- msgTypeMappings.get(mt)
-      path  <- mm.get(name)
-      value  <- getValueFromPath(path)
-    } yield value
-
-    (msgTypeOverride orElse mappings.get(name).flatMap(getValueFromPath)).map(
-      s => {
-        if(name == "bed") extractBedName(s) | s
-        else if(datesToParse contains name) parseDate(s)
-        else if(Sex.findFirstIn(name).isDefined) parseSex(s)
-        else s
-        }
-    )
-
+    for {
+      msgType <- getMsgType(terser)
+      c = config.getConfig(s"ADT_mappings.$msgType").withFallback(config.getConfig("ADT_mappings.common"))
+      path <- allCatch opt c.getString(name)
+      value <- getValueFromPath(path)
+    } yield if(name == "bed") extractBedName(value) | value
+            else if(datesToParse contains name) parseDate(value)
+            else if(Sex.findFirstIn(name).isDefined) parseSex(value)
+            else value
   }
 
   def getValueFromPath(path:String)(implicit terser:Terser):Option[String] = {
@@ -97,5 +92,7 @@ trait ADTProcessing extends ADTExceptions{
     }
 
   }
+
+
 
 }
