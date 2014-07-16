@@ -178,7 +178,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      e.getIn.setHeader("visitNameString", ~getVisitName(t))
      e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
    })
- }
+ } routeId "Set Basic Headers"
 
   setExtraHeaders ==> {
     process(e => {
@@ -192,7 +192,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       e.getIn.setHeader("visitId", visitId)
       e.getIn.setHeader("patientLinkedToVisit", visitId.flatMap(getPatientByVisitId))
     })
-  }
+  } routeId "Set Extra Headers"
 
   updatePatientRoute ==> {
     when(e => patientExists(e)) {

@@ -49,8 +49,11 @@
     <!--Route injection-->
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
 
-    <!---->
-
+    <!--Sets the jmx object name to use 'localhost' rather than the actual hostname -->
+    <bean id="naming" class="org.apache.camel.management.DefaultManagementNamingStrategy">
+        <property name="hostName" value="localhost"/>
+        <property name="domainName" value="org.apache.camel"/>
+    </bean>
     <!--Context-->
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>

@@ -5,7 +5,7 @@
     <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
     <description>Tactix4 T4skr ADT</description>
-    <version>0.1.4</version>
+    <version>0.1.5</version>
     <name>Tactix4 T4skr ADT</name>
     <organization>
         <name>com.tactix4</name>
@@ -249,6 +249,7 @@
                             org.apache.camel.builder,
                             org.apache.camel.component.hl7,
                             org.apache.camel.model,
+                            org.apache.camel.management,
                             org.apache.camel.model.dataformat,
                             org.apache.camel.scala,
                             org.apache.camel.scala.dsl,
