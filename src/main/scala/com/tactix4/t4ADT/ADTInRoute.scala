@@ -125,8 +125,8 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
         -->(msgHistory)
         process(e => e.in = e.in[Message].generateACK())
       }
-    } routeId "Main Route"
-  }
+    }
+  } routeId "Main Route"
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
