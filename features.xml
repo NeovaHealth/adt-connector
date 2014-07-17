@@ -7,6 +7,7 @@
 		<feature version="2.12.3">camel-mina2</feature>
 		<feature version="2.12.3">camel-spring</feature>
         <feature version="2.12.3">camel-sql</feature>
+        <feature version="2.12.3">camel-rabbitmq</feature>
         <bundle>mvn:org.scalaz/scalaz-core_2.10/7.0.5</bundle>
         <bundle>mvn:org.scalaz/scalaz-concurrent_2.10/7.0.5</bundle>
         <bundle>mvn:org.scalaz/scalaz-xml_2.10/7.0.5</bundle>
