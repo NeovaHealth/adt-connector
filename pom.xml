@@ -21,7 +21,7 @@
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.0.5</scalaz-version>
-        <t4skr-connector-version>2.0.2</t4skr-connector-version>
+        <t4skr-connector-version>2.0.3</t4skr-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.2.1</typesafe-config-version>
