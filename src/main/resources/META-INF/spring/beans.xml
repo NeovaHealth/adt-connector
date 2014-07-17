@@ -17,7 +17,6 @@
         <constructor-arg value="tactix4/com.tactix4.t4ADT.properties"/>
     </bean>
 
-    <camel:endpoint id="rabbitMQEndpoint" uri="rabbitmq://${rabbitmq_host}:${rabbitmq_port}/${rabbitmq_exchange}?username=${rabbitmq_username}&amp;password=${rabbitmq_password}&amp;bridgeEndpoint=true&amp;queue=t4adt"/>
 
     <!--HL7 Listener-->
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>

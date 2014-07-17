@@ -85,7 +85,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  val incomingQueue = "rabbitMQEndpoint"
+  val incomingQueue = "seda:incoming"
 
   val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
 
