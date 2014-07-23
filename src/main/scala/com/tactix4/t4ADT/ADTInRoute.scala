@@ -1,10 +1,14 @@
 package com.tactix4.t4ADT
 
 import java.io.File
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
+import org.apache.camel.component.rabbitmq.RabbitMQConstants
+import org.apache.camel.model.IdempotentConsumerDefinition
 import org.apache.camel.model.dataformat.HL7DataFormat
+import org.apache.camel.spi.IdempotentRepository
 import org.apache.camel.{LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 
@@ -29,7 +33,12 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   type VisitName = VisitId
 
-  val f = new File("etc/tactix4/com.tactix4.t4ADT.conf")
+  val f = {
+   val t =new File("etc/tactix4/com.tactix4.t4ADT.conf")
+    if (!t.canRead) new File("src/test/resources/com.tactix4.t4ADT.conf")
+    else t
+  }
+
 
   val config: Config = ConfigFactory.parseFile(f)
 
@@ -85,48 +94,64 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  val incomingQueue = "rabbitMQEndpoint"
+  val incomingQueue = "rabbitMQEndpointIn"
+  val forwardQueue = "rabbitMQEndpointOnward"
 
   val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
 
+  val iRepo = getContext.getEndpoint("messageIdRepo",classOf[IdempotentRepository[_]])
+
   def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
+//implicit def idtsid(i:IdempotentConsumerDefinition) :SIdempotentConsumerDefinition = i
+  "hl7listener" ==> {
+    setHeader(RabbitMQConstants.REPLY_TO, "OutQueue")
+    setHeader(RabbitMQConstants.CORRELATIONID, UUID.randomUUID())
+//    process(e => e.getIn.setHeader(RabbitMQConstants.REPLY_TO, "OutQueue"))
+//  inOnly
+    to("rabbitmq://localhost:5672/t4adt?durable=true&autoDelete=false&username=t4adt&password=t4adt&queue=InRoute&autoAck=false")
 
-  "hl7listener" --> incomingQueue routeId "incoming"
-
-  incomingQueue ==> {
-    throttle(ratePer2Seconds per(2 seconds)) {
-      unmarshal(hl7)
-      SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
-        setHeader("msgBody", e => e.getIn.getBody.toString)
-        -->(setBasicHeaders)
-        -->(detectDuplicates)
-        -->(detectUnsupportedMsg)
-        -->(detectUnsupportedWards)
-        -->(setExtraHeaders)
-        -->(detectIdConflict)
-        -->(detectVisitConflict)
-        //split on msgType
-        choice {
-          when(msgEquals("A08")) --> A08Route
-          when(msgEquals("A31")) --> A31Route
-          when(msgEquals("A05")) --> A05Route
-          when(msgEquals("A28")) --> A28Route
-          when(msgEquals("A01")) --> A01Route
-          when(msgEquals("A11")) --> A11Route
-          when(msgEquals("A03")) --> A03Route
-          when(msgEquals("A13")) --> A13Route
-          when(msgEquals("A02")) --> A02Route
-          when(msgEquals("A12")) --> A12Route
-          when(msgEquals("A40")) --> A40Route
-          otherwise {
-            throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
+  }
+    from("rabbitmq://localhost:5672/t4adt?durable=true&autoDelete=false&username=t4adt&password=t4adt&queue=InRoute") ==> {
+      inOnly
+      throttle(ratePer2Seconds per (2 seconds)) {
+        unmarshal(hl7)
+        idempotentConsumer(_.in("CamelHL7MessageControl")).repository(iRepo).skipDuplicate(false).removeOnFailure(false) {
+          -->(setBasicHeaders)
+          -->(detectDuplicates)
+          -->(detectUnsupportedMsg)
+          -->(detectUnsupportedWards)
+          -->(setExtraHeaders)
+          -->(detectIdConflict)
+          -->(detectVisitConflict)
+          //split on msgType
+          choice {
+            when(msgEquals("A08")) --> A08Route
+            when(msgEquals("A31")) --> A31Route
+            when(msgEquals("A05")) --> A05Route
+            when(msgEquals("A28")) --> A28Route
+            when(msgEquals("A01")) --> A01Route
+            when(msgEquals("A11")) --> A11Route
+            when(msgEquals("A03")) --> A03Route
+            when(msgEquals("A13")) --> A13Route
+            when(msgEquals("A02")) --> A02Route
+            when(msgEquals("A12")) --> A12Route
+            when(msgEquals("A40")) --> A40Route
+            otherwise {
+              throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
+            }
           }
+          -->(msgHistory)
+          process(e => e.in = e.in[Message].generateACK())
+
+          setHeader(RabbitMQConstants.ROUTING_KEY, "out")
+          to("rabbitmq://localhost:5672/t4adt?durable=true&autoDelete=false&username=t4adt&password=t4adt&queue=OutRoute&autoAck=false")
+          //to("rabbitmq://localhost:5672/?username=t4adt&password=t4adt&routingKey=out")
+          // process(e => e.out = e.in[Message].generateACK().toString)
         }
-        -->(msgHistory)
-        process(e => e.in = e.in[Message].generateACK())
       }
     }
-  } routeId "Main Route"
+
+
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
@@ -168,6 +193,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      val message = e.in[Message]
      val t = new Terser(message)
 
+     setHeader("msgBody", e => e.getIn.getBody.toString)
      e.getIn.setHeader("origMessage", message)
      e.getIn.setHeader("terser", t)
      e.getIn.setHeader("hospitalNo", getHospitalNumber(t))

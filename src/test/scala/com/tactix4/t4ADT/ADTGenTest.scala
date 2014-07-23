@@ -1,7 +1,7 @@
 package com.tactix4.t4ADT
 
-import org.scalatest.Matchers
-import org.scalatest.prop.PropertyChecks
+import org.scalatest.{ParallelTestExecution, Matchers}
+import org.scalatest.prop.{Checkers, PropertyChecks}
 import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.test.spring.CamelSpringTestSupport
 import org.springframework.context.support.{ClassPathXmlApplicationContext, AbstractApplicationContext}
@@ -62,8 +62,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
 
   @Test
   def randomVisitTest() = {
-    check {
-      forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
+    val property = forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
           log.info("Testing the visit: " + msgs.map(_.evn.msgType).mkString(" - "))
           msgs.foreach(msg => {
             if (msg.msh.msgType != "A40") {
@@ -79,18 +78,29 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
           true
 
       }
-    }
+    check( property,Checkers.Workers(10))
   }
 
   def checkVisit(msgType:String, pv1:PV1Segment) : Unit = {
-    val response = Await.result(connector.oeSession.searchAndRead("t4clinical.patient.visit", DomainTuple("name", com.tactix4.t4openerp.connector.domain.Equality(),OEString(pv1.visitID)), List("pos_location_parent", "pos_location","consultants_string", "visit_start","visit_end")).value,5 seconds)
+    val response = Await.result(connector.oeSession.searchAndRead("t4clinical.patient.visit", DomainTuple("name", com.tactix4.t4openerp.connector.domain.Equality(),OEString(pv1.visitID)), List("pos_location_parent", "pos_location","consulting_doctor_ids", "visit_start","visit_end")).value,5 seconds)
     response.fold(
     (message: ErrorMessage) => fail("Check Visit failed: " + message),
       (v:List[OEDictionary]) => v.headOption.map(d =>{
         //(wardCode:String,bed:Int,wardName:String,consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:String,patientType:String,visitID:VisitId,admitDate:String,dischargeDate:String
         val plp = d.get("pos_location").flatMap(_.array).flatMap(_(1).string).map(_.toUpperCase())
         log.info("pos_location:" + plp)
-        val cs = d.get("consultants_string").flatMap(_.string)
+        val cdID = for {
+          o <- d.get("consulting_doctor_ids")
+          a <- o.array
+          h <- a.headOption
+          i <- h.int
+        } yield  i
+
+        val cdName = Await.result(connector.oeSession.read("hr.employee",List(~cdID),List("name")).value, 2 seconds).map(
+          _.headOption.flatMap(_.get("name").flatMap(_.string))
+        )
+
+
         val cdc = pv1.consultingDoctor.toString
         val vs = d.get("visit_start").flatMap(_.string)
         val ve = d.get("visit_end").flatMap(_.string)
@@ -99,7 +109,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
         } else {
           assert(plp.flatMap(wards.get) == Some(pv1.wardCode))
         }
-        assert((cdc.isEmpty ? (None:Option[String]) | Some(cdc)) == (cs.getOrElse("").isEmpty ? (None:Option[String]) | cs))
+        assert((cdc.isEmpty ? (None:Option[String]) | Some(cdc)) == cdName.getOrElse(None))
         if(pv1.admitDate != None) assert(vs == pv1.admitDate.map(_.toString(oerpDateTimeFormat)))
         if(msgType == "A13"){
           assert(ve == None, s"Discharge date should be None/Null because we just cancelled the discharge. ${~ve} was returned instead")

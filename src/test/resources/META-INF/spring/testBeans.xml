@@ -20,6 +20,8 @@
     <camel:endpoint id="failMsgHistory" uri="mock:error"/>
     <camel:endpoint id="msgHistory" uri="mock:success"/>
 
+    <camel:endpoint id="rabbitMQEndpointIn" uri="rabbitmq://${rabbitmq_host}:${rabbitmq_port}/${rabbitmq_exchange}?username=${rabbitmq_username}&amp;password=${rabbitmq_password}&amp;queue=t4adt"/>
+    <camel:endpoint id="rabbitMQEndpointOnward" uri="rabbitmq://${rabbitmq_host}:${rabbitmq_port}/${rabbitmq_exchange}?username=${rabbitmq_username}&amp;password=${rabbitmq_password}&amp;queue=t4adt"/>
 
     <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 

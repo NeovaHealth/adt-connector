@@ -159,7 +159,12 @@
             <artifactId>camel-rabbitmq</artifactId>
             <version>${camel-version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+            <version>3.3.4</version>
+            <scope>test</scope>
+        </dependency>
 	</dependencies>
 	<repositories>
         <repository>
