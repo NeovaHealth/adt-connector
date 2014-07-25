@@ -78,7 +78,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
           true
 
       }
-    check( property,Checkers.Workers(10))
+    check( property,Checkers.Workers(1))
   }
 
   def checkVisit(msgType:String, pv1:PV1Segment) : Unit = {

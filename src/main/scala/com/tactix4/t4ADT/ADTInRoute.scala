@@ -5,11 +5,11 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
-import org.apache.camel.component.rabbitmq.RabbitMQConstants
 import org.apache.camel.model.IdempotentConsumerDefinition
 import org.apache.camel.model.dataformat.HL7DataFormat
+import org.apache.camel.component.hl7.HL7.ack
 import org.apache.camel.spi.IdempotentRepository
-import org.apache.camel.{LoggingLevel, Exchange}
+import org.apache.camel.{InOut, ExchangePattern, LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 
 import ca.uhn.hl7v2.util.Terser
@@ -75,8 +75,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val detectUnsupportedWards = "direct:detectUnsupportedWards"
   val setBasicHeaders = "direct:setBasicHeaders"
   val setExtraHeaders = "direct:setExtraHeaders"
-  val detectIdConflict = "direct:idConflictCheck"
-  val detectVisitConflict = "direct:visitConflictCheck"
+  val detectConflicts = "direct:conflictCheck"
 
 
   val A08A31Route = "direct:A0831"
@@ -99,30 +98,22 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
 
-  val iRepo = getContext.getEndpoint("messageIdRepo",classOf[IdempotentRepository[_]])
+  //  val iRepo = getContext.getEndpoint("messageIdRepo",classOf[IdempotentRepository[_]])
 
   def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
-//implicit def idtsid(i:IdempotentConsumerDefinition) :SIdempotentConsumerDefinition = i
-  "hl7listener" ==> {
-    setHeader(RabbitMQConstants.REPLY_TO, "OutQueue")
-    setHeader(RabbitMQConstants.CORRELATIONID, UUID.randomUUID())
-//    process(e => e.getIn.setHeader(RabbitMQConstants.REPLY_TO, "OutQueue"))
-//  inOnly
-    to("rabbitmq://localhost:5672/t4adt?durable=true&autoDelete=false&username=t4adt&password=t4adt&queue=InRoute&autoAck=false")
 
-  }
-    from("rabbitmq://localhost:5672/t4adt?durable=true&autoDelete=false&username=t4adt&password=t4adt&queue=InRoute") ==> {
-      inOnly
+  "hl7listener" --> "activemq:queue:in"
+
+    from("activemq:queue:in") ==> {
       throttle(ratePer2Seconds per (2 seconds)) {
         unmarshal(hl7)
-        idempotentConsumer(_.in("CamelHL7MessageControl")).repository(iRepo).skipDuplicate(false).removeOnFailure(false) {
+        SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
           -->(setBasicHeaders)
           -->(detectDuplicates)
           -->(detectUnsupportedMsg)
           -->(detectUnsupportedWards)
           -->(setExtraHeaders)
-          -->(detectIdConflict)
-          -->(detectVisitConflict)
+          -->(detectConflicts)
           //split on msgType
           choice {
             when(msgEquals("A08")) --> A08Route
@@ -136,17 +127,12 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
             when(msgEquals("A02")) --> A02Route
             when(msgEquals("A12")) --> A12Route
             when(msgEquals("A40")) --> A40Route
-            otherwise {
-              throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
-            }
-          }
-          -->(msgHistory)
-          process(e => e.in = e.in[Message].generateACK())
+            otherwise throwException new ADTUnsupportedMessageException("Unsupported msg type")
 
-          setHeader(RabbitMQConstants.ROUTING_KEY, "out")
-          to("rabbitmq://localhost:5672/t4adt?durable=true&autoDelete=false&username=t4adt&password=t4adt&queue=OutRoute&autoAck=false")
-          //to("rabbitmq://localhost:5672/?username=t4adt&password=t4adt&routingKey=out")
-          // process(e => e.out = e.in[Message].generateACK().toString)
+          }
+          wireTap(msgHistory)
+          transform(ack())
+
         }
       }
     }
@@ -165,35 +151,25 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     when(e => !isSupportedWard(e)) throwException new ADTUnsupportedWardException("Unsupported ward")
   } routeId "Detect Unsupported Wards"
 
-  detectIdConflict ==> {
+  detectConflicts ==> {
      when(e => {
         val p1 = getPatientLinkedToHospitalNo(e)
         val p2 = getPatientLinkedToNHSNo(e)
-        p1.isDefined && p2.isDefined && p1 != p2
+        p1.isDefined && p2.isDefined && p1 != p2 || getPatientLinkedToVisit(e) != p1
       }) {
-        process( e => throw new ADTConsistencyException("Hospital number: " +e.in("hospitalNo") + " is linked to patient: "+ e.in("patientLinkedToHospitalNo") +
-          " but NHS number: " + e.in("NHSNo") + "is linked to patient: " + e.in("patientLinkedToNHSNo")))
+        process( e => throw new ADTConsistencyException("Hospital number linked to: " + e.in("patientLinkedToHospitalNo") +
+          "\nNHS number linked to: " + e.in("patientLinkedToNHSNo") + "\nVisitID linked to:" +  e.in("patientLinkedToVisit")))
       }
   } routeId "Detect Id Conflict"
 
-  detectVisitConflict ==> {
-     //check for conflict with visits
-      when(e => {
-        val pv = getPatientLinkedToVisit(e)
-        val ph = getPatientLinkedToHospitalNo(e)
-        pv.isDefined && pv != ph
-      }){
-        process( e => throw new ADTConsistencyException("Hospital number: " + e.in("hospitalNo") + " is linked to patient: " + e.in("patientLinkedToHospitalNo") + " " +
-          " but visit: " + e.in("visitName") + " is linked to patient: " + e.in("patientLinkedToVisit") + ""))
-      }
-  } routeId "Detect Visit Conflict"
+
 
  setBasicHeaders ==> {
    process(e => {
      val message = e.in[Message]
      val t = new Terser(message)
 
-     setHeader("msgBody", e => e.getIn.getBody.toString)
+     e.getIn.setHeader("msgBody",e.getIn.getBody.toString)
      e.getIn.setHeader("origMessage", message)
      e.getIn.setHeader("terser", t)
      e.getIn.setHeader("hospitalNo", getHospitalNumber(t))
@@ -294,7 +270,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   } routeId "A13"
 
   A05A28Route ==> {
-    when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
+    when(e => patientExists(e)) throwException new ADTApplicationException("Patient with hospital number: ".in("hospitalNo") + " already exists"))
     process(e => patientNew(e))
     wireTap(updateVisitRoute)
   } routeId "A05A28"

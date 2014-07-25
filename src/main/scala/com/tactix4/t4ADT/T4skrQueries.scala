@@ -11,8 +11,6 @@ import com.tactix4.t4skr.core._
 import com.tactix4.t4openerp.connector.domain.Domain._
 import com.tactix4.t4openerp.connector._
 
-import scalaz.Success
-
 /**
  * Created by max on 02/06/14.
  */
@@ -33,16 +31,16 @@ trait T4skrQueries {
     )
 
   def getPatientByVisitId(vid: Int): Option[T4skrId] = {
-    Await.result(connector.oeSession.read("t4clinical.patient.visit", List(vid), List("patient_id")).value, 2000 millis) match {
-      case Success(x) =>
-      case  => for {
+    Await.result(connector.oeSession.read("t4clinical.patient.visit", List(vid), List("patient_id")).value, 2000 millis).fold(
+      _ => None,
+      ids => for {
         h <- ids.headOption
         oe <- h.get("patient_id")
         a <- oe.array
         h <- a.headOption
         id <- h.int
       } yield id
-    }
+    )
   }
 
   def getVisit(visitId: VisitId): Option[Int] =
