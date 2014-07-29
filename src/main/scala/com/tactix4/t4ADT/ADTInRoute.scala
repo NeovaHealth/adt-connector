@@ -1,69 +1,43 @@
 package com.tactix4.t4ADT
 
-import java.io.File
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-
-import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
-import org.apache.camel.model.IdempotentConsumerDefinition
-import org.apache.camel.model.dataformat.HL7DataFormat
-import org.apache.camel.component.hl7.HL7.ack
-import org.apache.camel.spi.IdempotentRepository
-import org.apache.camel.{InOut, ExchangePattern, LoggingLevel, Exchange}
-import org.apache.camel.scala.dsl.builder.RouteBuilder
-
-import ca.uhn.hl7v2.util.Terser
 import ca.uhn.hl7v2.model.Message
-import scalaz._
-import Scalaz._
-
-import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
-
+import ca.uhn.hl7v2.util.Terser
+import com.tactix4.t4ADT.exceptions.ADTExceptions
+import com.tactix4.t4ADT.utils.ConfigHelper
 import com.tactix4.t4skr.T4skrConnector
 import com.tactix4.t4skr.core._
-
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.slf4j.Logging
+import org.apache.camel.component.hl7.HL7.ack
+import org.apache.camel.model.dataformat.HL7DataFormat
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
-import com.tactix4.t4ADT.exceptions.ADTExceptions
+import org.apache.camel.scala.dsl.builder.RouteBuilder
+import org.apache.camel.{Exchange, LoggingLevel}
+import org.joda.time.format.{DateTimeFormat, DateTimeFormatter, DateTimeFormatterBuilder}
 import scala.util.matching.Regex
-import scala.collection.JavaConversions._
-
+import scalaz._
+import Scalaz._
 
 class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
   type VisitName = VisitId
 
-  val f = {
-   val t =new File("etc/tactix4/com.tactix4.t4ADT.conf")
-    if (!t.canRead) new File("src/test/resources/com.tactix4.t4ADT.conf")
-    else t
-  }
+  override val wards: List[Regex] = ConfigHelper.wards
+  override val config: Config = ConfigHelper.config
+  override val maximumRedeliveries: Int = ConfigHelper.maximumRedeliveries
+  override val redeliveryDelay: Long = ConfigHelper.redeliveryDelay
+  override val bedRegex: Regex = ConfigHelper.bedRegex
+  override val datesToParse: Set[String] = ConfigHelper.datesToParse
+  override val sexMap: Map[String, String] = ConfigHelper.sexMap
 
+  val connector = new T4skrConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
+    .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
 
-  val config: Config = ConfigFactory.parseFile(f)
+  val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder()
+    .append(null, ConfigHelper.inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
 
-  val protocol: String = config.getString("openERP.protocol")
-  val host: String = config.getString("openERP.hostname")
-  val port: Int = config.getInt("openERP.port")
-  val username: String = config.getString("openERP.username")
-  val password: String = config.getString("openERP.password")
-  val database: String = config.getString("openERP.database")
-  val wards : List[Regex] = config.getStringList("misc.ward_names").map(_.r).toList
-  val sexMap: Map[String, String] = config.getObject("ADT_mappings.sex_map").toMap.mapValues(_.unwrapped().asInstanceOf[String])
-  val inputDateFormats: List[String] = config.getStringList("misc.valid_date_formats").toList
-  val toDateFormat: String = config.getString("openERP.to_date_format")
-  val datesToParse: Set[String] = config.getStringList("ADT_mappings.dates_to_parse").toSet
-  val timeOutMillis: Long = config.getDuration("camel_redelivery.time_out",TimeUnit.MILLISECONDS)
-  val redeliveryDelay: Long = config.getDuration("camel_redelivery.delay",TimeUnit.MILLISECONDS)
-  val maximumRedeliveries: Int = config.getInt("camel_redelivery.maximum_redeliveries")
-  val ignoreUnknownWards: Boolean = config.getBoolean("misc.ignore_unknown_wards")
-  val bedRegex:Regex = config.getString("misc.bed_regex").r
-  val ratePer2Seconds:Int = config.getInt("misc.rate_per_2_seconds")
-  val supportedMsgTypes = config.getStringList("misc.supported_msg_types")
+  val toDateTimeFormat = DateTimeFormat.forPattern(ConfigHelper.toDateFormat)
 
-  val connector = new T4skrConnector(protocol, host, port).startSession(username, password, database)
-  val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
-  val toDateTimeFormat = DateTimeFormat.forPattern(toDateFormat)
   val hl7 = new HL7DataFormat()
   hl7.setValidate(false)
 
@@ -93,58 +67,50 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  val incomingQueue = "rabbitMQEndpointIn"
-  val forwardQueue = "rabbitMQEndpointOnward"
 
-  val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
-
-  //  val iRepo = getContext.getEndpoint("messageIdRepo",classOf[IdempotentRepository[_]])
-
-  def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
+  //ROUTES:
 
   "hl7listener" --> "activemq:queue:in"
 
-    from("activemq:queue:in") ==> {
-      throttle(ratePer2Seconds per (2 seconds)) {
-        unmarshal(hl7)
-        SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
-          -->(setBasicHeaders)
-          -->(detectDuplicates)
-          -->(detectUnsupportedMsg)
-          -->(detectUnsupportedWards)
-          -->(setExtraHeaders)
-          -->(detectConflicts)
-          //split on msgType
-          choice {
-            when(msgEquals("A08")) --> A08Route
-            when(msgEquals("A31")) --> A31Route
-            when(msgEquals("A05")) --> A05Route
-            when(msgEquals("A28")) --> A28Route
-            when(msgEquals("A01")) --> A01Route
-            when(msgEquals("A11")) --> A11Route
-            when(msgEquals("A03")) --> A03Route
-            when(msgEquals("A13")) --> A13Route
-            when(msgEquals("A02")) --> A02Route
-            when(msgEquals("A12")) --> A12Route
-            when(msgEquals("A40")) --> A40Route
-            otherwise throwException new ADTUnsupportedMessageException("Unsupported msg type")
-
-          }
-          wireTap(msgHistory)
-          transform(ack())
+  "activemq:queue:in" ==> {
+    throttle(ConfigHelper.ratePer2Seconds per (2 seconds)) {
+      unmarshal(hl7)
+      SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
+        -->(setBasicHeaders)
+        -->(detectDuplicates)
+        -->(detectUnsupportedMsg)
+        -->(detectUnsupportedWards)
+        -->(setExtraHeaders)
+        -->(detectConflicts)
+        //split on msgType
+        choice {
+          when(msgEquals("A08")) --> A08Route
+          when(msgEquals("A31")) --> A31Route
+          when(msgEquals("A05")) --> A05Route
+          when(msgEquals("A28")) --> A28Route
+          when(msgEquals("A01")) --> A01Route
+          when(msgEquals("A11")) --> A11Route
+          when(msgEquals("A03")) --> A03Route
+          when(msgEquals("A13")) --> A13Route
+          when(msgEquals("A02")) --> A02Route
+          when(msgEquals("A12")) --> A12Route
+          when(msgEquals("A40")) --> A40Route
+          otherwise throwException new ADTUnsupportedMessageException("Unsupported msg type")
 
         }
+        wireTap(msgHistory)
+        transform(ack())
+
       }
     }
-
-
+  }
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
   } routeId "Detect Duplicates"
 
   detectUnsupportedMsg ==> {
-    when(e => !(supportedMsgTypes contains e.in(triggerEventHeader).toString)) throwException new ADTUnsupportedMessageException("Unsupported msg type")
+    when(e => !(ConfigHelper.supportedMsgTypes contains e.in(triggerEventHeader).toString)) throwException new ADTUnsupportedMessageException("Unsupported msg type")
   } routeId "Detect Unsupported Msg"
 
   detectUnsupportedWards ==> {
@@ -155,14 +121,12 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      when(e => {
         val p1 = getPatientLinkedToHospitalNo(e)
         val p2 = getPatientLinkedToNHSNo(e)
-        p1.isDefined && p2.isDefined && p1 != p2 || getPatientLinkedToVisit(e) != p1
+        p1.isDefined && p2.isDefined && p1 != p2 || (getPatientLinkedToVisit(e).map(v => Some(v) != p1) | false)
       }) {
         process( e => throw new ADTConsistencyException("Hospital number linked to: " + e.in("patientLinkedToHospitalNo") +
           "\nNHS number linked to: " + e.in("patientLinkedToNHSNo") + "\nVisitID linked to:" +  e.in("patientLinkedToVisit")))
       }
   } routeId "Detect Id Conflict"
-
-
 
  setBasicHeaders ==> {
    process(e => {
@@ -178,7 +142,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      e.getIn.setHeader("eventReasonCode",getEventReasonCode(t))
      e.getIn.setHeader("visitName", getVisitName(t))
      e.getIn.setHeader("visitNameString", ~getVisitName(t))
-     e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
+     e.getIn.setHeader("ignoreUnknownWards", ConfigHelper.ignoreUnknownWards)
    })
  } routeId "Set Basic Headers"
 
@@ -270,7 +234,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   } routeId "A13"
 
   A05A28Route ==> {
-    when(e => patientExists(e)) throwException new ADTApplicationException("Patient with hospital number: ".in("hospitalNo") + " already exists"))
+    when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
     process(e => patientNew(e))
     wireTap(updateVisitRoute)
   } routeId "A05A28"
@@ -290,6 +254,5 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       wireTap(updateVisitRoute)
     }
   } routeId "A08A31"
-
 }
 

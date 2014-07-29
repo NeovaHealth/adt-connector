@@ -29,14 +29,6 @@
     <!--Context-->
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
-        <!--<camel:route>-->
-            <!--<camel:from uri="activemq:topic:ActiveMQ.Advisory.?mapJmsMessage=false" />-->
-            <!--<camel:convertBodyTo type="java.lang.String"/>-->
-            <!--<camel:transform>-->
-                <!--<camel:simple>${in.body}&#13;</camel:simple>-->
-            <!--</camel:transform>-->
-            <!--<camel:to uri="log:DEADBEEF"/>-->
-        <!--</camel:route>-->
     </camel:camelContext>
 
     <!-- Jms/ActiveMQ -->
@@ -79,7 +71,7 @@
             <!-- vm transport for intra-jvm communication -->
             <transportConnector name="vm" uri="vm://myBroker"/>
             <!-- tcp for external communication -->
-            <transportConnector name="tcp" uri="tcp://0.0.0.0:61616"/>
+            <!--<transportConnector name="tcp" uri="tcp://0.0.0.0:61616"/>-->
         </transportConnectors>
 
     </broker>
@@ -88,7 +80,7 @@
 
     <bean id="postgres-ds" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
         <property name="driverClassName" value="org.postgresql.Driver"/>
-        <property name="url" value="jdbc:postgresql://localhost:5432/activemq"/>
+        <property name="url" value="jdbc:postgresql://localhost:5432/t4adt"/>
         <property name="username" value="max"/>
         <property name="password" value="max"/>
         <property name="maxActive" value="200"/>
