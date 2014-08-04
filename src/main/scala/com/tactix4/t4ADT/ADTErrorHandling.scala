@@ -92,15 +92,19 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
     }
   }.handled.maximumRedeliveries(0)
 
-
   handle[ADTUnsupportedMessageException] {
     transform(e => {
       val exception: Exception = e.getProperty(Exchange.EXCEPTION_CAUGHT, classOf[Exception])
       logger.info(exception.getMessage,exception)
       e.getIn.setHeader("exception",getExceptionMessage(exception))
       e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
-    }
-    )
+    })
+    to("failMsgHistory")
+  }.handled.maximumRedeliveries(0)
+
+  handle[ADTHistoricalMessageException] {
+    log(LoggingLevel.INFO,"Ignoring historical data")
+    transform(_.in[Message].generateACK())
     to("failMsgHistory")
   }.handled.maximumRedeliveries(0)
 

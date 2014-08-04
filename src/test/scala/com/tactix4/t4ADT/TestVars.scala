@@ -40,7 +40,11 @@ object TestVars {
                             PID2
 //                            "PV1|1|I|"+WARD+"^^^^^^^^Cobham Clinic|11||^^^^^^^^|^^^^^|C6035630^Ahmed^R^^^Dr|C5205403^He-Man^M^^^Mr|110|||||||C5205403^Skeletor^M^^^Mr|01|"+ visitID +"|||||||||||||||||||||||||20120103090000"
 
-      val patientMerge     = "MSH|^~\\&|OTHER_IBM_BRIDGE_TLS|IBM|PAT_IDENTITY_X_REF_MGR_MISYS|ALLSCRIPTS|20090224104210-0600||ADT^A40^ADT_A39|4143361005927619863|P|2.4\r"+
+  val patientUpdateADT_08H = "MSH|^~\\&|||||20131007152356.695+0100||ADT^A08|201|T|2.4\r" +
+                               "PID|1|^^^^PAS||"+ patientOneId + "^\"\"^^RDD^HOSP~652 639 8685^NSTS01^^NHS^NHS~QD1320147-1^^^RDD^EVO|DUMMY^PATIENT BERYL^^^Miss||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N\r" +
+                            "PV1|1|I|"+WARD+"^^^^^^^^Cobham Clinic|11||^^^^^^^^|^^^^^|C6035630^Ahmed^R^^^Dr|C5205403^He-Man^M^^^Mr|110|||||||C5205403^Skeletor^M^^^Mr|01|"+ visitID +"|||||||||||||||||||||||||20120103090000|20120203090000"
+
+  val patientMerge     = "MSH|^~\\&|OTHER_IBM_BRIDGE_TLS|IBM|PAT_IDENTITY_X_REF_MGR_MISYS|ALLSCRIPTS|20090224104210-0600||ADT^A40^ADT_A39|4143361005927619863|P|2.4\r"+
                             "EVN||20090224104210-0600\r"+
                             "PID|1|||" + patientTwoId+"||OTHER_IBM_BRIDGE^MARION||19661109|F\r"+
                             "MRG|"+patientOneId+"^^^IBOT&1.3.6.1.4.1.21367.2009.1.2.370&ISO"

@@ -29,7 +29,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   type VisitName = VisitId
 
-  val f = new File("etc/tactix4/com.tactix4.t4ADT.conf")
+  val f = new File("src/test/resources/com.tactix4.t4ADT.conf")
 
   val config: Config = ConfigFactory.parseFile(f)
 
@@ -64,6 +64,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val detectDuplicates = "direct:detectDuplicates"
   val detectUnsupportedMsg = "direct:detectUnsupportedMsgs"
   val detectUnsupportedWards = "direct:detectUnsupportedWards"
+  val detectHistoricalMsg = "direct:detectHistoricalMsg"
   val setBasicHeaders = "direct:setBasicHeaders"
   val setExtraHeaders = "direct:setExtraHeaders"
   val detectIdConflict = "direct:idConflictCheck"
@@ -105,6 +106,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
         -->(setExtraHeaders)
         -->(detectIdConflict)
         -->(detectVisitConflict)
+        -->(detectHistoricalMsg)
         //split on msgType
         choice {
           when(msgEquals("A08")) --> A08Route
@@ -127,6 +129,13 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       }
     }
   } routeId "Main Route"
+
+  detectHistoricalMsg ==> {
+    when(e => msgType(e) != "A03" && e.getIn.getHeader("hasDischargeDate", false, classOf[Boolean])) {
+      throwException(new ADTHistoricalMessageException("Historical message detected"))
+    }
+
+  }
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
@@ -177,6 +186,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      e.getIn.setHeader("visitName", getVisitName(t))
      e.getIn.setHeader("visitNameString", ~getVisitName(t))
      e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
+     e.getIn.setHeader("hasDischargeDate", hasDischargeDate(t))
    })
  } routeId "Set Basic Headers"
 

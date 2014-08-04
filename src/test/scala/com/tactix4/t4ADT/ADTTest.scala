@@ -54,7 +54,6 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     val result = template.sendBody(URI, ExchangePattern.InOut, message).toString
     println(result)
     assertMockEndpointsSatisfied()
-    assert(result contains "ERR")
     assert(result contains expectedResult)
     resetMocks()
     failEndpoint.reset()

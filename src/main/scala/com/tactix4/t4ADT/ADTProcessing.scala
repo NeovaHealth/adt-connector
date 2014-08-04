@@ -61,6 +61,11 @@ trait ADTProcessing extends ADTExceptions{
 
   def getNHSNumber(implicit terser:Terser): Option[String] =  getMessageValue("patient_identifier")
 
+  def hasDischargeDate(implicit terser:Terser) : Boolean = {
+    val v = getMessageValue("discharge_date")
+     v.isDefined
+  }
+
   def getVisitName(implicit terser:Terser) : Option[VisitId] =  getMessageValue("visit_identifier")
 
   def getEventReasonCode(implicit terser:Terser) : Option[String] =  getMessageValue("event_reason_code")

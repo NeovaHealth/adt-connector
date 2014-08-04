@@ -77,7 +77,6 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
             }
           })
           true
-
       }
     }
   }
