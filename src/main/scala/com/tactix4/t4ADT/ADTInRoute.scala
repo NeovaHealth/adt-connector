@@ -29,7 +29,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   type VisitName = VisitId
 
-  val f = new File("src/test/resources/com.tactix4.t4ADT.conf")
+  val f = new File("etc/tactix4/com.tactix4.t4ADT.conf")
 
   val config: Config = ConfigFactory.parseFile(f)
 
