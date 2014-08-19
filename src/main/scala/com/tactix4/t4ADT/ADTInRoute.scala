@@ -2,14 +2,20 @@ package com.tactix4.t4ADT
 
 import java.io.File
 import java.util.concurrent.TimeUnit
-
 import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
+import org.apache.camel.impl.{PropertyPlaceholderDelegateRegistry, JndiRegistry}
 import org.apache.camel.model.dataformat.HL7DataFormat
-import org.apache.camel.{LoggingLevel, Exchange}
+import org.apache.camel.{EndpointConfiguration, LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.builder.RouteBuilder
+import org.apache.camel.component.redis.RedisConstants._
+import org.apache.camel.component.redis._
 
+import org.apache.camel.component.hl7.TerserLanguage
 import ca.uhn.hl7v2.util.Terser
 import ca.uhn.hl7v2.model.Message
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.serializer.{StringRedisSerializer, RedisSerializer}
 import scalaz._
 import Scalaz._
 
@@ -23,11 +29,12 @@ import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import com.tactix4.t4ADT.exceptions.ADTExceptions
 import scala.util.matching.Regex
 import scala.collection.JavaConversions._
-
+import org.apache.camel.component.hl7.HL7.terser
 
 class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
   type VisitName = VisitId
+
 
   val f = new File("etc/tactix4/com.tactix4.t4ADT.conf")
 
@@ -71,12 +78,10 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val detectVisitConflict = "direct:visitConflictCheck"
 
 
-  val A08A31Route = "direct:A0831"
-  val A05A28Route = "direct:A05A28"
-  val A08Route = A08A31Route
-  val A31Route = A08A31Route
-  val A05Route = A05A28Route
-  val A28Route = A05A28Route
+  val A08Route = "direct:A08"
+  val A31Route = "direct:A31"
+  val A05Route = "direct:A05"
+  val A28Route = "direct:A28"
 
   val A01Route = "direct:A01"
   val A02Route = "direct:A02"
@@ -187,6 +192,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      e.getIn.setHeader("visitNameString", ~getVisitName(t))
      e.getIn.setHeader("ignoreUnknownWards", ignoreUnknownWards)
      e.getIn.setHeader("hasDischargeDate", hasDischargeDate(t))
+     e.getIn.setHeader("timestamp", ~getTimestamp(t))
    })
  } routeId "Set Basic Headers"
 
@@ -225,6 +231,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
     -->(updatePatientRoute)
     process(e => visitNew(e))
+    -->("direct:persistTimestamp")
   } routeId "A01"
 
 
@@ -242,11 +249,25 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     -->(updatePatientRoute)
     when(e => !visitExists(e)) {
       log(LoggingLevel.WARN, "Calling transferPatient for a visit that doesn't exist - ignoring")
+      to(updateVisitRoute)
     } otherwise {
       process(e => patientTransfer(e))
     }
-    wireTap(updateVisitRoute)
+    -->("direct:persistTimestamp")
   } routeId "A02"
+
+  from("direct:persistTimestamp") ==> {
+    setHeader(KEY,simple("${header.visitNameString}"))
+    setHeader(VALUE,simple("${header.timestamp}"))
+    to("spring-redis://localhost:6379?command=SET&redisTemplate=#redisTemplate")
+  }
+
+  from("direct:getVisitTimestamp") ==> {
+    setHeader(COMMAND,"GET")
+    setHeader(KEY,simple("${header.visitNameString}"))
+    enrich("spring-redis://localhost:6379?redisTemplate=#redisTemplate",new AggregateLastModTimestamp)
+    log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
+  }
 
   A12Route ==> {
     -->(updatePatientRoute)
@@ -255,7 +276,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     } otherwise {
       process(e => cancelPatientTransfer(e))
     }
-    wireTap(updateVisitRoute)
+    to(updateVisitRoute)
   } routeId "A12"
 
   A03Route ==> {
@@ -264,6 +285,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       log(LoggingLevel.WARN, "Calling discharge for a visit that doesn't exist - ignoring")
     } otherwise {
       process(e => patientDischarge(e))
+      -->("direct:persistTimestamp")
     }
   } routeId "A03"
 
@@ -274,30 +296,49 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     } otherwise {
       process(e => cancelPatientDischarge(e))
     }
-    wireTap(updateVisitRoute)
+    to(updateVisitRoute)
   } routeId "A13"
 
-  A05A28Route ==> {
+  A05Route ==> {
     when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
     process(e => patientNew(e))
-    wireTap(updateVisitRoute)
-  } routeId "A05A28"
+    to(updateVisitRoute)
+  } routeId "A05"
+
+  A28Route ==> {
+    when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
+    process(e => patientNew(e))
+    to(updateVisitRoute)
+  } routeId "A28"
 
   A40Route ==> {
     when(e => !patientExists(e) || !mergeTargetExists(e)) throwException new ADTConsistencyException("Patients to merge did not exist")
     process(e => patientMerge(e))
-    wireTap(updateVisitRoute)
+    to(updateVisitRoute)
   } routeId "A40"
 
-  A08A31Route ==> {
-    -->(updatePatientRoute)
-    filter(e => (for {
-                  codes <- getReasonCodes(e)
-                  mycode <- reasonCode(e)
-                } yield codes contains mycode) | true ) {
-      wireTap(updateVisitRoute)
+  A08Route ==> {
+    -->("direct:getVisitTimestamp")
+    when(e => e.in("lastModTimestamp") == e.in("timestamp") || e.in("lastModTimestamp") == ""){
+      log(LoggingLevel.INFO,"Updating latest visit")
+      -->(updatePatientRoute)
+      filter(e => (for {
+        codes <- getReasonCodes(e)
+        mycode <- reasonCode(e)
+      } yield codes contains mycode) | true ) {
+        to(updateVisitRoute)
+      }
+    } otherwise {
+      process(e => {
+        logger.info("last mod timestamp: " + e.getIn.getHeader("lastModTimestamp"))
+      })
+      process(e => logger.info("timestamp: " + e.getIn.getHeader("timestamp")))
+      log(LoggingLevel.INFO,"Ignoring Historical Message")
     }
-  } routeId "A08A31"
+  } routeId "A08"
 
+  A31Route ==> {
+    -->(updatePatientRoute)
+  } routeId "A31"
 }
 

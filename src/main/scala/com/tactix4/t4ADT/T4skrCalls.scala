@@ -74,7 +74,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
 
   def waitAndErr(x:ValidationNel[String,T4skrResult[_]]) = x.fold(
       errors => throw new ADTFieldException(errors.shows),
-      r => Await.result(r.value,2000 millis).fold(
+      r => Await.result(r.value,timeOutMillis millis).fold(
         error => throw new ADTApplicationException(error),
         _ => ()
       )

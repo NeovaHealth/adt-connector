@@ -17,21 +17,22 @@ import com.tactix4.t4openerp.connector._
 trait T4skrQueries {
 
   val connector:T4skrSession
+  val timeOutMillis: Long
 
   def getPatientByHospitalNumber(hospitalNumber: HospitalNo): Option[T4skrId] =
-    Await.result(connector.oeSession.search("t4clinical.patient", "other_identifier" === hospitalNumber).value, 2000 millis).fold(
+    Await.result(connector.oeSession.search("t4clinical.patient", "other_identifier" === hospitalNumber).value, timeOutMillis millis).fold(
       _ => None,
       ids =>  ids.headOption
     )
 
   def getPatientByNHSNumber(nhsNumber: String): Option[T4skrId] =
-    Await.result(connector.oeSession.search("t4clinical.patient", "patient_identifier" === nhsNumber).value, 2000 millis).fold(
+    Await.result(connector.oeSession.search("t4clinical.patient", "patient_identifier" === nhsNumber).value, timeOutMillis millis).fold(
       _ => None,
       ids => ids.headOption
     )
 
   def getPatientByVisitId(vid: Int): Option[T4skrId] = {
-    Await.result(connector.oeSession.read("t4clinical.patient.visit", List(vid), List("patient_id")).value, 2000 millis).fold(
+    Await.result(connector.oeSession.read("t4clinical.patient.visit", List(vid), List("patient_id")).value, timeOutMillis millis).fold(
       _ => None,
       ids => for {
         h <- ids.headOption
@@ -44,7 +45,7 @@ trait T4skrQueries {
   }
 
   def getVisit(visitId: VisitId): Option[Int] =
-    Await.result(connector.oeSession.search("t4clinical.patient.visit", "name" === visitId).value, 2000 millis).fold(
+    Await.result(connector.oeSession.search("t4clinical.patient.visit", "name" === visitId).value, timeOutMillis millis).fold(
       _ => None,
       ids => ids.headOption
     )

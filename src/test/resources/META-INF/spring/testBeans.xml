@@ -21,11 +21,28 @@
     <camel:endpoint id="msgHistory" uri="mock:success"/>
 
 
-    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
+    <bean id="messageIdRepo" class="org.apache.camel.component.redis.processor.idempotent.RedisIdempotentRepository" >
+        <constructor-arg value="IdempotentRep"/>
+    </bean>
 
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
 
-    <!--Context-->
+    <bean id="jedisConnectionFactory"
+          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" />
+
+    <bean id="stringRedisSerializer"
+          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+
+    <bean id="redisTemplate"
+          class="org.springframework.data.redis.core.RedisTemplate"
+          p:connectionFactory-ref="jedisConnectionFactory"
+          p:keySerializer-ref="stringRedisSerializer"
+          p:valueSerializer-ref="stringRedisSerializer"
+          p:hashKeySerializer-ref="stringRedisSerializer"/>
+    
+
+
+        <!--Context-->
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>

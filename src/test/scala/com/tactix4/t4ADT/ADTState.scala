@@ -18,6 +18,7 @@ case object CancelAdmitEvent extends Event
 case object CancelDischargeEvent extends Event
 case object CancelTransferEvent extends Event
 case object UpdatePatientEvent extends Event
+case object UpdatePersonEvent extends Event
 case object CreatePatientEvent extends Event
 case object MergePatientsEvent extends Event
 
@@ -40,6 +41,7 @@ case object Start extends ADTState {
     CancelTransferEvent -> Admitted,
     CancelDischargeEvent -> Admitted,
     UpdatePatientEvent -> Admitted,
+    UpdatePersonEvent -> Admitted,
     MergePatientsEvent -> Admitted,
     CreatePatientEvent -> PatientCreated
   )
@@ -60,6 +62,7 @@ case object Admitted extends ADTState {
     CancelAdmitEvent -> VisitEnd,
     CancelTransferEvent -> Admitted,
     UpdatePatientEvent -> Admitted,
+    UpdatePersonEvent -> Admitted,
     MergePatientsEvent -> Admitted)
 }
 

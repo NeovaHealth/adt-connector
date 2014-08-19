@@ -65,10 +65,10 @@ val config: Config = ConfigFactory.parseFile(f)
     sendMessageAndExpectResponse(TestVars.patientMerge, "MSA|AA|")
   }
   @Test
-  def fatestA01{
-    log.info("new visit for patientTwo")
-    sendMessageAndExpectResponse(TestVars.visitNew, "MSA|AA|")
-  }
+  def fatestA01 {
+  log.info("new visit for patientTwo")
+  sendMessageAndExpectResponse(TestVars.visitNew, "MSA|AA|")
+}
   @Test
   def fbtestA01{
     log.info("new visit for patientTwo")
@@ -88,6 +88,12 @@ val config: Config = ConfigFactory.parseFile(f)
     )
     assert(Await.result(b.value, 2 seconds) | false, "name should not be updated by historical message")
 
+  }
+
+  @Test
+  def fdtestA02{
+    log.info("Trying to transfer")
+    sendMessageAndExpectResponse(TestVars.transfer, "MSA|AA|")
   }
   @Test
   def gtestA03 {

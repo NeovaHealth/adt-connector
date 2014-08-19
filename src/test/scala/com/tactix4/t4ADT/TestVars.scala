@@ -16,6 +16,7 @@ object TestVars {
   val PID2 = "PID|1|^^^^PAS||" + patientTwoId + "|DUMMY^PATIENT HEIDI^^^Ms||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
 
   val WARD = "E8"
+  val WARD2 = "E9"
 
   val visitID = randomId
   val visitID2 = randomId
@@ -52,16 +53,27 @@ object TestVars {
   val visitNew        = "MSH|^~\\&|iPM|iIE|Wardware|Wardware|20120105105702||ADT^A01|607639|P|2.4|||AL|AL\r" +
                         "EVN|A01|20120105105702\r" +
                         PID2 +"\r" +
-                        s"PV1|1|I|$WARD^^^^^^^^Cobham Clinic|11||^^^^^^^^|^^^^^|C6035630^Ahmed^R^^^Dr|C5205403^Abdunabi^M^^^Mr|110|||||||C5205403^Abdunabi^M^^^Mr|01|$visitID |||||||||||||||||||||||||20120103090000\r" +
+                        s"PV1|1|I|$WARD^^^^^^^^Cobham Clinic|11||^^^^^^^^|^^^^^|C6035630^Ahmed^R^^^Dr|C5205403^Abdunabi^M^^^Mr|110|||||||C5205403^Abdunabi^M^^^Mr|01|$visitID|||||||||||||||||||||||||20120103090000\r" +
                         "AL1|1|CLIN|ISP^MRSA Positive (P)|||20111214"
 
   val visitNewBroken        = "MSH|^~\\&|iPM|iIE|Wardware|Wardware|20120105105702||ADT^A01|607639|P|2.4|||AL|AL\r" +
                         "EVN|A01|20120105105702\r" +
-                        s"PV1|1|I|$WARD^^^^^^^^Cobham Clinic|11||^^^^^^^^|^^^^^|C6035630^Ahmed^R^^^Dr|C5205403^Abdunabi^M^^^Mr|110|||||||C5205403^Abdunabi^M^^^Mr|01|$visitID |||||||||||||||||||||||||20120103090000\r" +
+                        s"PV1|1|I|$WARD^^^^^^^^Cobham Clinic|11||^^^^^^^^|^^^^^|C6035630^Ahmed^R^^^Dr|C5205403^Abdunabi^M^^^Mr|110|||||||C5205403^Abdunabi^M^^^Mr|01|$visitID|||||||||||||||||||||||||20120103090000\r" +
                         "AL1|1|CLIN|ISP^MRSA Positive (P)|||20111214"
+  val transfer2 = "MSH|^~\\&|iPM|iIE|T4skr|T4skr|20120122151427||ADT^A02|608741|P|2.4|||AL|AL\r" +
+    "EVN|A02|20120122151427\r" +
+    PID2 + "\r" +
+    "PD1|||Branch Practice, Gooseberry Hill HC, Luton^GPPRC^E81046B|G3403352B^Glaze^M E^^^Dr\r"+
+    s"PV1|1|I|$WARD2^^^^^^^^Ward 05 Isolation|22||^^^^^^^^|^^^^^|G0000001^Dummy^Leigh^^^Dr|C2782056^Ahmad^T^^^Mr|160|||||||C2782056^Ahmad^T^^^Mr|01|xv061wgb5dup7|||||||||||||||||||||||||20120115111800|"
+
+  val transfer = "MSH|^~\\&|iPM|iIE|T4skr|T4skr|20120122151427||ADT^A02|608741|P|2.4|||AL|AL\r" +
+    "EVN|A02|20120122151427||||201482931534\r" +
+    PID2 + "\r" +
+    "PD1|||Branch Practice, Gooseberry Hill HC, Luton^GPPRC^E81046B|G3403352B^Glaze^M E^^^Dr\r"+
+    s"PV1|1|I|$WARD2^^^^^^^^Ward 05 Isolation|22||^^^^^^^^|^^^^^|G0000001^Dummy^Leigh^^^Dr|C2782056^Ahmad^T^^^Mr|160|||||||C2782056^Ahmad^T^^^Mr|01|$visitID|||||||||||||||||||||||||20120115111800|"
 
   val patientDischarge = "MSH|^~\\&|iPM|iIE|T4skr|T4skr|20120122151427||ADT^A03|608741|P|2.4|||AL|AL\r" +
-                            "EVN|A03|20120122151427\r" +
+                            "EVN|A03|20120122151427||201482931534|\r" +
                             PID2 + "\r" +
                             "PD1|||Branch Practice, Gooseberry Hill HC, Luton^GPPRC^E81046B|G3403352B^Glaze^M E^^^Dr\r"+
                             s"PV1|1|I|$WARD^^^^^^^^Ward 05 Isolation|22||^^^^^^^^|^^^^^|G0000001^Dummy^Leigh^^^Dr|C2782056^Ahmad^T^^^Mr|160|||||||C2782056^Ahmad^T^^^Mr|01|1063663|||||||||||||||||||||||||20120115111800|20120115151300"

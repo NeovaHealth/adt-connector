@@ -65,6 +65,7 @@ trait ADTProcessing extends ADTExceptions{
     val v = getMessageValue("discharge_date")
      v.isDefined
   }
+  def getTimestamp(implicit terser:Terser) : Option[String] =  getMessageValue("timestamp")
 
   def getVisitName(implicit terser:Terser) : Option[VisitId] =  getMessageValue("visit_identifier")
 
