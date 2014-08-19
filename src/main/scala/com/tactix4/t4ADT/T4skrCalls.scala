@@ -1,6 +1,7 @@
 package com.tactix4.t4ADT
 
 
+import com.tactix4.t4ADT.utils.ConfigHelper
 import com.tactix4.t4skr.{T4skrResult, T4skrSession}
 import com.typesafe.config.Config
 
@@ -57,7 +58,10 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
 
   def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w =>wards.exists(_.findFirstIn(w).isDefined))
 
-  def msgEquals(t: String)(e: Exchange): Boolean = t == e.getIn.getHeader(triggerEventHeader, classOf[String])
+  val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
+
+  def msgEquals(t: String)(e: Exchange): Boolean = t == msgType(e)
+
 
   def checkForNull[T](t : T) : Option[T] = (t != null) ? t.some | None
 

@@ -20,32 +20,68 @@
     <camel:endpoint id="failMsgHistory" uri="mock:error"/>
     <camel:endpoint id="msgHistory" uri="mock:success"/>
 
-
-    <bean id="messageIdRepo" class="org.apache.camel.component.redis.processor.idempotent.RedisIdempotentRepository" >
-        <constructor-arg value="IdempotentRep"/>
-    </bean>
+    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 
     <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
 
-    <bean id="jedisConnectionFactory"
-          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" />
-
-    <bean id="stringRedisSerializer"
-          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
-
-    <bean id="redisTemplate"
-          class="org.springframework.data.redis.core.RedisTemplate"
-          p:connectionFactory-ref="jedisConnectionFactory"
-          p:keySerializer-ref="stringRedisSerializer"
-          p:valueSerializer-ref="stringRedisSerializer"
-          p:hashKeySerializer-ref="stringRedisSerializer"/>
-    
-
-
-        <!--Context-->
+    <!--Context-->
     <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
-    <!---->
 
+    <!-- Jms/ActiveMQ -->
+    <bean id="jmsConnectionFactory"
+          class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="vm://myBroker?create=false" />
+    </bean>
+
+    <bean id="pooledConnectionFactory"
+          class="org.apache.activemq.pool.PooledConnectionFactory" init-method="start" destroy-method="stop">
+        <property name="maxConnections" value="8" />
+        <property name="connectionFactory" ref="jmsConnectionFactory" />
+    </bean>
+
+    <bean id="jmsConfig"
+          class="org.apache.camel.component.jms.JmsConfiguration">
+        <property name="connectionFactory" ref="pooledConnectionFactory"/>
+        <property name="concurrentConsumers" value="10"/>
+    </bean>
+
+
+    <!---->
+    <!-- create a Camel ActiveMQ component to use, using the Spring bean style -->
+    <!-- we use the vm protocol to communicate intra-jvm which is much faster than tcp -->
+    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+        <!-- vm://myBroker is the vm protocol, and myBroker is the broker name -->
+        <property name="configuration" ref="jmsConfig"/>
+        <property name="brokerURL" value="vm://myBroker?create=false"/>
+        <!--<property name="brokerURL" value="tcp://localhost:61616"/>-->
+    </bean>
+
+    <broker id="broker" brokerName="myBroker" useShutdownHook="false" useJmx="true"
+            persistent="true" dataDirectory="activemq-data"
+            xmlns="http://activemq.apache.org/schema/core" >
+        <persistenceAdapter>
+            <jdbcPersistenceAdapter dataDirectory="activemq-data"
+                                    dataSource="#postgres-ds" lockKeepAlivePeriod="0"/>
+        </persistenceAdapter>
+        <transportConnectors>
+            <!-- vm transport for intra-jvm communication -->
+            <transportConnector name="vm" uri="vm://myBroker"/>
+            <!-- tcp for external communication -->
+            <!--<transportConnector name="tcp" uri="tcp://0.0.0.0:61616"/>-->
+        </transportConnectors>
+
+    </broker>
+
+
+
+    <bean id="postgres-ds" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+        <property name="driverClassName" value="org.postgresql.Driver"/>
+        <property name="url" value="jdbc:postgresql://localhost:5432/t4adt"/>
+        <property name="username" value="max"/>
+        <property name="password" value="max"/>
+        <property name="maxActive" value="200"/>
+        <property name="poolPreparedStatements" value="true"/>
+    </bean>
 </beans>

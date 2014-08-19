@@ -1,6 +1,7 @@
 package com.tactix4.t4ADT
 
 import ca.uhn.hl7v2.util.Terser
+import com.tactix4.t4ADT.utils.ConfigHelper
 import com.typesafe.config.Config
 import org.apache.camel.Exchange
 import org.joda.time.DateTime
@@ -30,6 +31,8 @@ trait ADTProcessing extends ADTExceptions{
   val Sex = """(?i)^sex$""".r
   val bedRegex:Regex
 
+
+  def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
 
   /** * Convenience method to check a valid date
    *
@@ -81,7 +84,7 @@ trait ADTProcessing extends ADTExceptions{
   def getMessageValue(name:String)(implicit terser:Terser):Option[String] = {
     for {
       msgType <- getMsgType(terser)
-      c = config.getConfig(s"ADT_mappings.$msgType").withFallback(config.getConfig("ADT_mappings.common"))
+      c = ConfigHelper.getConfigForType(msgType)
       path <- allCatch opt c.getString(name)
       value <- getValueFromPath(path)
     } yield if(name == "bed") extractBedName(value) | value

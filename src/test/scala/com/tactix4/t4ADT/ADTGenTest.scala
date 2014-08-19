@@ -1,7 +1,7 @@
 package com.tactix4.t4ADT
 
-import org.scalatest.Matchers
-import org.scalatest.prop.PropertyChecks
+import org.scalatest.{ParallelTestExecution, Matchers}
+import org.scalatest.prop.{Checkers, PropertyChecks}
 import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.test.spring.CamelSpringTestSupport
 import org.springframework.context.support.{ClassPathXmlApplicationContext, AbstractApplicationContext}
@@ -62,8 +62,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
 
   @Test
   def randomVisitTest() = {
-    check {
-      forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
+    val property = forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
           log.info("Testing the visit: " + msgs.map(_.evn.msgType).mkString(" - "))
           msgs.foreach(msg => {
             if (msg.msh.msgType != "A40") {
@@ -78,7 +77,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
           })
           true
       }
-    }
+    check( property,Checkers.Workers(1))
   }
 
   def checkVisit(msgType:String, pv1:PV1Segment) : Unit = {
