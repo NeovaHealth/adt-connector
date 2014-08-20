@@ -5,7 +5,7 @@
     <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
     <description>Tactix4 T4skr ADT</description>
-    <version>0.1.6</version>
+    <version>0.1.7</version>
     <name>Tactix4 T4skr ADT</name>
     <organization>
         <name>com.tactix4</name>
@@ -164,6 +164,8 @@
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-spring-redis</artifactId>
             <version>${camel-version}</version>
+            </dependency>
+        <dependency>
             <groupId>org.apache.activemq</groupId>
             <artifactId>activemq-camel</artifactId>
             <version>${activemq-version}</version>
@@ -189,6 +191,11 @@
             <groupId>org.apache.activemq</groupId>
             <artifactId>activemq-pool</artifactId>
             <version>${activemq-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xbean</groupId>
+            <artifactId>xbean-spring</artifactId>
+            <version>3.15</version>
         </dependency>
 
 	</dependencies>
@@ -279,6 +286,7 @@
                             org.apache.camel,
                             org.apache.camel.builder,
                             org.apache.camel.component.hl7,
+                            org.apache.camel.component.redis.processor.idempotent,
                             org.apache.camel.model,
                             org.apache.camel.management,
                             org.apache.camel.model.dataformat,
@@ -287,9 +295,17 @@
                             org.apache.camel.scala.dsl.builder,
                             org.apache.camel.component.sql,
                             org.apache.camel.processor.idempotent.jdbc,
+                            org.apache.camel.processor.aggregate,
+                            org.apache.activemq,
+                            org.apache.activemq.camel.component,
+                            org.apache.activemq.pool,
+                            org.apache.camel.component.jms,
                             org.postgresql,
                             org.joda.time,
                             org.joda.time.format,
+                            org.springframework.data.redis.serializer,
+                            org.springframework.data.redis.connection.jedis,
+                            org.springframework.data.redis.core,
                             org.springframework.beans.factory.config,
                             org.springframework.scala.beans.propertyeditors,
                             org.apache.commons.dbcp,

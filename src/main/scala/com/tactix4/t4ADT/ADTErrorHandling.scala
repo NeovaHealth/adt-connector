@@ -2,6 +2,7 @@ package com.tactix4.t4ADT
 
 import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception, ErrorCode}
 import ca.uhn.hl7v2.model.Message
+import org.apache.camel.model.dataformat.HL7DataFormat
 import org.apache.camel.{LoggingLevel, Exchange}
 import java.util.concurrent.TimeoutException
 import org.apache.camel.scala.dsl.DSL
@@ -18,6 +19,8 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
 
   val redeliveryDelay:Long
   val maximumRedeliveries:Int
+  val hl7:HL7DataFormat = new HL7DataFormat()
+  hl7.setValidate(false)
 
   def getExceptionMessage(ex:Exception):String = {
     val c = ex.getCause
@@ -34,6 +37,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Connect Exception: "  + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR))
      })
     to("failMsgHistory")
+    marshal(hl7)
   }.maximumRedeliveries(0).handled
 
   //handle missing required fields
@@ -45,6 +49,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Validation Error: "  + getExceptionMessage(exception), ErrorCode.REQUIRED_FIELD_MISSING))
      })
     to("failMsgHistory")
+    marshal(hl7)
   }.maximumRedeliveries(0).handled
 
   //handle internal errors
@@ -56,6 +61,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       e.in[Message].generateACK(AcknowledgmentCode.AE, new HL7Exception("Internal Application Error: " + getExceptionMessage(exception), ErrorCode.APPLICATION_INTERNAL_ERROR)
       )})
     to("failMsgHistory")
+    marshal(hl7)
   }.maximumRedeliveries(0).handled
 
 
@@ -68,6 +74,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       )
     })
     to("failMsgHistory")
+    marshal(hl7)
   }.maximumRedeliveries(maximumRedeliveries).redeliveryDelay(redeliveryDelay).handled
 
 
@@ -90,6 +97,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
         to("failMsgHistory")
       }
     }
+    marshal(hl7)
   }.handled.maximumRedeliveries(0)
 
   handle[ADTUnsupportedMessageException] {
@@ -100,12 +108,14 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(getExceptionMessage(exception), ErrorCode.UNSUPPORTED_MESSAGE_TYPE))
     })
     to("failMsgHistory")
+    marshal(hl7)
   }.handled.maximumRedeliveries(0)
 
   handle[ADTHistoricalMessageException] {
     log(LoggingLevel.INFO,"Ignoring historical data")
     transform(_.in[Message].generateACK())
     to("failMsgHistory")
+    marshal(hl7)
   }.handled.maximumRedeliveries(0)
 
   handle[ADTDuplicateMessageException] {
@@ -116,6 +126,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.DUPLICATE_KEY_IDENTIFIER))
     })
     to("failMsgHistory")
+    marshal(hl7)
   }.handled.maximumRedeliveries(0)
 
 
@@ -127,5 +138,6 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Loggin
       e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(getExceptionMessage(exception),ErrorCode.APPLICATION_INTERNAL_ERROR))
     })
     to("failMsgHistory")
+    marshal(hl7)
   }.handled.maximumRedeliveries(0)
 }

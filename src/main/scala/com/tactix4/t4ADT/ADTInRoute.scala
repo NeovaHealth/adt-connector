@@ -3,8 +3,12 @@ package com.tactix4.t4ADT
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import com.tactix4.t4ADT.utils.ConfigHelper
 import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
+import org.apache.camel.component.redis.RedisConstants
+import org.apache.camel.model.IdempotentConsumerDefinition
 import org.apache.camel.model.dataformat.HL7DataFormat
+import org.apache.camel.processor.idempotent.IdempotentConsumer
 import org.apache.camel.{LoggingLevel, Exchange}
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 
@@ -24,30 +28,17 @@ import com.tactix4.t4ADT.exceptions.ADTExceptions
 import scala.util.matching.Regex
 import scala.collection.JavaConversions._
 import org.apache.camel.component.hl7.HL7.terser
+import org.apache.camel.component.hl7.HL7.ack
 
 
 class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
 
-  type VisitName = VisitId
+  implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
 
-  override val wards: List[Regex] = ConfigHelper.wards
-  override val config: Config = ConfigHelper.config
-  override val maximumRedeliveries: Int = ConfigHelper.maximumRedeliveries
-  override val redeliveryDelay: Long = ConfigHelper.redeliveryDelay
-  override val bedRegex: Regex = ConfigHelper.bedRegex
-  override val datesToParse: Set[String] = ConfigHelper.datesToParse
-  override val sexMap: Map[String, String] = ConfigHelper.sexMap
+  type VisitName = VisitId
 
   val connector = new T4skrConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
     .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
-
-  val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder()
-    .append(null, ConfigHelper.inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
-
-  val toDateTimeFormat = DateTimeFormat.forPattern(ConfigHelper.toDateFormat)
-
-  val hl7 = new HL7DataFormat()
-  hl7.setValidate(false)
 
   val updateVisitRoute = "direct:updateOrCreateVisit"
   val updatePatientRoute = "direct:updateOrCreatePatient"
@@ -61,12 +52,10 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val detectVisitConflict = "direct:visitConflictCheck"
 
 
-  val A08A31Route = "direct:A0831"
-  val A05A28Route = "direct:A05A28"
-  val A08Route = A08A31Route
-  val A31Route = A08A31Route
-  val A05Route = A05A28Route
-  val A28Route = A05A28Route
+  val A08Route = "direct:A08"
+  val A31Route = "direct:A31"
+  val A05Route = "direct:A05"
+  val A28Route = "direct:A28"
 
   val A01Route = "direct:A01"
   val A02Route = "direct:A02"
@@ -76,43 +65,39 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
+  from("hl7listener") --> "activemq-in"
 
-  def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
 
-  "hl7listener" --> "activemq:queue:in"
-  
-  "activemq:queue:in" ==> {
-    throttle(ConfigHelper.ratePer2Seconds per (2 seconds)) {
-      unmarshal(hl7)
-      SIdempotentConsumerDefinition(idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false))(this) {
-        -->(setBasicHeaders)
-        -->(detectDuplicates)
-        -->(detectUnsupportedMsg)
-        -->(detectUnsupportedWards)
-        -->(setExtraHeaders)
-        -->(detectIdConflict)
-        -->(detectVisitConflict)
-        //split on msgType
-        choice {
-          when(msgEquals("A08")) --> A08Route
-          when(msgEquals("A31")) --> A31Route
-          when(msgEquals("A05")) --> A05Route
-          when(msgEquals("A28")) --> A28Route
-          when(msgEquals("A01")) --> A01Route
-          when(msgEquals("A11")) --> A11Route
-          when(msgEquals("A03")) --> A03Route
-          when(msgEquals("A13")) --> A13Route
-          when(msgEquals("A02")) --> A02Route
-          when(msgEquals("A12")) --> A12Route
-          when(msgEquals("A40")) --> A40Route
-          otherwise {
-            throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
-          }
+  "activemq-in" ==> {
+    unmarshal(hl7)
+    idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
+      -->(setBasicHeaders)
+      -->(detectDuplicates)
+      -->(detectUnsupportedMsg)
+      -->(detectUnsupportedWards)
+      -->(setExtraHeaders)
+      -->(detectIdConflict)
+      -->(detectVisitConflict)
+      //split on msgType
+      choice {
+        when(msgEquals("A08")) --> A08Route
+        when(msgEquals("A31")) --> A31Route
+        when(msgEquals("A05")) --> A05Route
+        when(msgEquals("A28")) --> A28Route
+        when(msgEquals("A01")) --> A01Route
+        when(msgEquals("A11")) --> A11Route
+        when(msgEquals("A03")) --> A03Route
+        when(msgEquals("A13")) --> A13Route
+        when(msgEquals("A02")) --> A02Route
+        when(msgEquals("A12")) --> A12Route
+        when(msgEquals("A40")) --> A40Route
+        otherwise {
+          throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
         }
-        -->(msgHistory)
-        transform(ack())
       }
+      -->(msgHistory)
+      transform(_.in[Message].generateACK())
+      marshal(hl7)
     }
   } routeId "Main Route"
 
@@ -231,14 +216,14 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   } routeId "A02"
 
   from("direct:persistTimestamp") ==> {
-    setHeader(KEY,simple("${header.visitNameString}"))
-    setHeader(VALUE,simple("${header.timestamp}"))
+    setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
+    setHeader(RedisConstants.VALUE,simple("${header.timestamp}"))
     to("spring-redis://localhost:6379?command=SET&redisTemplate=#redisTemplate")
   }
 
   from("direct:getVisitTimestamp") ==> {
-    setHeader(COMMAND,"GET")
-    setHeader(KEY,simple("${header.visitNameString}"))
+    setHeader(RedisConstants.COMMAND,"GET")
+    setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
     enrich("spring-redis://localhost:6379?redisTemplate=#redisTemplate",new AggregateLastModTimestamp)
     log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
   }
@@ -293,7 +278,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   A08Route ==> {
     -->("direct:getVisitTimestamp")
-    when(e => e.in("lastModTimestamp") == e.in("timestamp") || e.in("lastModTimestamp") == ""){
+    when(e => e.in("lastModTimestamp").toString >= e.in("timestamp").toString || e.in("lastModTimestamp") == ""){
       log(LoggingLevel.INFO,"Updating latest visit")
       -->(updatePatientRoute)
       filter(e => (for {
@@ -303,10 +288,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
         to(updateVisitRoute)
       }
     } otherwise {
-      process(e => {
-        logger.info("last mod timestamp: " + e.getIn.getHeader("lastModTimestamp"))
-      })
-      process(e => logger.info("timestamp: " + e.getIn.getHeader("timestamp")))
+      process(e => logger.debug("timestamp: " + e.getIn.getHeader("timestamp")))
       log(LoggingLevel.INFO,"Ignoring Historical Message")
     }
   } routeId "A08"

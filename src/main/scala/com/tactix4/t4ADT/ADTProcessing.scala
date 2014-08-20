@@ -5,7 +5,7 @@ import com.tactix4.t4ADT.utils.ConfigHelper
 import com.typesafe.config.Config
 import org.apache.camel.Exchange
 import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormatter
+import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
 import scala.util.control.Exception._
 import com.tactix4.t4skr.core.{HospitalNo, VisitId}
 import scala.util.matching.Regex
@@ -20,17 +20,18 @@ import scala.collection.JavaConversions._
  */
 trait ADTProcessing extends ADTExceptions{
 
-  val config: Config
-  val fromDateTimeFormat:DateTimeFormatter
-  val toDateTimeFormat:DateTimeFormatter
-  val datesToParse:Set[String]
-  val sexMap:Map[String,String]
+  val maximumRedeliveries: Int = ConfigHelper.maximumRedeliveries
+  val redeliveryDelay: Long = ConfigHelper.redeliveryDelay
+  val bedRegex: Regex = ConfigHelper.bedRegex
+  val datesToParse: Set[String] = ConfigHelper.datesToParse
+  val sexMap: Map[String, String] = ConfigHelper.sexMap
   val hospitalNumber = "other_identifier"
   val oldHospitalNumber = "old_other_identifier"
   val EmptyStringMatcher = """^"?\s*"?$""".r
   val Sex = """(?i)^sex$""".r
-  val bedRegex:Regex
 
+  val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, ConfigHelper.inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
+  val toDateTimeFormat = DateTimeFormat.forPattern(ConfigHelper.toDateFormat)
 
   def reasonCode(implicit e:Exchange) = e.getIn.getHeader("eventReasonCode",classOf[Option[String]])
 
@@ -78,7 +79,7 @@ trait ADTProcessing extends ADTExceptions{
 
   def getReasonCodes(implicit e:Exchange) : Option[Set[String]] = for {
     msgType <- getMsgType(e.getIn.getHeader("terser",None, classOf[Terser]))
-    reasonCodes <- allCatch opt config.getConfig(s"ADT_mappings.$msgType").getStringList("reason_codes").toSet
+    reasonCodes = ConfigHelper.getConfigForType(msgType).getStringList("reason_codes").toSet
   } yield reasonCodes
 
   def getMessageValue(name:String)(implicit terser:Terser):Option[String] = {

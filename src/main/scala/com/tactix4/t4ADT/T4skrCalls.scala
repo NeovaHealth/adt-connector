@@ -30,13 +30,7 @@ import scala.collection.JavaConversions._
  */
 trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with Logging {
 
-  val wards:List[Regex]
-  val config:Config
   val triggerEventHeader = "CamelHL7TriggerEvent"
-
-  lazy val optionalPatientFields: List[String] = config.getStringList("ADT_mappings.optional_patient_fields").toList
-  lazy val optionalVisitFields: List[String] = config.getStringList("ADT_mappings.optional_visit_fields").toList
-
 
   def getMapFromFields(m:List[String])(implicit t:Terser) ={
     m.map(f => getMessageValue(f).map(v => f -> v)).flatten.toMap
@@ -56,7 +50,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     getOldHospitalNumber(getTerser(e)).flatMap(getPatientByHospitalNumber).isDefined
   }
 
-  def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w =>wards.exists(_.findFirstIn(w).isDefined))
+  def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w =>ConfigHelper.wards.exists(_.findFirstIn(w).isDefined))
 
   val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
 
@@ -117,7 +111,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
     val sdt = (getMessageValue("visit_start_date_time") |  new DateTime().toString(toDateTimeFormat)).successNel
-    val om = getMapFromFields(optionalVisitFields).successNel
+    val om = getMapFromFields(ConfigHelper.optionalVisitFields).successNel
 
     waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)(connector.visitNew))
   }
@@ -126,7 +120,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     logger.info("calling patientUpdate")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
-    val om = getMapFromFields(optionalPatientFields).successNel
+    val om = getMapFromFields(ConfigHelper.optionalPatientFields).successNel
     waitAndErr((hn |@| om)(connector.patientUpdate))
   }
 
@@ -148,7 +142,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     logger.info("calling patientNew")
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
-    val om = getMapFromFields(optionalPatientFields).successNel
+    val om = getMapFromFields(ConfigHelper.optionalPatientFields).successNel
     waitAndErr((hn |@| om)(connector.patientNew))
   }
 
@@ -166,7 +160,7 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
     val sdt = (getMessageValue("visit_start_date_time") | new DateTime().toString(toDateTimeFormat)).successNel
-    val om = getMapFromFields(optionalVisitFields).successNel
+    val om = getMapFromFields(ConfigHelper.optionalVisitFields).successNel
 
     waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)(connector.visitUpdate))
   }

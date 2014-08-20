@@ -1,5 +1,6 @@
 package com.tactix4.t4ADT
 
+import com.tactix4.t4ADT.utils.ConfigHelper
 import com.tactix4.t4skr.T4skrSession
 
 
@@ -17,7 +18,7 @@ import com.tactix4.t4openerp.connector._
 trait T4skrQueries {
 
   val connector:T4skrSession
-  val timeOutMillis: Long
+  val timeOutMillis: Long = ConfigHelper.timeOutMillis
 
   def getPatientByHospitalNumber(hospitalNumber: HospitalNo): Option[T4skrId] =
     Await.result(connector.oeSession.search("t4clinical.patient", "other_identifier" === hospitalNumber).value, timeOutMillis millis).fold(

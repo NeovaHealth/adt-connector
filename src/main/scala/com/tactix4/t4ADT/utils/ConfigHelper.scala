@@ -22,6 +22,8 @@ object ConfigHelper {
     else t
   }
 
+  lazy val optionalPatientFields: List[String] = config.getStringList("ADT_mappings.optional_patient_fields").toList
+  lazy val optionalVisitFields: List[String] = config.getStringList("ADT_mappings.optional_visit_fields").toList
 
   val config: Config = ConfigFactory.parseFile(f)
 
