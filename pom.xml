@@ -5,7 +5,7 @@
     <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
     <description>Tactix4 T4skr ADT</description>
-    <version>0.1.7</version>
+    <version>0.1.8</version>
     <name>Tactix4 T4skr ADT</name>
     <organization>
         <name>com.tactix4</name>
