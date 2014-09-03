@@ -208,9 +208,11 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   A02Route ==> {
     -->(updatePatientRoute)
     when(e => !visitExists(e)) {
-      log(LoggingLevel.WARN, "Calling transferPatient for a visit that doesn't exist - ignoring")
+      process(e => visitNew(e))
     } otherwise {
       process(e => patientTransfer(e))
+      to(updateVisitRoute)
+
     }
     -->("direct:persistTimestamp")
   } routeId "A02"

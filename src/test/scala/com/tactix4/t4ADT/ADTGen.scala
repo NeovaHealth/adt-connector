@@ -57,7 +57,8 @@ trait ADTGen extends VisitGen{
   val hospitalServices = List("110", "160")
   val patientTypes = List("01")
 
-  val wards = Map("WARD E8" -> "E8", "WARD E9" -> "E9")
+//  val wards = Map("WARD E8" -> "E8", "WARD E9" -> "E9")
+    val wards = Map("ELIZABETH FRY" -> "EFMB", "ELIZABETH FRY VIRTUAL WARD" -> "EFVW")
 
   def modifyPid(pid:PIDSegment):Gen[PIDSegment] = {
     pid.copy(p = pid.p.copy(givenName = pid.p.givenName.reverse))
@@ -294,7 +295,7 @@ trait ADTGen extends VisitGen{
       ps = p.map(x => Gen.option(Gen.const(x)))
       gn <- ps(2)
       mn <- ps(3)
-      fn <- ps(4)
+      fn = Some(p(4)) // put family name back as optional once bug fixed in OERP
       t <- ps(1)
       mm <- ps(13)
       dob <- ps(14)
