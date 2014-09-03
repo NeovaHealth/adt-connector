@@ -79,7 +79,7 @@ trait ADTProcessing extends ADTExceptions{
 
   def getReasonCodes(implicit e:Exchange) : Option[Set[String]] = for {
     msgType <- getMsgType(e.getIn.getHeader("terser",None, classOf[Terser]))
-    reasonCodes = ConfigHelper.getConfigForType(msgType).getStringList("reason_codes").toSet
+    reasonCodes <- allCatch opt ConfigHelper.getConfigForType(msgType).getStringList("reason_codes").toSet
   } yield reasonCodes
 
   def getMessageValue(name:String)(implicit terser:Terser):Option[String] = {
