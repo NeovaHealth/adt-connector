@@ -5,7 +5,7 @@
     <artifactId>t4adt_2.10</artifactId>
     <packaging>bundle</packaging>
     <description>Tactix4 T4skr ADT</description>
-    <version>0.1.8</version>
+    <version>0.1.9</version>
     <name>Tactix4 T4skr ADT</name>
     <organization>
         <name>com.tactix4</name>
@@ -196,13 +196,6 @@
             <groupId>org.apache.xbean</groupId>
             <artifactId>xbean-spring</artifactId>
             <version>3.15</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-leveldb</artifactId>
-            <version>${camel-version}</version>
-            <scope>test</scope>
         </dependency>
 
 	</dependencies>
