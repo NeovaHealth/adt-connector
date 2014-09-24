@@ -1,35 +1,19 @@
 package com.tactix4.t4ADT
 
-import java.io.File
-import java.util.concurrent.TimeUnit
-
+import ca.uhn.hl7v2.model.Message
+import ca.uhn.hl7v2.util.Terser
+import com.tactix4.t4ADT.exceptions.ADTExceptions
 import com.tactix4.t4ADT.utils.ConfigHelper
 import com.tactix4.t4openerp.connector.OEConnector
-import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
-import com.typesafe.scalalogging.Logging
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.camel.component.redis.RedisConstants
 import org.apache.camel.model.IdempotentConsumerDefinition
-import org.apache.camel.model.dataformat.HL7DataFormat
-import org.apache.camel.processor.idempotent.IdempotentConsumer
-import org.apache.camel.{LoggingLevel, Exchange}
-import org.apache.camel.scala.dsl.builder.RouteBuilder
-
-import ca.uhn.hl7v2.util.Terser
-import ca.uhn.hl7v2.model.Message
-import scalaz._
-import Scalaz._
-
-import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
-
-
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
-import com.tactix4.t4ADT.exceptions.ADTExceptions
-import scala.util.matching.Regex
-import scala.collection.JavaConversions._
-import org.apache.camel.component.hl7.HL7.terser
-import org.apache.camel.component.hl7.HL7.ack
+import org.apache.camel.scala.dsl.builder.RouteBuilder
+import org.apache.camel.{Exchange, LoggingLevel}
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scalaz.Scalaz._
 
 
 class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging {
