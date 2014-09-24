@@ -9,13 +9,13 @@ import org.apache.camel.scala.dsl.DSL
 import org.apache.camel.scala.Preamble
 import java.net.ConnectException
 import com.tactix4.t4ADT.exceptions._
-import com.typesafe.scalalogging.slf4j.Logging
+import com.typesafe.scalalogging.slf4j.LazyLogging
 
 /**
  * @author max@tactix4.com
  *         11/10/2013
  */
-trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with Logging{
+trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with LazyLogging{
 
   val redeliveryDelay:Long
   val maximumRedeliveries:Int

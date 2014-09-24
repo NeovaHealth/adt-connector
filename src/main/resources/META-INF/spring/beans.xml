@@ -23,6 +23,10 @@
     <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
     <!---->
 
+    <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
+    <camel:endpoint id="fromRedis" uri="spring-redis://localhost:6379?redisTemplate=#redisTemplate"/>
+
+
     <!--SQL -->
     <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
         <property name="driverClassName" value="org.postgresql.Driver"/>

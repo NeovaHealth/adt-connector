@@ -12,8 +12,7 @@ import org.scalacheck.Prop.forAllNoShrink
 import org.scalatest.prop.Checkers.check
 import com.tactix4.t4openerp.connector._
 import com.tactix4.t4openerp.connector.domain.Domain._
-import com.tactix4.t4openerp.connector.transport.{OEDictionary, FutureResult}
-import com.tactix4.t4skr.T4skrConnector
+import com.tactix4.t4openerp.connector.transport.{OEType, OEDictionary}
 import com.typesafe.config.{ConfigFactory, _}
 import org.apache.camel.ExchangePattern
 import org.apache.camel.component.hl7.HL7MLLPCodec
@@ -26,6 +25,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scalaz.Scalaz._
 import scalaz._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
@@ -56,7 +56,7 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
   val password: String = config.getString("openERP.password")
   val database: String = config.getString("openERP.database")
 
-  val tsession = new T4skrConnector(protocol,host,port ).startSession(username, password, database)
+  val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
 
   @Test
   def atestA28(){
@@ -89,10 +89,10 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
   }
 
  def checkVisit(msgType:String, pv1:PV1Segment):Unit = {
-    val response = Await.result(tsession.oeSession.searchAndRead("t4clinical.patient.visit", "name" === pv1.visitID, List("pos_location_parent", "pos_location","consulting_doctor_ids", "visit_start","visit_end")).value,5 seconds)
+    val response = Await.result(tsession.searchAndRead("t4clinical.patient.visit", "name" === pv1.visitID, List("pos_location_parent", "pos_location","consulting_doctor_ids", "visit_start","visit_end")).run,5 seconds)
     response.fold(
     (message: ErrorMessage) => ("Check Visit failed: " + message).left[Boolean],
-      (v:List[OEDictionary]) => v.headOption.map(d =>{
+      (v:List[Map[String,OEType]]) => v.headOption.map(d =>{
         //(wardCode:String,bed:Int,wardName:String,consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:String,patientType:String,visitID:VisitId,admitDate:String,dischargeDate:String
         val plp = d.get("pos_location").flatMap(_.array).flatMap(_(1).string).map(_.toUpperCase())
         log.info("pos_location:" + plp)
@@ -103,7 +103,7 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
           i <- h.int
         } yield  i
         log.info("cdID: " + cdID)
-        val cdName = Await.result(tsession.oeSession.read("hr.employee",List(~cdID),List("name")).value, 2 seconds).map(
+        val cdName = Await.result(tsession.read("hr.employee",List(~cdID),List("name")).run, 2 seconds).map(
           _.headOption.flatMap(_.get("name").flatMap(_.string))
         )
         log.info("cdName: " + cdName)

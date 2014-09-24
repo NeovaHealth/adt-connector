@@ -4,7 +4,10 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 import com.tactix4.t4ADT.utils.ConfigHelper
+import com.tactix4.t4openerp.connector.OEConnector
 import com.typesafe.config.{Config, ConfigValue, ConfigFactory}
+import com.typesafe.scalalogging.Logging
+import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.camel.component.redis.RedisConstants
 import org.apache.camel.model.IdempotentConsumerDefinition
 import org.apache.camel.model.dataformat.HL7DataFormat
@@ -19,25 +22,23 @@ import Scalaz._
 
 import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
 
-import com.tactix4.t4skr.T4skrConnector
-import com.tactix4.t4skr.core._
 
-import com.typesafe.scalalogging.slf4j.Logging
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import com.tactix4.t4ADT.exceptions.ADTExceptions
 import scala.util.matching.Regex
 import scala.collection.JavaConversions._
 import org.apache.camel.component.hl7.HL7.terser
 import org.apache.camel.component.hl7.HL7.ack
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
-class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with Logging {
+class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging {
 
   implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
 
-  type VisitName = VisitId
+  type VisitName = String
 
-  val connector = new T4skrConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
+  val connector = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
     .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
 
   val updateVisitRoute = "direct:updateOrCreateVisit"
@@ -50,6 +51,8 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val setExtraHeaders = "direct:setExtraHeaders"
   val detectIdConflict = "direct:idConflictCheck"
   val detectVisitConflict = "direct:visitConflictCheck"
+  val persistTimestamp = "direct:persistTimestamp"
+  val getTimestamp = "direct:getVisitTimestamp"
 
 
   val A08Route = "direct:A08"
@@ -71,6 +74,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   "activemq-in" ==> {
     unmarshal(hl7)
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
+      log(LoggingLevel.ERROR,"I'm here")
       -->(setBasicHeaders)
       -->(detectDuplicates)
       -->(detectUnsupportedMsg)
@@ -191,7 +195,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
     -->(updatePatientRoute)
     process(e => visitNew(e))
-    -->("direct:persistTimestamp")
+    -->(persistTimestamp)
   } routeId "A01"
 
 
@@ -214,19 +218,19 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       to(updateVisitRoute)
 
     }
-    -->("direct:persistTimestamp")
+    -->(persistTimestamp)
   } routeId "A02"
 
-  from("direct:persistTimestamp") ==> {
+  from(persistTimestamp) ==> {
     setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
     setHeader(RedisConstants.VALUE,simple("${header.timestamp}"))
-    to("spring-redis://localhost:6379?command=SET&redisTemplate=#redisTemplate")
+    to("toRedis")
   }
 
-  from("direct:getVisitTimestamp") ==> {
+  from(getTimestamp) ==> {
     setHeader(RedisConstants.COMMAND,"GET")
     setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
-    enrich("spring-redis://localhost:6379?redisTemplate=#redisTemplate",new AggregateLastModTimestamp)
+    enrich("fromRedis",new AggregateLastModTimestamp)
     log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
   }
 
@@ -246,7 +250,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       log(LoggingLevel.WARN, "Calling discharge for a visit that doesn't exist - ignoring")
     } otherwise {
       process(e => patientDischarge(e))
-      -->("direct:persistTimestamp")
+      -->(persistTimestamp)
     }
   } routeId "A03"
 
@@ -279,19 +283,18 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   } routeId "A40"
 
   A08Route ==> {
-    -->("direct:getVisitTimestamp")
-    when(e => e.in("lastModTimestamp").toString >= e.in("timestamp").toString || e.in("lastModTimestamp") == ""){
+    -->(getTimestamp)
+    when(e => (e.in("lastModTimestamp").toString >= e.in("timestamp").toString || e.in("lastModTimestamp") == "") && ! e.getIn.getHeader("hasDischargeDate",false, classOf[Boolean]) ){
       log(LoggingLevel.INFO,"Updating latest visit")
-      -->(updatePatientRoute)
       filter(e => (for {
         codes <- getReasonCodes(e)
         mycode <- reasonCode(e)
       } yield codes contains mycode) | true ) {
-        to(updateVisitRoute)
+        -->(updatePatientRoute)
+        -->(updateVisitRoute)
       }
     } otherwise {
-      process(e => logger.debug("timestamp: " + e.getIn.getHeader("timestamp")))
-      log(LoggingLevel.INFO,"Ignoring Historical Message")
+      log(LoggingLevel.INFO,"Ignoring Historical Message: ${header.timestamp}")
     }
   } routeId "A08"
 

@@ -7,7 +7,6 @@ import scala.util.Random
 import scalaz._
 import Scalaz._
 import org.scalacheck.Gen
-import com.tactix4.t4skr.core.VisitId
 
 /**
  * Created by max on 03/06/14.
@@ -31,7 +30,7 @@ trait ADTGen extends VisitGen{
     override val toString:String = s"PID|1|^^^^PAS||${p.hospitalNo}^${~p.nhsNumber}|${~p.familyName}^${~p.givenName}^${~p.middleNames}^^${~p.title}|${~p.mothersMaidenName}|${~p.dob.map(_.toString(toDateTimeFormat))}|${~p.sex}|||${~p.streetAddress}^^${~p.city}^${~p.state}^${~p.zip}^${~p.country}^^^^^^||${~p.phone}|||||||||||N"
   }
 
-  case class PV1Segment(wardCode:String,bed:Option[Int],wardName:Option[String],consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:Option[String],patientType:Option[String],visitID:VisitId,admitDate:Option[DateTime],dischargeDate:Option[DateTime]){
+  case class PV1Segment(wardCode:String,bed:Option[Int],wardName:Option[String],consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:Option[String],patientType:Option[String],visitID:String,admitDate:Option[DateTime],dischargeDate:Option[DateTime]){
     override def toString:String =
     s"PV1|1|I|$wardCode^^${bed.map(_.toString) | ""}^^^^^^${~wardName}|11||||${referringDoctor.id}^${referringDoctor.familyName}^${referringDoctor.givenName}^${referringDoctor.middleNames}^^${referringDoctor.title}|" +
       s"${consultingDoctor.id}^${consultingDoctor.familyName}^${consultingDoctor.givenName}^${consultingDoctor.middleNames}^^${consultingDoctor.title}|${~hospitalService}|||||||" +

@@ -19,11 +19,7 @@ class MiscTest extends ADTTest {
   def testUnsupportedMessage() ={
     sendMessageAndExpectError(patientMergeADT, "Unsupported")
   }
-//  @Test
-//  def testDuplicateMessage() = {
-//   sendMessageAndExpectResponse(TestVars.,"AA")
-//   sendMessageAndExpectError(TestVars.A05Dup,"Duplicate")
-//  }
+
 
 
 }

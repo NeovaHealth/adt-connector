@@ -17,11 +17,11 @@
 
         <!--dependency versions -->
         <camel-version>2.12.3</camel-version>
-        <scala-version>2.10.3</scala-version>
+        <scala-version>2.10.4</scala-version>
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
-        <scalaz-version>7.0.5</scalaz-version>
-        <t4skr-connector-version>2.0.3</t4skr-connector-version>
+        <scalaz-version>7.1.0</scalaz-version>
+        <t4openerp-connector-version>2.0.1</t4openerp-connector-version>
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.2.1</typesafe-config-version>
@@ -103,8 +103,8 @@
         </dependency>
         <dependency>
             <groupId>com.tactix4</groupId>
-            <artifactId>t4skr-connector_2.10</artifactId>
-            <version>${t4skr-connector-version}</version>
+            <artifactId>t4openerp-connector_2.10</artifactId>
+            <version>${t4openerp-connector-version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>
@@ -198,6 +198,13 @@
             <version>3.15</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-leveldb</artifactId>
+            <version>${camel-version}</version>
+            <scope>test</scope>
+        </dependency>
+
 	</dependencies>
 	<repositories>
         <repository>
@@ -205,16 +212,6 @@
             <name>springframework milestone repo</name>
             <url>http://repo.springsource.org/milestone/</url>
             <layout>default</layout>
-        </repository>
-        <repository>
-            <id>artifactory-releases</id>
-            <name>artifactory release repo</name>
-            <url>http://10.10.170.8:8081/artifactory/libs-release-local</url>
-        </repository>
-        <repository>
-            <id>artifactory-snapshots</id>
-            <name>artifactory snapshot repo</name>
-            <url>http://10.10.170.8:8081/artifactory/libs-snapshot-local</url>
         </repository>
 	</repositories>
     	<build>
@@ -275,8 +272,6 @@
                             ca.uhn.hl7v2,
                             ca.uhn.hl7v2.model,
                             ca.uhn.hl7v2.util,
-                            com.tactix4.t4skr,
-                            com.tactix4.t4skr.core,
                             com.tactix4.t4openerp.connector,
                             com.tactix4.t4openerp.connector.domain,
                             com.tactix4.t4openerp.connector.transport,

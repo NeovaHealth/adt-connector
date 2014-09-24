@@ -8,19 +8,17 @@ package com.tactix4.t4ADT
 
 import java.io.File
 
-import com.tactix4.t4openerp.connector.transport.FutureResult
-import com.tactix4.t4skr.T4skrConnector
 import com.typesafe.config.ConfigFactory
 import com.typesafe.config._
 import org.junit.{FixMethodOrder, Test}
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.util.Random
-import scalaz._
-import Scalaz._
 import com.tactix4.t4openerp.connector._
 import com.tactix4.t4openerp.connector.domain.Domain._
 import org.junit.runners.MethodSorters
+import scala.concurrent.ExecutionContext.Implicits.global
+import scalaz.std.option.optionSyntax._
+
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class PatientNewUpdateMergeDischargeTest extends ADTTest{
@@ -36,7 +34,7 @@ val config: Config = ConfigFactory.parseFile(f)
   val password: String = config.getString("openERP.password")
   val database: String = config.getString("openERP.database")
 
-  val tsession = new T4skrConnector(protocol,host,port ).startSession(username, password, database)
+  val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
 
   @Test
   def atestA28(){
@@ -77,16 +75,13 @@ val config: Config = ConfigFactory.parseFile(f)
   @Test
   def fctestA08{
     log.info("trying to historically updating patientTwo")
-    sendMessageAndExpectError(TestVars.patientUpdateADT_08H, "MSA|AA|")
+    sendMessageAndExpectResponse(TestVars.patientUpdateADT_08H, "MSA|AA|")
     Thread.sleep(2000)
-    val b = tsession.oeSession.search("t4clinical.patient", "other_identifier" === TestVars.patientTwoId ).flatMap(
-      ids => FutureResult(ids.headOption.toSuccess("No Patient Found")).flatMap(
-        i => tsession.getPatient(i).map(
-          p => ! (p.name contains "BERYL")
-        )
-      )
-    )
-    assert(Await.result(b.value, 2 seconds) | false, "name should not be updated by historical message")
+    assert(Await.result((for {
+      r <- tsession.searchAndRead("t4clinical.patient", "other_identifier" === TestVars.patientTwoId, List("given_name") )
+      h <- (r.headOption \/> "Patient not found").asOER
+      n <- (h.get("given_name").flatMap(_.string) \/> "given_name not found").asOER
+    } yield ! (n contains "BERYL")).run, 2 seconds) | false, "name should not be updated by historical message")
 
   }
 

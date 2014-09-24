@@ -7,7 +7,6 @@ import org.apache.camel.Exchange
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormatter, DateTimeFormatterBuilder, DateTimeFormat}
 import scala.util.control.Exception._
-import com.tactix4.t4skr.core.{HospitalNo, VisitId}
 import scala.util.matching.Regex
 import scalaz._
 import Scalaz._
@@ -59,7 +58,7 @@ trait ADTProcessing extends ADTExceptions{
 
   def getMsgType(implicit terser:Terser) : Option[String] = getValueFromPath("MSH-9-2")
 
-  def getHospitalNumber(implicit terser:Terser): Option[HospitalNo] = getMessageValue(hospitalNumber)
+  def getHospitalNumber(implicit terser:Terser): Option[String] = getMessageValue(hospitalNumber)
 
   def getOldHospitalNumber(implicit terser:Terser) : Option[String] = getMessageValue(oldHospitalNumber)
 
@@ -71,7 +70,7 @@ trait ADTProcessing extends ADTExceptions{
   }
   def getTimestamp(implicit terser:Terser) : Option[String] =  getMessageValue("timestamp")
 
-  def getVisitName(implicit terser:Terser) : Option[VisitId] =  getMessageValue("visit_identifier")
+  def getVisitName(implicit terser:Terser) : Option[String] =  getMessageValue("visit_identifier")
 
   def getEventReasonCode(implicit terser:Terser) : Option[String] =  getMessageValue("event_reason_code")
 
