@@ -294,7 +294,7 @@ trait ADTGen extends VisitGen{
       ps = p.map(x => Gen.option(Gen.const(x)))
       gn <- ps(2)
       mn <- ps(3)
-      fn = Some(p(4)) // put family name back as optional once bug fixed in OERP
+      fn <- Gen.listOfN(10,Gen.alphaNumChar).map(_.mkString) // put family name back as optional once bug fixed in OERP
       t <- ps(1)
       mm <- ps(13)
       dob <- ps(14)
@@ -308,7 +308,7 @@ trait ADTGen extends VisitGen{
       hospitalNum <- Gen.listOfN(10, Gen.alphaNumChar).map(_.mkString)
       nhsNum <- Gen.option(Gen.listOfN(10, Gen.numChar).map(_.mkString))
       //TODO: put title back
-    } yield Patient(hospitalNum, nhsNum, gn,mn,fn,None,mm,dob.map(d => DateTime.parse(d,fromDateTimeFormat)),s.flatMap(_.headOption.map(_.toString)),street,city,state,zip,country,phone)
+    } yield Patient(hospitalNum, nhsNum, gn,mn,Some(fn),None,mm,dob.map(d => DateTime.parse(d,fromDateTimeFormat)),s.flatMap(_.headOption.map(_.toString)),street,city,state,zip,country,phone)
 
 
   val genDoctor = for {
@@ -339,7 +339,7 @@ trait ADTGen extends VisitGen{
       admittingDoctor <- genDoctor
       hospitalService <- Gen.option(Gen.oneOf(hospitalServices))
       patientType <- Gen.option(Gen.oneOf(patientTypes))
-      visitID <- Gen.listOfN(10, Gen.alphaNumChar).map(_.mkString)
+      visitID <- Gen.listOfN(25, Gen.alphaNumChar).map(_.mkString)
     } yield PV1Segment(wardCode,None,Some(wardName),consultingDoctor,referringDoctor,admittingDoctor,hospitalService,patientType,visitID,admitDate,dischargeDate)
   }
 

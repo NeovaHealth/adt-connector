@@ -59,7 +59,6 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   "activemq-in" ==> {
     unmarshal(hl7)
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
-      log(LoggingLevel.ERROR,"I'm here")
       -->(setBasicHeaders)
       -->(detectDuplicates)
       -->(detectUnsupportedMsg)
