@@ -31,6 +31,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   val detectDuplicates = "direct:detectDuplicates"
   val detectUnsupportedMsg = "direct:detectUnsupportedMsgs"
   val detectUnsupportedWards = "direct:detectUnsupportedWards"
+  val detectHistoricalMsg = "direct:detectHistoricalMsg"
   val setBasicHeaders = "direct:setBasicHeaders"
   val setExtraHeaders = "direct:setExtraHeaders"
   val detectIdConflict = "direct:idConflictCheck"
@@ -66,6 +67,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       -->(setExtraHeaders)
       -->(detectIdConflict)
       -->(detectVisitConflict)
+      -->(detectHistoricalMsg)
       //split on msgType
       choice {
         when(msgEquals("A08")) --> A08Route
@@ -88,6 +90,13 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       marshal(hl7)
     }
   } routeId "Main Route"
+
+  detectHistoricalMsg ==> {
+    when(e => msgType(e) != "A03" && e.getIn.getHeader("hasDischargeDate", false, classOf[Boolean])) {
+      throwException(new ADTHistoricalMessageException("Historical message detected"))
+    }
+
+  }
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
@@ -268,15 +277,10 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   A08Route ==> {
     -->(getTimestamp)
-    when(e => (e.in("lastModTimestamp").toString >= e.in("timestamp").toString || e.in("lastModTimestamp") == "") && ! e.getIn.getHeader("hasDischargeDate",false, classOf[Boolean]) ){
+    when(e => e.in("lastModTimestamp").toString <= e.in("timestamp").toString || e.in("lastModTimestamp") == "" ){
       log(LoggingLevel.INFO,"Updating latest visit")
-      filter(e => (for {
-        codes <- getReasonCodes(e)
-        mycode <- reasonCode(e)
-      } yield codes contains mycode) | true ) {
         -->(updatePatientRoute)
         -->(updateVisitRoute)
-      }
     } otherwise {
       log(LoggingLevel.INFO,"Ignoring Historical Message: ${header.timestamp}")
     }
