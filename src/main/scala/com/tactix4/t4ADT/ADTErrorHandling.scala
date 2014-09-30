@@ -114,7 +114,7 @@ trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with LazyLo
   handle[ADTHistoricalMessageException] {
     log(LoggingLevel.INFO,"Ignoring historical data")
     transform(_.in[Message].generateACK())
-    to("failMsgHistory")
+    to("msgHistory")
     marshal(hl7)
   }.handled.maximumRedeliveries(0)
 
