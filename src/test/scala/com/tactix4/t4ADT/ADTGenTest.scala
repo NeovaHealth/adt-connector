@@ -79,7 +79,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
               assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
               Thread.sleep(2000)
               checkPID(msg.pid)
-              if(notHistorical(msg,msgs)) checkVisit(msg.msh.msgType, msg.pv1)
+              if(notHistorical(msg,msgs) && msg.msh.msgType != "A11") checkVisit(msg.msh.msgType, msg.pv1)
             }
           })
           true

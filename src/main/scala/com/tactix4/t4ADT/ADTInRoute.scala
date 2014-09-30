@@ -199,7 +199,6 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     } otherwise {
       process(e => cancelVisitNew(e))
     }
-    to(updateVisitRoute)
   } routeId "A11"
 
   A02Route ==> {
