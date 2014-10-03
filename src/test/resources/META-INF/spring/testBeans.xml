@@ -20,6 +20,7 @@
 
     <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 
+
     <camel:endpoint id="failMsgHistory" uri="mock:fail"/>
     <camel:endpoint id="msgHistory" uri="mock:success"/>
 

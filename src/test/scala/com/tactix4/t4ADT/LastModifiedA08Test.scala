@@ -93,7 +93,6 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
     response.fold(
     (message: ErrorMessage) => ("Check Visit failed: " + message).left[Boolean],
       (v:List[Map[String,OEType]]) => v.headOption.map(d =>{
-        //(wardCode:String,bed:Int,wardName:String,consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:String,patientType:String,visitID:VisitId,admitDate:String,dischargeDate:String
         val plp = d.get("pos_location").flatMap(_.array).flatMap(_(1).string).map(_.toUpperCase())
         log.info("pos_location:" + plp)
         val cdID = for {

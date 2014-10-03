@@ -77,9 +77,8 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
               val result:String = template.requestBody(URI, msg.toString, classOf[String])
               log.info("got result: \n" + result.replace("\r", "\n"))
               assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
-              Thread.sleep(2000)
               checkPID(msg.pid)
-              if(notHistorical(msg,msgs) && msg.msh.msgType != "A11") checkVisit(msg.msh.msgType, msg.pv1)
+              if(notHistorical(msg,msgs) && List("A01","A02", "A03", "A08").contains(msg.msh.msgType)) checkVisit(msg.msh.msgType, msg.pv1)
             }
           })
           true
@@ -103,7 +102,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
           i <- h.int
         } yield  i
 
-        val cdName = Await.result(connector.read("hr.employee",List(~cdID),List("name")).run, 2 seconds).map(
+        val cdName = Await.result(connector.read("hr.employee",List(~cdID),List("name")).run, 5 seconds).map(
           _.headOption.flatMap(_.get("name").flatMap(_.string))
         )
 
