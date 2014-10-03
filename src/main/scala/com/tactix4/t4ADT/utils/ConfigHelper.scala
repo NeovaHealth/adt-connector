@@ -44,6 +44,8 @@ object ConfigHelper {
   val ignoreUnknownWards: Boolean = config.getBoolean("misc.ignore_unknown_wards")
   val bedRegex:Regex = config.getString("misc.bed_regex").r
   val ratePer2Seconds:Int = config.getInt("misc.rate_per_2_seconds")
-  val supportedMsgTypes = config.getStringList("misc.supported_msg_types")
+  val supportedMsgTypes = config.getStringList("misc.supported_msg_types").toSet
+
+
 
 }
