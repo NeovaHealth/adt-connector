@@ -60,13 +60,17 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     unmarshal(hl7)
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
       -->(setBasicHeaders)
-      -->(detectDuplicates)
-      -->(detectUnsupportedMsg)
-      -->(detectUnsupportedWards)
+      multicast.parallel.streaming.stopOnException {
+        -->(detectDuplicates)
+        -->(detectUnsupportedMsg)
+        -->(detectUnsupportedWards)
+      }
       -->(setExtraHeaders)
-      -->(detectIdConflict)
-      -->(detectVisitConflict)
-      -->(detectHistoricalMsg)
+      multicast.parallel.streaming.stopOnException {
+        -->(detectIdConflict)
+        -->(detectVisitConflict)
+        -->(detectHistoricalMsg)
+      }
       //split on msgType
       choice {
         when(msgEquals("A08")) --> A08Route
