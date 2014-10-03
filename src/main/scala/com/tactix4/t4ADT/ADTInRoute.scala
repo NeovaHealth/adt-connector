@@ -336,8 +336,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   A08Route ==> {
     -->(getTimestamp)
-    when(e => e.in("lastModTimestamp").toString <= e.in("timestamp").toString || e.in("lastModTimestamp") == "" ){
-      log(LoggingLevel.INFO,"Updating latest visit")
+    when(refersToCurrentAction){
         -->(updatePatientRoute)
         -->(updateVisitRoute)
     } otherwise {
@@ -348,5 +347,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   A31Route ==> {
     -->(updatePatientRoute)
   } routeId "A31"
+
+  def refersToCurrentAction(e:Exchange): Boolean = e.in("lastModTimestamp").toString <= e.in("timestamp").toString || e.in("lastModTimestamp") == ""
 }
 
