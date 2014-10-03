@@ -18,4 +18,9 @@ trait ADTExceptions {
   class ADTDuplicateMessageException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)
 
   class ADTHistoricalMessageException(msg: String = null, cause: Throwable = null) extends Exception(msg,cause)
+
+  class ADTUnknownPatientException(msg: String = null, cause: Throwable = null) extends Exception(msg,cause)
+
+  class ADTUnknownVisitException(msg: String = null, cause: Throwable = null) extends Exception(msg,cause)
+
 }
