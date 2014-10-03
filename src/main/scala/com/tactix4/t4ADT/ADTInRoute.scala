@@ -155,7 +155,6 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
      e.getIn.setHeader("eventReasonCode",getEventReasonCode(t))
      e.getIn.setHeader("visitName", getVisitName(t))
      e.getIn.setHeader("visitNameString", ~getVisitName(t))
-     e.getIn.setHeader("ignoreUnknownWards", ConfigHelper.ignoreUnknownWards)
      e.getIn.setHeader("hasDischargeDate", hasDischargeDate(t))
      e.getIn.setHeader("timestamp", ~getTimestamp(t))
    })
