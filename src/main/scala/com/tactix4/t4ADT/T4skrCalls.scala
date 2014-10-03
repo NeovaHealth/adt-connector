@@ -35,13 +35,11 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
   }
 
   def visitExists(e: Exchange): Boolean = {
-    val v = e.getIn.getHeader("visitId",classOf[Option[String]])
-    v != null && v.isDefined
+    e.getIn.getHeader("visitId",None,classOf[Option[String]]).isDefined
   }
 
   def patientExists(e: Exchange): Boolean = {
-    val p = e.getIn.getHeader("patientLinkedToHospitalNo", classOf[Option[Int]])
-    p != null && p.isDefined
+    e.getIn.getHeader("patientLinkedToHospitalNo", None, classOf[Option[Int]]).isDefined
   }
 
   def mergeTargetExists(e: Exchange): Boolean = {
