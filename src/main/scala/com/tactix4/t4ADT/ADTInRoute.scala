@@ -76,23 +76,7 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
         -->(detectVisitConflict)
         -->(detectHistoricalMsg)
       }
-      //split on msgType
-      choice {
-        when(msgEquals("A08")) --> A08Route
-        when(msgEquals("A31")) --> A31Route
-        when(msgEquals("A05")) --> A05Route
-        when(msgEquals("A28")) --> A28Route
-        when(msgEquals("A01")) --> A01Route
-        when(msgEquals("A11")) --> A11Route
-        when(msgEquals("A03")) --> A03Route
-        when(msgEquals("A13")) --> A13Route
-        when(msgEquals("A02")) --> A02Route
-        when(msgEquals("A12")) --> A12Route
-        when(msgEquals("A40")) --> A40Route
-        otherwise {
-          throwException(new ADTUnsupportedMessageException("Unsupported msg type"))
-        }
-      }
+      bean(new RoutingSlipBean())
       -->(msgHistory)
       transform(_.in[Message].generateACK())
       marshal(hl7)

@@ -60,6 +60,7 @@ object ConfigHelper {
   val ratePer2Seconds:Int = config.getInt("misc.rate_per_2_seconds")
   val supportedMsgTypes = config.getStringList("misc.supported_msg_types").toSet
 
+  val getRecipientLists: Map[String, List[String]] = config.getObject("Recipient_Lists").unwrapped().mapValues(_.asInstanceOf[util.ArrayList[String]].toList).toMap[String,List[String]]
 
 
 }
