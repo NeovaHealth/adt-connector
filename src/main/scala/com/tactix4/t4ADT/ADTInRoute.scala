@@ -3,7 +3,7 @@ package com.tactix4.t4ADT
 import ca.uhn.hl7v2.model.Message
 import ca.uhn.hl7v2.util.Terser
 import com.tactix4.t4ADT.exceptions.ADTExceptions
-import com.tactix4.t4ADT.utils.ConfigHelper
+import com.tactix4.t4ADT.utils.{Action, ConfigHelper}
 import com.tactix4.t4openerp.connector.OEConnector
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.camel.component.redis.RedisConstants
@@ -21,6 +21,11 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
 
   type VisitName = String
+
+  val unknownWardAction: Action.Value = ConfigHelper.unknownWardAction
+  val unknownPatientAction: Action.Value = ConfigHelper.unknownPatientAction
+  val unknownVisitAction: Action.Value = ConfigHelper.unknownVisitAction
+
 
   val connector = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
     .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
@@ -170,49 +175,98 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     })
   } routeId "Set Extra Headers"
 
+  def getHeader[T](e:Exchange,name:String):Option[T] = e.getIn.getHeader(name,None,classOf[Option[T]])
+
   updatePatientRoute ==> {
-    when(e => patientExists(e)) {
-      process(e => patientUpdate(e))
-    } otherwise {
-      process(e => patientNew(e))
+    choice {
+      when(e => patientExists(e)) {
+        process(e => patientUpdate(e))
+      }
+      when(e => !patientExists(e) && unknownPatientAction == Action.CREATE){
+        process(e => patientNew(e))
+        log(LoggingLevel.INFO, "updating headers")
+        process(e =>{
+          val hid = e.getIn.getHeader("hospitalNo",None,classOf[Option[String]])
+          e.getIn.setHeader("patientLinkedToHospitalNo",hid.flatMap(getPatientByHospitalNumber))
+        })
+        log(LoggingLevel.INFO, "${header.patientLinkedToHospitalNo}")
+      }
+
+      when(e => !patientExists(e) && unknownPatientAction == Action.IGNORE){
+        log(LoggingLevel.WARN, "Ignoring unknown Patient")
+      }
+      otherwise {
+        throwException(new ADTUnknownPatientException("Unknown Patient"))
+      }
     }
   } routeId "Create/Update Patient"
 
   updateVisitRoute ==> {
+    choice {
     when(e => visitExists(e)) {
       process(e => visitUpdate(e))
-    } otherwise {
-      when(_.in("visitName") != None) process (e => visitNew(e))
+    }
+      when(e => !visitExists(e) && getHeader[String](e,"visitName").isDefined && unknownVisitAction == Action.CREATE){
+        process(e => visitNew(e))
+        log(LoggingLevel.INFO, "Updating visit headers for exchange: ${exchangeId}")
+        process(e => {
+           val visitName = e.getIn.getHeader("visitName",None,classOf[Option[String]])
+          e.getIn.setHeader("visitId", visitName.flatMap(getVisit))
+        })
+      }
+      when(e => !visitExists(e) && getHeader[String](e,"visitName").isDefined && unknownVisitAction == Action.IGNORE){
+        log(LoggingLevel.WARN, "Ignoring unknown Visit")
+      }
+      otherwise {
+        throwException(new ADTUnknownVisitException("Unknown visit"))
+      }
     }
   } routeId "Create/Update Visit"
 
-
   A01Route ==> {
     when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
-    -->(updatePatientRoute)
     process(e => visitNew(e))
     -->(persistTimestamp)
   } routeId "A01"
 
+  def handleUnknownVisit(createAction: Exchange => Unit) = (e: Exchange) => {
+    unknownVisitAction match {
+      case Action.IGNORE => logger.warn("Visit doesn't exist - ignoring")
+      case Action.ERROR  => throw new ADTUnknownVisitException("Unknown visit")
+      case Action.CREATE => createAction(e)
+    }
+  }
 
+  def handleUnknownPatient(createAction: Exchange => Unit) = (e: Exchange) => {
+    unknownPatientAction match {
+      case Action.IGNORE => logger.warn("Patient doesn't exist - ignoring")
+      case Action.ERROR  => throw new ADTUnknownVisitException("Unknown patient")
+      case Action.CREATE => createAction(e)
+    }
+  }
 
   A11Route ==> {
-    -->(updatePatientRoute)
-    when(e => !visitExists(e)) {
-      log(LoggingLevel.WARN, "Calling cancel admit on visit that doesn't exist - ignoring")
-    } otherwise {
+    when(e => visitExists(e)) {
       process(e => cancelVisitNew(e))
+    } otherwise {
+      process(handleUnknownVisit( e => {
+        visitNew(e)
+        cancelVisitNew(e)
+      }))
     }
   } routeId "A11"
 
   A02Route ==> {
-    -->(updatePatientRoute)
-    when(e => !visitExists(e)) {
-      process(e => visitNew(e))
-    } otherwise {
-      process(e => patientTransfer(e))
-      to(updateVisitRoute)
-
+    choice {
+      when(visitExists) {
+        process(e => patientTransfer(e))
+      }
+      otherwise {
+        process(e => handleUnknownVisit(e => {
+          visitNew(e)
+          patientTransfer(e)
+        }))
+      }
     }
     -->(persistTimestamp)
   } routeId "A02"
@@ -231,39 +285,42 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   }
 
   A12Route ==> {
-    -->(updatePatientRoute)
-    when(e => !visitExists(e)){
-      log(LoggingLevel.WARN, "Calling cancelTransferPatient for visit that doesn't exist - ignoring")
-    } otherwise {
+    when(e => visitExists(e)){
       process(e => cancelPatientTransfer(e))
+    } otherwise {
+      process(e => handleUnknownVisit(e => {
+        visitNew(e)
+        cancelPatientTransfer(e)
+      }))
+
     }
-    to(updateVisitRoute)
   } routeId "A12"
 
   A03Route ==> {
-    -->(updatePatientRoute)
-    when(e => !visitExists(e)) {
-      log(LoggingLevel.WARN, "Calling discharge for a visit that doesn't exist - ignoring")
-    } otherwise {
+    when(e => visitExists(e)) {
+      log(LoggingLevel.INFO, "visit exists about to discharge")
       process(e => patientDischarge(e))
-      -->(persistTimestamp)
+    } otherwise {
+      process(e => handleUnknownVisit(e => {
+        log(LoggingLevel.INFO, "visit does not exist - will create visit before discharge")
+        visitNew(e)
+        patientDischarge(e)
+      }))
     }
+    -->(persistTimestamp)
   } routeId "A03"
 
   A13Route ==> {
-    -->(updatePatientRoute)
-    when(e => !visitExists(e)) {
-      log(LoggingLevel.WARN, "Calling cancelDischarge on visit that doesn't exist - ignoring")
-    } otherwise {
+    when(e => visitExists(e)) {
       process(e => cancelPatientDischarge(e))
+    } otherwise {
+      process(e => handleUnknownVisit(visitNew))
     }
-    to(updateVisitRoute)
   } routeId "A13"
 
   A05Route ==> {
     when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
     process(e => patientNew(e))
-    to(updateVisitRoute)
   } routeId "A05"
 
   A28Route ==> {

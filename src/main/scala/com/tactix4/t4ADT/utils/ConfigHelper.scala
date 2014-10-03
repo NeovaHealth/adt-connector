@@ -1,5 +1,6 @@
 package com.tactix4.t4ADT.utils
 
+import java.util
 import java.util.concurrent.TimeUnit
 
 import com.typesafe.config.{Config, ConfigFactory}
@@ -41,7 +42,20 @@ object ConfigHelper {
   val timeOutMillis: Long = config.getDuration("camel_redelivery.time_out",TimeUnit.MILLISECONDS)
   val redeliveryDelay: Long = config.getDuration("camel_redelivery.delay",TimeUnit.MILLISECONDS)
   val maximumRedeliveries: Int = config.getInt("camel_redelivery.maximum_redeliveries")
-  val ignoreUnknownWards: Boolean = config.getBoolean("misc.ignore_unknown_wards")
+  val unknownWardAction: Action.Value = if(config.getBoolean("misc.ignore_unknown_wards")) Action.IGNORE else Action.ERROR
+  val unknownPatientAction: Action.Value = config.getString("misc.unknown_patient_action").toLowerCase match {
+    case "ignore" => Action.IGNORE
+    case "create" => Action.CREATE
+    case "error" => Action.ERROR
+    case fail => throw new Exception(s"Unknown option for misc.unknown_patient_action: $fail")
+  }
+  val unknownVisitAction: Action.Value = config.getString("misc.unknown_visit_action").toLowerCase match {
+    case "ignore" => Action.IGNORE
+    case "create" => Action.CREATE
+    case "error" => Action.ERROR
+    case fail => throw new Exception(s"Unknown option for misc.unknown_visit_action: $fail")
+
+  }
   val bedRegex:Regex = config.getString("misc.bed_regex").r
   val ratePer2Seconds:Int = config.getInt("misc.rate_per_2_seconds")
   val supportedMsgTypes = config.getStringList("misc.supported_msg_types").toSet
