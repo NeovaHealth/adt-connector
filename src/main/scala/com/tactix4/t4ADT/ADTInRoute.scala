@@ -281,11 +281,9 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
 
   A03Route ==> {
     when(e => visitExists(e)) {
-      log(LoggingLevel.INFO, "visit exists about to discharge")
       process(e => patientDischarge(e))
     } otherwise {
       process(e => handleUnknownVisit(e => {
-        log(LoggingLevel.INFO, "visit does not exist - will create visit before discharge")
         visitNew(e)
         patientDischarge(e)
       }))
