@@ -165,44 +165,35 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       when(e => patientExists(e)) {
         process(e => patientUpdate(e))
       }
-      when(e => !patientExists(e) && unknownPatientAction == Action.CREATE){
-        process(e => patientNew(e))
-        log(LoggingLevel.INFO, "updating headers")
-        process(e =>{
+      otherwise {
+        process(handleUnknownPatient(e => {
+          patientNew(e)
+          //update patientLinkedToHospitalNo header
           val hid = e.getIn.getHeader("hospitalNo",None,classOf[Option[String]])
           e.getIn.setHeader("patientLinkedToHospitalNo",hid.flatMap(getPatientByHospitalNumber))
-        })
-        log(LoggingLevel.INFO, "${header.patientLinkedToHospitalNo}")
-      }
-
-      when(e => !patientExists(e) && unknownPatientAction == Action.IGNORE){
-        log(LoggingLevel.WARN, "Ignoring unknown Patient")
-      }
-      otherwise {
-        throwException(new ADTUnknownPatientException("Unknown Patient"))
+        }))
       }
     }
   } routeId "Create/Update Patient"
 
   updateVisitRoute ==> {
     choice {
-    when(e => visitExists(e)) {
-      process(e => visitUpdate(e))
-    }
-      when(e => !visitExists(e) && getHeader[String](e,"visitName").isDefined && unknownVisitAction == Action.CREATE){
-        process(e => visitNew(e))
-        log(LoggingLevel.INFO, "Updating visit headers for exchange: ${exchangeId}")
-        process(e => {
-           val visitName = e.getIn.getHeader("visitName",None,classOf[Option[String]])
+      when(e => visitExists(e)) {
+        process(e => visitUpdate(e))
+      }
+      when(e => !visitExists(e) && hasHeader("visitName", e)) {
+        process(handleUnknownVisit(e => {
+          visitNew(e)
+          //update the visitId header
+          val visitName = e.getIn.getHeader("visitName", None, classOf[Option[String]])
           e.getIn.setHeader("visitId", visitName.flatMap(getVisit))
-        })
+        }))
       }
-      when(e => !visitExists(e) && getHeader[String](e,"visitName").isDefined && unknownVisitAction == Action.IGNORE){
-        log(LoggingLevel.WARN, "Ignoring unknown Visit")
-      }
+      //otherwise there is no visit information
       otherwise {
-        throwException(new ADTUnknownVisitException("Unknown visit"))
+        log(LoggingLevel.WARN, "Message has no visit identifier - can not update/create visit")
       }
+
     }
   } routeId "Create/Update Visit"
 
@@ -211,6 +202,8 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     process(e => visitNew(e))
     -->(persistTimestamp)
   } routeId "A01"
+
+  def hasHeader(name:String, e:Exchange) : Boolean = e.getIn.getHeader(name, None, classOf[Option[String]]).isDefined
 
   def handleUnknownVisit(createAction: Exchange => Unit) = (e: Exchange) => {
     unknownVisitAction match {
@@ -295,7 +288,9 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     when(e => visitExists(e)) {
       process(e => cancelPatientDischarge(e))
     } otherwise {
-      process(e => handleUnknownVisit(visitNew))
+      process(e => handleUnknownVisit( e =>{
+        visitNew(e)
+      }))
     }
   } routeId "A13"
 
@@ -307,13 +302,11 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   A28Route ==> {
     when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
     process(e => patientNew(e))
-    to(updateVisitRoute)
   } routeId "A28"
 
   A40Route ==> {
     when(e => !patientExists(e) || !mergeTargetExists(e)) throwException new ADTConsistencyException("Patients to merge did not exist")
     process(e => patientMerge(e))
-    to(updateVisitRoute)
   } routeId "A40"
 
   A08Route ==> {

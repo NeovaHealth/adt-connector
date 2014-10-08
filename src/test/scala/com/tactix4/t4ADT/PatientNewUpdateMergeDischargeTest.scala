@@ -76,7 +76,6 @@ val config: Config = ConfigFactory.parseFile(f)
   def fctestA08{
     log.info("trying to historically updating patientTwo")
     sendMessageAndExpectResponse(TestVars.patientUpdateADT_08H, "MSA|AA|")
-    Thread.sleep(2000)
     assert(Await.result((for {
       r <- tsession.searchAndRead("t4clinical.patient", "other_identifier" === TestVars.patientTwoId, List("given_name") )
       h <- (r.headOption \/> "Patient not found").asOER
