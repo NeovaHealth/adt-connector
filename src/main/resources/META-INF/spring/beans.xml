@@ -11,7 +11,7 @@
     <!--Configuration-->
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:etc/nh/com.neovahealth.t4ADT.properties"/>
+          p:location="file:etc/nh/com.neovahealth.nhADT.properties"/>
      <!---->
 
     <!--HL7 Listener-->
