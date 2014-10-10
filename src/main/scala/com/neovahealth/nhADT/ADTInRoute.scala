@@ -20,7 +20,6 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
   implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
 
-  val unknownWardAction: Action.Value = ConfigHelper.unknownWardAction
   val unknownPatientAction: Action.Value = ConfigHelper.unknownPatientAction
   val unknownVisitAction: Action.Value = ConfigHelper.unknownVisitAction
 
