@@ -62,13 +62,13 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
     unmarshal(hl7)
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
       -->(setBasicHeaders)
-      multicast.parallelProcessing.streaming.stopOnException {
+      multicast.parallel.streaming.stopOnException {
         -->(detectDuplicates)
         -->(detectUnsupportedMsg)
         -->(detectUnsupportedWards)
       }
       -->(setExtraHeaders)
-      multicast.parallelProcessing.streaming.stopOnException {
+      multicast.parallel.streaming.stopOnException {
         -->(detectIdConflict)
         -->(detectVisitConflict)
         -->(detectHistoricalMsg)
