@@ -16,7 +16,7 @@ object ConfigHelper {
   def getConfigForType(s: String): Option[Config] =  allCatch opt config.getConfig(s"ADT_mappings.$s").withFallback(config.getConfig("ADT_mappings.common"))
 
   val f = {
-   val t =new java.io.File("etc/tactix4/com.neovahealth.nhADT.conf")
+   val t =new java.io.File("etc/nh/com.neovahealth.nhADT.conf")
     if (!t.canRead) new java.io.File("src/test/resources/com.neovahealth.nhADT.conf")
     else t
   }
@@ -40,7 +40,6 @@ object ConfigHelper {
   val timeOutMillis: Long = config.getDuration("camel_redelivery.time_out",TimeUnit.MILLISECONDS)
   val redeliveryDelay: Long = config.getDuration("camel_redelivery.delay",TimeUnit.MILLISECONDS)
   val maximumRedeliveries: Int = config.getInt("camel_redelivery.maximum_redeliveries")
-  val unknownWardAction: Action.Value = if(config.getBoolean("misc.ignore_unknown_wards")) Action.IGNORE else Action.ERROR
   val unknownPatientAction: Action.Value = config.getString("misc.unknown_patient_action").toLowerCase match {
     case "ignore" => Action.IGNORE
     case "create" => Action.CREATE
@@ -54,8 +53,6 @@ object ConfigHelper {
     case fail => throw new Exception(s"Unknown option for misc.unknown_visit_action: $fail")
 
   }
-  val bedRegex:Regex = config.getString("misc.bed_regex").r
-  val ratePer2Seconds:Int = config.getInt("misc.rate_per_2_seconds")
   val supportedMsgTypes = config.getStringList("misc.supported_msg_types").toSet
 
   val getRecipientLists: Map[String, List[String]] = config.getObject("Recipient_Lists").unwrapped().mapValues(_.asInstanceOf[util.ArrayList[String]].toList).toMap[String,List[String]]
