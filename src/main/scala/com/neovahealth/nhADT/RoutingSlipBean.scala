@@ -1,11 +1,7 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
-import com.tactix4.t4ADT.utils.ConfigHelper
-import org.apache.camel.language.Bean
-import org.apache.camel.{RoutingSlip, Exchange, Header, RecipientList}
-import com.typesafe.config.Config
-import org.apache.camel.component.hl7.Terser
-import org.apache.camel.scala.Preamble._
+import com.neovahealth.nhADT.utils.ConfigHelper
+import org.apache.camel.{Header, RoutingSlip}
 
 /**
  * Created by max on 06/08/14.

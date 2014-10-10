@@ -1,4 +1,4 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
 /**
  * Tests the A28 and A05 patientNew route
@@ -7,12 +7,11 @@ package com.tactix4.t4ADT
  */
 
 
-import org.scalatest.matchers.ShouldMatchers
-import org.junit.Test
-import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.ExchangePattern
+import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.test.spring.CamelSpringTestSupport
-import org.springframework.context.support.{ClassPathXmlApplicationContext, AbstractApplicationContext}
+import org.scalatest.matchers.ShouldMatchers
+import org.springframework.context.support.{AbstractApplicationContext, ClassPathXmlApplicationContext}
 
 class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
 

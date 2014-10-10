@@ -1,8 +1,7 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
-import org.apache.camel.test.junit4.CamelTestSupport
-import org.apache.camel.scala.dsl.builder.{RouteBuilder, RouteBuilderSupport}
 import org.apache.camel.Exchange
+import org.apache.camel.scala.dsl.builder.RouteBuilder
 
 /**
  * Created with IntelliJ IDEA.

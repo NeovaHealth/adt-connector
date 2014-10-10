@@ -1,9 +1,9 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
 import ca.uhn.hl7v2.model.Message
 import ca.uhn.hl7v2.util.Terser
-import com.tactix4.t4ADT.exceptions.ADTExceptions
-import com.tactix4.t4ADT.utils.{Action, ConfigHelper}
+import com.neovahealth.nhADT.exceptions.ADTExceptions
+import com.neovahealth.nhADT.utils.{Action, ConfigHelper}
 import com.tactix4.t4openerp.connector.OEConnector
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.camel.component.redis.RedisConstants
@@ -16,11 +16,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scalaz.Scalaz._
 
 
-class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging {
+class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging {
 
   implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
-
-  type VisitName = String
 
   val unknownWardAction: Action.Value = ConfigHelper.unknownWardAction
   val unknownPatientAction: Action.Value = ConfigHelper.unknownPatientAction
@@ -65,13 +63,13 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     unmarshal(hl7)
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
       -->(setBasicHeaders)
-      multicast.parallel.streaming.stopOnException {
+      multicast.parallelProcessing.streaming.stopOnException {
         -->(detectDuplicates)
         -->(detectUnsupportedMsg)
         -->(detectUnsupportedWards)
       }
       -->(setExtraHeaders)
-      multicast.parallel.streaming.stopOnException {
+      multicast.parallelProcessing.streaming.stopOnException {
         -->(detectIdConflict)
         -->(detectVisitConflict)
         -->(detectHistoricalMsg)
@@ -84,11 +82,14 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   } routeId "Main Route"
 
   detectHistoricalMsg ==> {
-    when(e => msgType(e) != "A03" && e.getIn.getHeader("hasDischargeDate", false, classOf[Boolean])) {
+    when(implicit e => msgType(e) != "A03" && hasHeader("dischargeDate")) {
+
+      process(e => {
+        println("here")
+      })
       throwException(new ADTHistoricalMessageException("Historical message detected"))
     }
-
-  }
+  } routeId "Detect Historical Message"
 
   detectDuplicates ==>{
     when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
@@ -126,84 +127,40 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
   } routeId "Detect Visit Conflict"
 
  setBasicHeaders ==> {
-   process(e => {
+   process(implicit e => {
      val message = e.in[Message]
      val t = new Terser(message)
 
-     e.getIn.setHeader("msgBody",e.getIn.getBody.toString)
-     e.getIn.setHeader("origMessage", message)
-     e.getIn.setHeader("terser", t)
-     e.getIn.setHeader("hospitalNo", getHospitalNumber(t))
-     e.getIn.setHeader("hospitalNoString", ~getHospitalNumber(t))
-     e.getIn.setHeader("NHSNo", getNHSNumber(t))
-     e.getIn.setHeader("eventReasonCode",getEventReasonCode(t))
-     e.getIn.setHeader("visitName", getVisitName(t))
-     e.getIn.setHeader("visitNameString", ~getVisitName(t))
-     e.getIn.setHeader("hasDischargeDate", hasDischargeDate(t))
-     e.getIn.setHeader("timestamp", ~getTimestamp(t))
+     setHeaderValue("hospitalNoString", ~getHospitalNumber(t)) // String
+     setHeaderValue("visitNameString", ~getVisitName(t)) // String
+     setHeaderValue("msgBody",e.getIn.getBody.toString) // String
+     setHeaderValue("origMessage", message) // Message
+     setHeaderValue("terser", t) // terser
+
+     setHeaderValue("hospitalNo", getHospitalNumber(t))// Option[String]
+     setHeaderValue("NHSNo", getNHSNumber(t)) // Option[String]
+     setHeaderValue("visitName", getVisitName(t)) // Option[String]
+     setHeaderValue("dischargeDate", getDischargeDate(t)) // Option[String]
+     setHeaderValue("timestamp", getTimestamp(t)) // Option[String]
    })
  } routeId "Set Basic Headers"
 
   setExtraHeaders ==> {
     process(e => {
-      val hid = e.getIn.getHeader("hospitalNo",None,classOf[Option[String]])
-      val nhs = e.getIn.getHeader("NHSNo",None,classOf[Option[String]])
-      val visitName = e.getIn.getHeader("visitName",None,classOf[Option[String]])
+      val hid = getHeader("hospitalNo",e)
+      val nhs = getHeader("NHSNo",e)
+      val visitName = getHeader("visitName",e)
       val visitId = visitName.flatMap(getVisit)
 
-      e.getIn.setHeader("patientLinkedToHospitalNo", hid.flatMap(getPatientByHospitalNumber))
-      e.getIn.setHeader("patientLinkedToNHSNo", nhs.flatMap(getPatientByNHSNumber))
-      e.getIn.setHeader("visitId", visitId)
-      e.getIn.setHeader("patientLinkedToVisit", visitId.flatMap(getPatientByVisitId))
+      setHeaderValue("visitId", visitId)(e)
+      setHeaderValue("patientLinkedToHospitalNo", hid.flatMap(getPatientByHospitalNumber))(e)
+      setHeaderValue("patientLinkedToNHSNo", nhs.flatMap(getPatientByNHSNumber))(e)
+      setHeaderValue("patientLinkedToVisit", visitId.flatMap(getPatientByVisitId))(e)
     })
   } routeId "Set Extra Headers"
 
-  def getHeader[T](e:Exchange,name:String):Option[T] = e.getIn.getHeader(name,None,classOf[Option[T]])
 
-  updatePatientRoute ==> {
-    choice {
-      when(e => patientExists(e)) {
-        process(e => patientUpdate(e))
-      }
-      otherwise {
-        process(handleUnknownPatient(e => {
-          patientNew(e)
-          //update patientLinkedToHospitalNo header
-          val hid = e.getIn.getHeader("hospitalNo",None,classOf[Option[String]])
-          e.getIn.setHeader("patientLinkedToHospitalNo",hid.flatMap(getPatientByHospitalNumber))
-        }))
-      }
-    }
-  } routeId "Create/Update Patient"
 
-  updateVisitRoute ==> {
-    choice {
-      when(e => visitExists(e)) {
-        process(e => visitUpdate(e))
-      }
-      when(e => !visitExists(e) && hasHeader("visitName", e)) {
-        process(handleUnknownVisit(e => {
-          visitNew(e)
-          //update the visitId header
-          val visitName = e.getIn.getHeader("visitName", None, classOf[Option[String]])
-          e.getIn.setHeader("visitId", visitName.flatMap(getVisit))
-        }))
-      }
-      //otherwise there is no visit information
-      otherwise {
-        log(LoggingLevel.WARN, "Message has no visit identifier - can not update/create visit")
-      }
-
-    }
-  } routeId "Create/Update Visit"
-
-  A01Route ==> {
-    when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
-    process(e => visitNew(e))
-    -->(persistTimestamp)
-  } routeId "A01"
-
-  def hasHeader(name:String, e:Exchange) : Boolean = e.getIn.getHeader(name, None, classOf[Option[String]]).isDefined
 
   def handleUnknownVisit(createAction: Exchange => Unit) = (e: Exchange) => {
     unknownVisitAction match {
@@ -220,6 +177,63 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
       case Action.CREATE => createAction(e)
     }
   }
+  from(persistTimestamp) ==> {
+    when(e => hasHeader("timestamp")(e)) {
+      setHeader(RedisConstants.KEY, simple("${header.visitNameString}"))
+      setHeader(RedisConstants.VALUE, e => s"${~getHeader[String]("timestamp",e)}")
+      to("toRedis")
+    }
+  }
+
+  from(getTimestamp) ==> {
+    setHeader(RedisConstants.COMMAND,"GET")
+    setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
+    enrich("fromRedis",new AggregateLastModTimestamp)
+    log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
+  }
+  updatePatientRoute ==> {
+    choice {
+      when(e => patientExists(e)) {
+        process(e => patientUpdate(e))
+      }
+      otherwise {
+        process(handleUnknownPatient(implicit e => {
+          patientNew(e)
+          //update patientLinkedToHospitalNo header
+          val hid = getHeader("hospitalNo",e)
+          setHeaderValue("patientLinkedToHospitalNo",hid.flatMap(getPatientByHospitalNumber))
+        }))
+      }
+    }
+  } routeId "Create/Update Patient"
+
+  updateVisitRoute ==> {
+    choice {
+      when(e => visitExists(e)) {
+        process(e => visitUpdate(e))
+      }
+      when(e => !visitExists(e) && hasHeader("visitName")(e)) {
+        process(handleUnknownVisit(implicit e => {
+          visitNew(e)
+          //update the visitId header
+          val visitName = getHeader("visitName",e)
+          setHeaderValue("visitId", visitName.flatMap(getVisit))
+        }))
+      }
+      //otherwise there is no visit information
+      otherwise {
+        log(LoggingLevel.WARN, "Message has no visit identifier - can not update/create visit")
+      }
+
+    }
+  } routeId "Create/Update Visit"
+
+  A01Route ==> {
+    when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
+    process(e => visitNew(e))
+    -->(persistTimestamp)
+  } routeId "A01"
+
 
   A11Route ==> {
     when(e => visitExists(e)) {
@@ -247,18 +261,6 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     -->(persistTimestamp)
   } routeId "A02"
 
-  from(persistTimestamp) ==> {
-    setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
-    setHeader(RedisConstants.VALUE,simple("${header.timestamp}"))
-    to("toRedis")
-  }
-
-  from(getTimestamp) ==> {
-    setHeader(RedisConstants.COMMAND,"GET")
-    setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
-    enrich("fromRedis",new AggregateLastModTimestamp)
-    log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
-  }
 
   A12Route ==> {
     when(e => visitExists(e)){
@@ -323,6 +325,13 @@ class ADTInRoute() extends RouteBuilder with T4skrCalls with ADTErrorHandling wi
     -->(updatePatientRoute)
   } routeId "A31"
 
-  def refersToCurrentAction(e:Exchange): Boolean = e.in("lastModTimestamp").toString <= e.in("timestamp").toString || e.in("lastModTimestamp") == ""
+  def refersToCurrentAction(e:Exchange): Boolean = {
+    val r = for {
+      l <- getHeader[String]("lastModTimestamp",e)
+      t <- getHeader[String]("timestamp",e)
+    } yield t >= l
+
+    r | true
+  }
 }
 

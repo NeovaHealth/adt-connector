@@ -1,4 +1,4 @@
-package com.tactix4.t4ADT.utils
+package com.neovahealth.nhADT.utils
 
 import java.util
 import java.util.concurrent.TimeUnit
@@ -13,13 +13,11 @@ import scala.util.control.Exception._
  * Created by max on 25/07/14.
  */
 object ConfigHelper {
-  def getConfigForType(s: String) =  allCatch opt config.getConfig(s"ADT_mappings.$s").withFallback(config.getConfig("ADT_mappings.common")) getOrElse  config.getConfig("ADT_mappings.common")
-
-
+  def getConfigForType(s: String): Option[Config] =  allCatch opt config.getConfig(s"ADT_mappings.$s").withFallback(config.getConfig("ADT_mappings.common"))
 
   val f = {
-   val t =new java.io.File("etc/tactix4/com.tactix4.t4ADT.conf")
-    if (!t.canRead) new java.io.File("src/test/resources/com.tactix4.t4ADT.conf")
+   val t =new java.io.File("etc/tactix4/com.neovahealth.nhADT.conf")
+    if (!t.canRead) new java.io.File("src/test/resources/com.neovahealth.nhADT.conf")
     else t
   }
 

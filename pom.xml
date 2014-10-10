@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.tactix4</groupId>
-    <artifactId>t4adt_2.10</artifactId>
+    <groupId>com.neovahealth</groupId>
+    <artifactId>nhadt_2.11</artifactId>
     <packaging>bundle</packaging>
-    <description>Tactix4 T4skr ADT</description>
-    <version>0.1.10</version>
-    <name>Tactix4 T4skr ADT</name>
+    <description>Neova Health's Open E-Obs ADT Adaptor</description>
+    <version>0.2.0</version>
+    <name>Open E-Obs ADT Adaptor</name>
     <organization>
-        <name>com.tactix4</name>
+        <name>com.neovahealth</name>
     </organization>
 
     <properties>
@@ -16,8 +16,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!--dependency versions -->
-        <camel-version>2.12.3</camel-version>
-        <scala-version>2.10.4</scala-version>
+        <camel-version>2.14.0</camel-version>
+        <scala-version>2.11.2</scala-version>
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.1.0</scalaz-version>
@@ -25,7 +25,8 @@
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.2.1</typesafe-config-version>
-        <activemq-version>5.9.1</activemq-version>
+        <activemq-version>5.10.0</activemq-version>
+        <commons-pool-version>2.2</commons-pool-version>
 
 
         <!--plugin versions-->
@@ -34,6 +35,7 @@
         <maven-resources-plugin-version>2.4.3</maven-resources-plugin-version>
         <maven-bundle-plugin-version>2.2.0</maven-bundle-plugin-version>
         <maven-scala-plugin-version>3.1.6</maven-scala-plugin-version>
+        <spring-data-redis-version>1.3.4.RELEASE</spring-data-redis-version>
 
     </properties>
 
@@ -45,13 +47,13 @@
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.10</artifactId>
-            <version>2.1.7</version>
+            <artifactId>scalatest_2.11</artifactId>
+            <version>2.2.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.10</artifactId>
+            <artifactId>scalacheck_2.11</artifactId>
             <version>1.11.4</version>
             <scope>test</scope>
         </dependency>
@@ -87,6 +89,17 @@
             <version>${commons-dbcp-version}</version>
         </dependency>
         <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+            <version>${commons-pool-version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-hl7</artifactId>
             <version>${camel-version}</version>
@@ -103,7 +116,7 @@
         </dependency>
         <dependency>
             <groupId>com.tactix4</groupId>
-            <artifactId>t4openerp-connector_2.10</artifactId>
+            <artifactId>t4openerp-connector_2.11</artifactId>
             <version>${t4openerp-connector-version}</version>
         </dependency>
         <dependency>
@@ -150,11 +163,11 @@
             <version>3.1.4.RELEASE</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.scala</groupId>
-            <artifactId>spring-scala_2.10</artifactId>
-            <version>1.0.0.RC1</version>
-         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.springframework.scala</groupId>-->
+            <!--<artifactId>spring-scala_2.11</artifactId>-->
+            <!--<version>1.0.0.RC1</version>-->
+         <!--</dependency>-->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -164,7 +177,12 @@
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-spring-redis</artifactId>
             <version>${camel-version}</version>
-            </dependency>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+            <version>1.3.4.RELEASE</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.activemq</groupId>
             <artifactId>activemq-camel</artifactId>
@@ -319,7 +337,7 @@
                         </Import-Package>
                         <Export-Package>
                             com.tactix4.t4ADT,
-                            com.tactix4.t4ADT.utils,
+                            com.neovahealth.nhADT.utils,
                             com.tactix4.t4ADT.exceptions
                         </Export-Package>
 					</instructions>

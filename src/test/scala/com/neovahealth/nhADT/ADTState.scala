@@ -1,9 +1,8 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
-import com.tactix4.t4ADT
-import scalaz._
-import Scalaz._
 import org.scalacheck.Gen
+
+import scalaz._
 
 /**
  * Created by max on 03/06/14.
@@ -78,8 +77,8 @@ trait VisitGen {
   val visitGenerator = StateT[Gen, ADTState, Event]((s: ADTState) => Gen.oneOf(s.transitions.toSeq).map(_.swap))
 
 
-  import org.scalacheck.{Gen, Arbitrary, Shrink}
-  import Gen.{sized, value}
+  import org.scalacheck.Gen.sized
+  import org.scalacheck.{Arbitrary, Gen}
 
   implicit val ArbitraryMonad: Monad[Arbitrary] = new Monad[Arbitrary] {
     def bind[A, B](fa: Arbitrary[A])(f: A => Arbitrary[B]) = Arbitrary(fa.arbitrary.flatMap(f(_).arbitrary))

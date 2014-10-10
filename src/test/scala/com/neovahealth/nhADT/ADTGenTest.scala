@@ -1,39 +1,34 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
-import com.tactix4.t4openerp.connector.OEConnector
-import org.scalatest.{ParallelTestExecution, Matchers}
-import org.scalatest.prop.{Checkers, PropertyChecks}
+import com.tactix4.t4openerp.connector.{OEConnector, _}
+import com.tactix4.t4openerp.connector.domain.Domain._
+import com.tactix4.t4openerp.connector.domain._
+import com.tactix4.t4openerp.connector.transport.{OEString, OEType}
+import com.typesafe.config.ConfigFactory
 import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.test.spring.CamelSpringTestSupport
-import org.springframework.context.support.{ClassPathXmlApplicationContext, AbstractApplicationContext}
-import org.apache.camel.ExchangePattern
 import org.junit.Test
-import com.typesafe.config.ConfigFactory
-import java.util.Properties
-import java.io.FileInputStream
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import com.tactix4.t4openerp.connector.transport.{OEType, OEString, OEDictionary}
-import org.scalautils._
-import TypeCheckedTripleEquals._
 import org.scalacheck.Prop.forAllNoShrink
+import org.scalactic.TripleEqualsSupport
+import org.scalatest.Matchers
 import org.scalatest.prop.Checkers.check
-import com.tactix4.t4openerp.connector.domain._
-import com.tactix4.t4openerp.connector.domain.Domain._
-import com.tactix4.t4openerp.connector._
+import org.scalatest.prop.{Checkers, PropertyChecks}
+import org.springframework.context.support.{AbstractApplicationContext, ClassPathXmlApplicationContext}
+
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
-import scalaz.std.option._
-import scalaz.syntax.std.boolean._
-import scalaz.std.option.optionSyntax._
+import scala.concurrent.duration._
 import scalaz.std.anyVal._
+import scalaz.std.option.optionSyntax._
 import scalaz.std.string._
+import scalaz.syntax.std.boolean._
 
 
 /**
  * Created by max on 06/06/14.
  */
 class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen with Matchers with TripleEqualsSupport {
-  val config = ConfigFactory.load("com.tactix4.t4ADT.conf")
+  val config = ConfigFactory.load("com.neovahealth.nhADT.conf")
 
   val protocol: String = config.getString("openERP.protocol")
   val host: String = config.getString("openERP.hostname")

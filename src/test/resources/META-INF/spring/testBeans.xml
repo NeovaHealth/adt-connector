@@ -11,12 +11,12 @@
 
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:src/test/resources/com.tactix4.t4ADT.properties"/>
+          p:location="file:src/test/resources/com.neovahealth.nhADT.properties"/>
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
     <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
 
-    <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
+    <bean id="adtInRoute" class="com.neovahealth.nhADT.ADTInRoute"/>
 
     <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
 

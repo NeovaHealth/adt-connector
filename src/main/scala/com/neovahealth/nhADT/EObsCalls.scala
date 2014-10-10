@@ -1,46 +1,39 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
-
-import com.tactix4.t4ADT.utils.ConfigHelper
-import com.tactix4.t4openerp.connector.transport.{OEType, OEString, OEDictionary}
-
+import ca.uhn.hl7v2.util.Terser
+import com.neovahealth.nhADT.exceptions.ADTExceptions
+import com.neovahealth.nhADT.utils.ConfigHelper
+import com.tactix4.t4openerp.connector._
+import com.tactix4.t4openerp.connector.transport.{OEDictionary, OEString, OEType}
+import com.typesafe.scalalogging.slf4j.LazyLogging
+import org.apache.camel.Exchange
+import org.joda.time.DateTime
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-
-
-import com.tactix4.t4openerp.connector.domain.Domain._
-import com.tactix4.t4openerp.connector._
+import scala.reflect.ClassTag
 import scalaz._
 import Scalaz._
-
-
-import org.apache.camel.Exchange
-import ca.uhn.hl7v2.util.Terser
-import org.joda.time.DateTime
-import com.tactix4.t4ADT.exceptions.ADTExceptions
-import com.typesafe.scalalogging.slf4j.{LazyLogging}
-import scala.util.matching.Regex
-import scala.collection.JavaConversions._
 
 /**
  * Created by max on 02/06/14.
  */
-trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with LazyLogging {
+trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with LazyLogging {
+
+  def getHeader[T:ClassTag](name:String,e:Exchange):Option[T] = e.getIn.getHeader(name,None,classOf[Option[T]])
+  def hasHeader(name:String)(implicit e:Exchange) : Boolean = getHeader[Any](name,e).isDefined
+  def setHeaderValue(name:String, o:Any)(implicit e:Exchange) = e.getIn.setHeader(name,o)
 
   val triggerEventHeader = "CamelHL7TriggerEvent"
 
-  def getMapFromFields(m:List[String])(implicit t:Terser) ={
+  def getMapFromFields(m:List[String])(implicit t:Terser): Map[String, String] =
     m.map(f => getMessageValue(f).map(v => f -> v)).flatten.toMap
-  }
 
-  def visitExists(e: Exchange): Boolean = {
-    e.getIn.getHeader("visitId",None,classOf[Option[String]]).isDefined
-  }
 
-  def patientExists(e: Exchange): Boolean = {
-    e.getIn.getHeader("patientLinkedToHospitalNo", None, classOf[Option[Int]]).isDefined
-  }
+  def visitExists(e: Exchange): Boolean =  hasHeader("visitId")(e)
+
+  def patientExists(e: Exchange): Boolean =  hasHeader("patientLinkedToHospitalNo")(e)
+
 
   def mergeTargetExists(e: Exchange): Boolean = {
     getOldHospitalNumber(getTerser(e)).flatMap(getPatientByHospitalNumber).isDefined
@@ -48,26 +41,20 @@ trait T4skrCalls extends ADTProcessing with ADTExceptions with T4skrQueries with
 
   def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w =>ConfigHelper.wards.exists(_.findFirstIn(w).isDefined))
 
-  val msgType = (e:Exchange) => e.getIn.getHeader(triggerEventHeader, classOf[String])
-
-  def msgEquals(t: String)(e: Exchange): Boolean = t == msgType(e)
-
-
-  def checkForNull[T](t : T) : Option[T] = (t != null) ? t.some | None
+  def msgType(e:Exchange) = {
+    e.getIn.getHeader(triggerEventHeader, "", classOf[String])
+  }
 
   def getTerser(e:Exchange):Terser = e.getIn.getHeader("terser", classOf[Terser])
 
-  def getPatientLinkedToHospitalNo(e:Exchange) : Option[Int] =
-    checkForNull(e.getIn.getHeader("patientLinkedToHospitalNo", classOf[Option[Int]])).flatten
+  def getPatientLinkedToHospitalNo(implicit e:Exchange) : Option[Int] = getHeader[Int]("patientLinkedToHospitalNo",e)
 
-  def getPatientLinkedToVisit(e:Exchange) : Option[Int] =
-    checkForNull(e.getIn.getHeader("patientLinkedToVisit", classOf[Option[Int]])).flatten
+  def getPatientLinkedToVisit(implicit e:Exchange) : Option[Int] = getHeader[Int]("patientLinkedToVisit",e)
 
-  def getPatientLinkedToNHSNo(e:Exchange) : Option[Int] =
-    checkForNull(e.getIn.getHeader("patientLinkedToNHSNo", classOf[Option[Int]])).flatten
+  def getPatientLinkedToNHSNo(implicit e:Exchange) : Option[Int] = getHeader[Int]("patientLinkedToNHSNo",e)
 
   def waitAndErr(x:ValidationNel[String,OEResult[_]]): Unit = x.fold(
-      errors => throw new ADTFieldException(errors.shows),
+      errors => throw new ADTFieldException(errors.list.mkString(", ")),
       r => Await.result(r.run,timeOutMillis millis).fold(
         error => throw new ADTApplicationException(error),
         _ => ()

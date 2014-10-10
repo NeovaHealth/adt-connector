@@ -11,12 +11,8 @@
     <!--Configuration-->
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:etc/tactix4/com.tactix4.t4ADT.properties"/>
+          p:location="file:etc/nh/com.neovahealth.t4ADT.properties"/>
      <!---->
-
-    <bean id="config" class="com.typesafe.config.ConfigFactory" factory-method="load">
-        <constructor-arg value="tactix4/com.tactix4.t4ADT.properties"/>
-    </bean>
 
     <!--HL7 Listener-->
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
@@ -51,8 +47,7 @@
     <!---->
 
     <!--Route injection-->
-    <bean id="adtInRoute" class="com.tactix4.t4ADT.ADTInRoute"/>
-
+    <bean id="adtInRoute" class="com.neovahealth.nhADT.ADTInRoute"/>
 
     <!-- Redis -->
     <bean id="jedisConnectionFactory"
@@ -89,7 +84,6 @@
         <property name="concurrentConsumers" value="10"/>
     </bean>
 
-
     <!---->
     <!-- create a Camel ActiveMQ component to use, using the Spring bean style -->
     <!-- we use the vm protocol to communicate intra-jvm which is much faster than tcp -->
@@ -97,8 +91,6 @@
         <property name="configuration" ref="jmsConfig"/>
         <property name="brokerURL" value="vm://amq-broker"/>
     </bean>
-
-
 
     <!--Sets the jmx object name to use 'localhost' rather than the actual hostname -->
     <bean id="naming" class="org.apache.camel.management.DefaultManagementNamingStrategy">

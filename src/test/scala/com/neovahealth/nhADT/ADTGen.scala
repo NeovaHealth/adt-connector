@@ -1,12 +1,13 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
 import org.joda.time.DateTime
-import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
+import org.joda.time.format.DateTimeFormat
+import org.scalacheck.Gen
+
 import scala.io.Source
 import scala.util.Random
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
-import org.scalacheck.Gen
 
 /**
  * Created by max on 03/06/14.

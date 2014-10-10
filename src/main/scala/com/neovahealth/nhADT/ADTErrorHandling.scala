@@ -1,15 +1,17 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
-import ca.uhn.hl7v2.{AcknowledgmentCode, HL7Exception, ErrorCode}
-import ca.uhn.hl7v2.model.Message
-import org.apache.camel.model.dataformat.HL7DataFormat
-import org.apache.camel.{LoggingLevel, Exchange}
-import java.util.concurrent.TimeoutException
-import org.apache.camel.scala.dsl.DSL
-import org.apache.camel.scala.Preamble
 import java.net.ConnectException
-import com.tactix4.t4ADT.exceptions._
+import java.util.concurrent.TimeoutException
+
+import ca.uhn.hl7v2.model.Message
+import ca.uhn.hl7v2.{AcknowledgmentCode, ErrorCode, HL7Exception}
+import com.neovahealth.nhADT.exceptions.ADTExceptions
+import com.neovahealth.nhADT.utils.ConfigHelper
 import com.typesafe.scalalogging.slf4j.LazyLogging
+import org.apache.camel.model.dataformat.HL7DataFormat
+import org.apache.camel.scala.Preamble
+import org.apache.camel.scala.dsl.DSL
+import org.apache.camel.{Exchange, LoggingLevel}
 
 /**
  * @author max@tactix4.com
@@ -17,8 +19,8 @@ import com.typesafe.scalalogging.slf4j.LazyLogging
  */
 trait ADTErrorHandling extends  Preamble with DSL with ADTExceptions with LazyLogging{
 
-  val redeliveryDelay:Long
-  val maximumRedeliveries:Int
+  val redeliveryDelay = ConfigHelper.redeliveryDelay
+  val maximumRedeliveries = ConfigHelper.maximumRedeliveries
   val hl7:HL7DataFormat = new HL7DataFormat()
   hl7.setValidate(false)
 

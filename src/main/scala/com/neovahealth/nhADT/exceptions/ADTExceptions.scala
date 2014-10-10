@@ -1,4 +1,4 @@
-package com.tactix4.t4ADT.exceptions
+package com.neovahealth.nhADT.exceptions
 
 /**
  * Created by max on 02/06/14.

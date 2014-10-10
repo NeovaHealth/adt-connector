@@ -1,4 +1,4 @@
-package com.tactix4.t4ADT
+package com.neovahealth.nhADT
 
 /**
  * Tests the A28 and A05 patientNew route
@@ -8,24 +8,22 @@ package com.tactix4.t4ADT
 
 import java.io.File
 
-import org.scalacheck.Prop.forAllNoShrink
-import org.scalatest.prop.Checkers.check
 import com.tactix4.t4openerp.connector._
 import com.tactix4.t4openerp.connector.domain.Domain._
-import com.tactix4.t4openerp.connector.transport.{OEType, OEDictionary}
+import com.tactix4.t4openerp.connector.transport.OEType
 import com.typesafe.config.{ConfigFactory, _}
-import org.apache.camel.ExchangePattern
 import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.test.spring.CamelSpringTestSupport
 import org.junit.runners.MethodSorters
 import org.junit.{FixMethodOrder, Test}
+import org.scalacheck.Prop.{BooleanOperators, forAllNoShrink}
+import org.scalatest.prop.Checkers.check
 import org.springframework.context.support.{AbstractApplicationContext, ClassPathXmlApplicationContext}
-import org.scalacheck.Prop.BooleanOperators
+
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scalaz.Scalaz._
-import scalaz._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
@@ -46,7 +44,7 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
     jndi
   }
 
-  val f = new File("src/test/resources/com.tactix4.t4ADT.conf")
+  val f = new File("src/test/resources/com.neovahealth.nhADT.conf")
   val config: Config = ConfigFactory.parseFile(f)
 
   val protocol: String = config.getString("openERP.protocol")
