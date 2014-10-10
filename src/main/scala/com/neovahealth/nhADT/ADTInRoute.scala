@@ -55,7 +55,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  from("hl7listener") --> "activemq-in"
+  from("hl7listener") --> "activemq-in" routeId "Listener to activemq"
 
 
   "activemq-in" ==> {
@@ -182,14 +182,15 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
       setHeader(RedisConstants.VALUE, e => s"${~getHeader[String]("timestamp",e)}")
       to("toRedis")
     }
-  }
+  } routeId "Timestamp to redis"
 
   from(getTimestamp) ==> {
     setHeader(RedisConstants.COMMAND,"GET")
     setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
     enrich("fromRedis",new AggregateLastModTimestamp)
     log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
-  }
+  } routeId "Timestamp from redis"
+
   updatePatientRoute ==> {
     choice {
       when(e => patientExists(e)) {
