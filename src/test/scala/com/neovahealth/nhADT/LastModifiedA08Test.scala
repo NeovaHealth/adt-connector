@@ -16,8 +16,14 @@ import org.apache.camel.component.hl7.HL7MLLPCodec
 import org.apache.camel.test.spring.CamelSpringTestSupport
 import org.junit.runners.MethodSorters
 import org.junit.{FixMethodOrder, Test}
-import org.scalacheck.Prop.{BooleanOperators, forAllNoShrink}
+import org.scalacheck.Prop
+import org.scalacheck.Prop._
+import org.scalacheck.util.Pretty
+import org.scalacheck.Test.Parameters
+import org.scalatest.prop.Checkers._
+import org.scalatest.prop.{PropertyChecks, GeneratorDrivenPropertyChecks, Checkers}
 import org.scalatest.prop.Checkers.check
+import org.scalatest.prop.PropertyChecks.PropertyCheckConfig
 import org.springframework.context.support.{AbstractApplicationContext, ClassPathXmlApplicationContext}
 
 import scala.concurrent.Await
@@ -26,7 +32,7 @@ import scala.concurrent.duration._
 import scalaz.Scalaz._
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
+class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen with PropertyChecks{
 
 
   def createApplicationContext(): AbstractApplicationContext = {
@@ -54,36 +60,37 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
   val password: String = config.getString("openERP.password")
   val database: String = config.getString("openERP.database")
 
-  val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
 
+  val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
   @Test
   def atestA28(){
-    check {
+    check (
       forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
-        (msgs.exists(_.msh.msgType == "A08") && msgs.exists(m => m.msh.msgType == "A02") )==> {
+//        ((msgs(0).msh.msgType == "A08") && (msgs(1).msh.msgType == "A13")) ==> {
+        (msgs.exists(_.msh.msgType == "A08") && msgs.exists(m => m.msh.msgType == "A31") )==> {
 
           println("The full visit: \n")
           msgs.map(_.msh.msgType + " ") foreach print
           println("")
 
-          msgs.foreach(msg =>{
-            println("Sending msg: " + msg.toString.replace('\r','\n'))
-            val result = template.requestBody(URI, msg.toString,classOf[String])
+          msgs.foreach(msg => {
+            println("Sending msg: " + msg.toString.replace('\r', '\n'))
+            val result = template.requestBody(URI, msg.toString, classOf[String])
             assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
-            if(msg.msh.msgType == "A08") {
-               val prev = msgs.takeWhile(_ != msg)
-               prev.reverse.find(m => m.msh.msgType == "A01" || m.msh.msgType == "A02" || m.msh.msgType == "A03").map(m => {
-                 if(msg.evn.evnOccured == m.evn.evnOccured){
-                   checkVisit("A08", msg.pv1)
-                 }
-               })
+            if (msg.msh.msgType == "A08") {
+              val prev = msgs.takeWhile(_ != msg)
+              prev.reverse.find(m => m.msh.msgType == "A01" || m.msh.msgType == "A02" || m.msh.msgType == "A03").map(m => {
+                if (msg.evn.evnOccured == m.evn.evnOccured) {
+                  checkVisit("A08", msg.pv1)
+                }
+              })
             }
           })
           true
-
         }
       }
-    }
+    )
+
   }
 
  def checkVisit(msgType:String, pv1:PV1Segment):Unit = {

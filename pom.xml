@@ -2,10 +2,10 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.neovahealth</groupId>
-    <artifactId>nhadt_2.10</artifactId>
+    <artifactId>nhadt_2.11</artifactId>
     <packaging>bundle</packaging>
     <description>Neova Health's Open E-Obs ADT Adaptor</description>
-    <version>0.2.0</version>
+    <version>0.2.2</version>
     <name>Open E-Obs ADT Adaptor</name>
     <organization>
         <name>com.neovahealth</name>
@@ -16,8 +16,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!--dependency versions -->
-        <camel-version>2.13.2</camel-version>
-        <scala-version>2.10.4</scala-version>
+        <camel-version>2.14.0</camel-version>
+        <scala-version>2.11.2</scala-version>
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
         <scalaz-version>7.1.0</scalaz-version>
@@ -27,6 +27,7 @@
         <typesafe-config-version>1.2.1</typesafe-config-version>
         <activemq-version>5.9.1</activemq-version>
         <commons-pool-version>1.6</commons-pool-version>
+        <commons2-pool-version>2.2</commons2-pool-version>
 
 
         <!--plugin versions-->
@@ -47,13 +48,13 @@
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.10</artifactId>
+            <artifactId>scalatest_2.11</artifactId>
             <version>2.2.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.10</artifactId>
+            <artifactId>scalacheck_2.11</artifactId>
             <version>1.11.4</version>
             <scope>test</scope>
         </dependency>
@@ -75,6 +76,11 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
+            <artifactId>camel-metrics</artifactId>
+            <version>${camel-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
             <artifactId>camel-sql</artifactId>
             <version>${camel-version}</version>
         </dependency>
@@ -83,22 +89,26 @@
             <artifactId>camel-spring</artifactId>
             <version>${camel-version}</version>
         </dependency>
-        <dependency>
-            <groupId>commons-dbcp</groupId>
-            <artifactId>commons-dbcp</artifactId>
-            <version>${commons-dbcp-version}</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>commons-dbcp</groupId>-->
+            <!--<artifactId>commons-dbcp</artifactId>-->
+            <!--<version>${commons-dbcp-version}</version>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>2.6.0</version>
+            <version>2.1.0</version>
         </dependency>
         <!--<dependency>-->
-            <!--<groupId>org.apache.commons</groupId>-->
+            <!--<groupId>commons-pool</groupId>-->
             <!--<artifactId>commons-pool</artifactId>-->
             <!--<version>${commons-pool-version}</version>-->
         <!--</dependency>-->
-
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+            <version>2.2</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-hl7</artifactId>
@@ -116,7 +126,7 @@
         </dependency>
         <dependency>
             <groupId>com.tactix4</groupId>
-            <artifactId>t4openerp-connector_2.10</artifactId>
+            <artifactId>t4openerp-connector_2.11</artifactId>
             <version>${t4openerp-connector-version}</version>
         </dependency>
         <dependency>
@@ -157,12 +167,12 @@
             <artifactId>log4j</artifactId>
             <version>1.2.17</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-test</artifactId>
-            <version>3.1.4.RELEASE</version>
-            <scope>test</scope>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.springframework</groupId>-->
+            <!--<artifactId>spring-test</artifactId>-->
+            <!--<version>3.2.8.RELEASE</version>-->
+            <!--<scope>test</scope>-->
+        <!--</dependency>-->
         <!--<dependency>-->
             <!--<groupId>org.springframework.scala</groupId>-->
             <!--<artifactIhd>spring-scala_2.11</artifactId>-->
@@ -178,11 +188,11 @@
             <artifactId>camel-spring-redis</artifactId>
             <version>${camel-version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.data</groupId>
-            <artifactId>spring-data-redis</artifactId>
-            <version>1.1.1.RELEASE</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.springframework.data</groupId>-->
+            <!--<artifactId>spring-data-redis</artifactId>-->
+            <!--<version>1.1.1.RELEASE</version>-->
+        <!--</dependency>-->
         <dependency>
             <groupId>org.apache.activemq</groupId>
             <artifactId>activemq-camel</artifactId>
@@ -217,7 +227,19 @@
         </dependency>
 
 	</dependencies>
-	<repositories>
+
+<repositories>
+    <repository>
+        <id>apache.snapshots</id>
+        <name>Apache Development Snapshot Repository</name>
+        <url>https://repository.apache.org/content/repositories/snapshots/</url>
+        <releases>
+            <enabled>false</enabled>
+        </releases>
+        <snapshots>
+            <enabled>true</enabled>
+        </snapshots>
+    </repository>
         <repository>
             <id>springframeworkmilestonerepo</id>
             <name>springframework milestone repo</name>
@@ -278,63 +300,66 @@
 				<configuration>
 					<instructions>
 						<Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
-                        <Import-Package>
-                            javax.sql,
-                            ca.uhn.hl7v2,
-                            ca.uhn.hl7v2.model,
-                            ca.uhn.hl7v2.util,
-                            com.tactix4.t4openerp.connector,
-                            com.tactix4.t4openerp.connector.domain,
-                            com.tactix4.t4openerp.connector.transport,
-                            com.typesafe.scalalogging.slf4j,
-                            com.typesafe.scalalogging,
-                            com.typesafe.config,
-                            org.slf4j,
-                            org.apache.camel,
-                            org.apache.camel.builder,
-                            org.apache.camel.component.hl7,
-                            org.apache.camel.component.redis.processor.idempotent,
-                            org.apache.camel.model,
-                            org.apache.camel.management,
-                            org.apache.camel.model.dataformat,
-                            org.apache.camel.scala,
-                            org.apache.camel.scala.dsl,
-                            org.apache.camel.scala.dsl.builder,
-                            org.apache.camel.component.sql,
-                            org.apache.camel.processor.idempotent.jdbc,
-                            org.apache.camel.processor.aggregate,
-                            org.apache.activemq,
-                            org.apache.activemq.camel.component,
-                            org.apache.activemq.pool,
-                            org.apache.camel.component.jms,
-                            org.postgresql,
-                            org.joda.time,
-                            org.joda.time.format,
-                            org.springframework.aop.framework,
-                            org.springframework.data.redis.serializer,
-                            org.springframework.data.redis.connection.jedis,
-                            org.springframework.data.redis.core,
-                            org.springframework.beans.factory.config,
-                            <!--org.springframework.scala.beans.propertyeditors,-->
-                            org.apache.commons.dbcp,
-                            scala,
-                            scala.util,
-                            scala.util.matching,
-                            scala.collection,
-                            scala.collection.generic,
-                            scala.collection.immutable,
-                            scala.collection.mutable,
-                            scala.concurrent,
-                            scala.concurrent.duration,
-                            scala.reflect,
-                            scala.reflect.api,
-                            scala.util.control,
-                            scala.runtime,
-                            scalaz,
-                            scalaz.syntax,
-                            scalaz.std,
-                            scalaz.syntax.std
-                        </Import-Package>
+                        <!--<Import-Package>-->
+                            <!--javax.sql,-->
+                            <!--ca.uhn.hl7v2,-->
+                            <!--ca.uhn.hl7v2.model,-->
+                            <!--ca.uhn.hl7v2.util,-->
+                            <!--com.tactix4.t4openerp.connector,-->
+                            <!--com.tactix4.t4openerp.connector.domain,-->
+                            <!--com.tactix4.t4openerp.connector.transport,-->
+                            <!--com.typesafe.scalalogging.slf4j,-->
+                            <!--com.typesafe.scalalogging,-->
+                            <!--com.typesafe.config,-->
+                            <!--org.slf4j,-->
+                            <!--org.apache.camel,-->
+                            <!--org.apache.camel.builder,-->
+                            <!--org.apache.camel.component.hl7,-->
+                            <!--org.apache.camel.component.metrics.routepolicy,-->
+                            <!--org.apache.camel.component.redis.processor.idempotent,-->
+                            <!--org.apache.camel.model,-->
+                            <!--org.apache.camel.management,-->
+                            <!--org.apache.camel.model.dataformat,-->
+                            <!--org.apache.camel.scala,-->
+                            <!--org.apache.camel.scala.dsl,-->
+                            <!--org.apache.camel.scala.dsl.builder,-->
+                            <!--org.apache.camel.component.sql,-->
+                            <!--org.apache.camel.processor.idempotent.jdbc,-->
+                            <!--org.apache.camel.processor.aggregate,-->
+                            <!--org.apache.activemq,-->
+                            <!--org.apache.activemq.camel.component,-->
+                            <!--org.apache.activemq.pool,-->
+                            <!--org.apache.camel.component.jms,-->
+                            <!--org.postgresql,-->
+                            <!--org.joda.time,-->
+                            <!--org.joda.time.format,-->
+                            <!--org.springframework.aop.framework,-->
+                            <!--org.springframework.data.redis.serializer,-->
+                            <!--org.springframework.data.redis.connection.jedis,-->
+                            <!--org.springframework.data.redis.core,-->
+                            <!--org.springframework.beans.factory.config,-->
+                            <!--&lt;!&ndash;org.springframework.scala.beans.propertyeditors,&ndash;&gt;-->
+                            <!--org.apache.commons.pool2,-->
+                            <!--org.apache.commons.pool2.impl,-->
+                            <!--org.apache.commons.dbcp,-->
+                            <!--scala,-->
+                            <!--scala.util,-->
+                            <!--scala.util.matching,-->
+                            <!--scala.collection,-->
+                            <!--scala.collection.generic,-->
+                            <!--scala.collection.immutable,-->
+                            <!--scala.collection.mutable,-->
+                            <!--scala.concurrent,-->
+                            <!--scala.concurrent.duration,-->
+                            <!--scala.reflect,-->
+                            <!--scala.reflect.api,-->
+                            <!--scala.util.control,-->
+                            <!--scala.runtime,-->
+                            <!--scalaz,-->
+                            <!--scalaz.syntax,-->
+                            <!--scalaz.std,-->
+                            <!--scalaz.syntax.std-->
+                        <!--</Import-Package>-->
                         <Export-Package>
                             com.neovahealth.nhADT,
                             com.neovahealth.nhADT.utils,
