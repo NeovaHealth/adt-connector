@@ -13,7 +13,7 @@
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
           p:location="file:etc/nh/com.neovahealth.nhADT.properties"/>
      <!---->
-    <bean id="metricsRoutePolicyFactory" class="org.apache.camel.component.metrics.routepolicy.MetricsRoutePolicyFactory"/>
+
     <!--HL7 Listener-->
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
     <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
@@ -35,9 +35,9 @@
         <property name="dataSource" ref="dataSource"/>
     </bean>
 
-    <!--<bean id="messageIdRepo" class="org.apache.camel.component.redis.processor.idempotent.RedisIdempotentRepository" >-->
-        <!--<constructor-arg value="IdempotentRep"/>-->
-    <!--</bean>-->
+    <bean id="messageIdRepo" class="org.apache.camel.component.redis.processor.idempotent.RedisIdempotentRepository" >
+        <constructor-arg value="IdempotentRep"/>
+    </bean>
 
     <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}"/>
 

@@ -62,13 +62,13 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
     unmarshal(hl7)
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
       -->(setBasicHeaders)
-      multicast.parallelProcessing.streaming.stopOnException {
+      multicast.parallel.streaming.stopOnException {
         -->(detectDuplicates)
         -->(detectUnsupportedMsg)
         -->(detectUnsupportedWards)
       }
       -->(setExtraHeaders)
-      multicast.parallelProcessing.streaming.stopOnException {
+      multicast.parallel.streaming.stopOnException {
         -->(detectIdConflict)
         -->(detectVisitConflict)
         -->(detectHistoricalMsg)
@@ -82,6 +82,10 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
   detectHistoricalMsg ==> {
     when(implicit e => msgType(e) != "A03" && hasHeader("dischargeDate")) {
+
+      process(e => {
+        println("here")
+      })
       throwException(new ADTHistoricalMessageException("Historical message detected"))
     }
   } routeId "Detect Historical Message"
@@ -214,7 +218,6 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
           //update the visitId header
           val visitName = getHeader("visitName",e)
           setHeaderValue("visitId", visitName.flatMap(getVisit))
-          logger.info("visitId now is: " + visitExists(e) )
         }))
       }
       //otherwise there is no visit information
