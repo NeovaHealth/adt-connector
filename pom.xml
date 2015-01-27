@@ -318,9 +318,13 @@
                             <!--org.springframework.scala.beans.propertyeditors,-->
                             org.apache.commons.dbcp,
                             scala,
+                            scala.io,
                             scala.util,
                             scala.util.matching,
+                            scala.util.parsing.combinator,
                             scala.collection,
+                            scala.collection.parallel,
+                            scala.collection.parallel.immutable,
                             scala.collection.generic,
                             scala.collection.immutable,
                             scala.collection.mutable,
@@ -338,7 +342,8 @@
                         <Export-Package>
                             com.neovahealth.nhADT,
                             com.neovahealth.nhADT.utils,
-                            com.neovahealth.nhADT.exceptions
+                            com.neovahealth.nhADT.exceptions,
+                            com.neovahealth.nhADT.rules
                         </Export-Package>
 					</instructions>
 				</configuration>
