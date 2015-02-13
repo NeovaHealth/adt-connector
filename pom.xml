@@ -16,7 +16,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!--dependency versions -->
-        <camel-version>2.13.2</camel-version>
+        <camel-version>2.13.3</camel-version>
         <scala-version>2.10.4</scala-version>
         <commons-dbcp-version>1.4</commons-dbcp-version>
         <hapi-version>2.1</hapi-version>
@@ -91,7 +91,7 @@
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>2.6.0</version>
+            <version>2.1.0</version>
         </dependency>
         <!--<dependency>-->
             <!--<groupId>org.apache.commons</groupId>-->
@@ -149,18 +149,28 @@
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
+            <artifactId>slf4j-simple</artifactId>
             <version>1.7.7</version>
         </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.slf4j</groupId>-->
+            <!--<artifactId>slf4j-log4j12</artifactId>-->
+            <!--<version>1.7.7</version>-->
+        <!--</dependency>-->
+        <!--<dependency>-->
+            <!--<groupId>log4j</groupId>-->
+            <!--<artifactId>log4j</artifactId>-->
+            <!--<version>1.2.17</version>-->
+        <!--</dependency>-->
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>3.2.8.RELEASE</version>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
-            <version>3.1.4.RELEASE</version>
+            <version>3.2.8.RELEASE</version>
             <scope>test</scope>
         </dependency>
         <!--<dependency>-->
@@ -168,6 +178,11 @@
             <!--<artifactIhd>spring-scala_2.11</artifactId>-->
             <!--<version>1.0.0.RC1</version>-->
          <!--</dependency>-->
+        <dependency>
+            <groupId>org.springframework.scala</groupId>
+            <artifactId>spring-scala_2.10</artifactId>
+            <version>1.0.0.RC1</version>
+         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
@@ -181,7 +196,7 @@
         <dependency>
             <groupId>org.springframework.data</groupId>
             <artifactId>spring-data-redis</artifactId>
-            <version>1.1.1.RELEASE</version>
+            <version>${spring-data-redis-version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.activemq</groupId>
@@ -283,6 +298,8 @@
                             ca.uhn.hl7v2,
                             ca.uhn.hl7v2.model,
                             ca.uhn.hl7v2.util,
+                            ca.uhn.hl7v2.parser,
+                            ca.uhn.hl7v2.util.idgenerator,
                             com.tactix4.t4openerp.connector,
                             com.tactix4.t4openerp.connector.domain,
                             com.tactix4.t4openerp.connector.transport,
@@ -318,13 +335,9 @@
                             <!--org.springframework.scala.beans.propertyeditors,-->
                             org.apache.commons.dbcp,
                             scala,
-                            scala.io,
                             scala.util,
                             scala.util.matching,
-                            scala.util.parsing.combinator,
                             scala.collection,
-                            scala.collection.parallel,
-                            scala.collection.parallel.immutable,
                             scala.collection.generic,
                             scala.collection.immutable,
                             scala.collection.mutable,
@@ -342,8 +355,7 @@
                         <Export-Package>
                             com.neovahealth.nhADT,
                             com.neovahealth.nhADT.utils,
-                            com.neovahealth.nhADT.exceptions,
-                            com.neovahealth.nhADT.rules
+                            com.neovahealth.nhADT.exceptions
                         </Export-Package>
 					</instructions>
 				</configuration>

@@ -13,23 +13,23 @@ import scala.concurrent.Await
  */
 trait EObsQueries extends LazyLogging {
 
-  val connector:OESession
+  val session:OESession
   val timeOutMillis: Long = ConfigHelper.timeOutMillis
 
   def getPatientByHospitalNumber(hospitalNumber: String): Option[Int] =
-    Await.result(connector.search("t4clinical.patient", "other_identifier" === hospitalNumber).run, timeOutMillis millis).fold(
+    Await.result(session.search("t4clinical.patient", "other_identifier" === hospitalNumber).run, timeOutMillis millis).fold(
       message => {logger.error(message);None},
       ids =>  ids.headOption
     )
 
   def getPatientByNHSNumber(nhsNumber: String): Option[Int] =
-    Await.result(connector.search("t4clinical.patient", "patient_identifier" === nhsNumber).run, timeOutMillis millis).fold(
+    Await.result(session.search("t4clinical.patient", "patient_identifier" === nhsNumber).run, timeOutMillis millis).fold(
       message => {logger.error(message);None},
       ids => ids.headOption
     )
 
   def getPatientByVisitId(vid: Int): Option[Int] = {
-    Await.result(connector.read("t4clinical.patient.visit", List(vid), List("patient_id")).run, timeOutMillis millis).fold(
+    Await.result(session.read("t4clinical.patient.visit", List(vid), List("patient_id")).run, timeOutMillis millis).fold(
       message => {logger.error(message); None},
       (ids: List[Map[String, OEType]]) => for {
         h  <- ids.headOption
@@ -42,7 +42,7 @@ trait EObsQueries extends LazyLogging {
   }
 
   def getVisit(visitId: String): Option[Int] =
-    Await.result(connector.search("t4clinical.patient.visit", "name" === visitId).run, timeOutMillis millis).fold(
+    Await.result(session.search("t4clinical.patient.visit", "name" === visitId).run, timeOutMillis millis).fold(
       message => {logger.error(message); None},
       ids => ids.headOption
     )

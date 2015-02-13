@@ -30,8 +30,7 @@
     </camel:camelContext>
 
 
-    <camel:endpoint id="activemq-in" uri="direct:in"/>
-
+    <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=5"/>
   <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
     <camel:endpoint id="fromRedis" uri="spring-redis://localhost:6379?redisTemplate=#redisTemplate"/>
 
@@ -49,5 +48,30 @@
           p:valueSerializer-ref="stringRedisSerializer"
           p:hashKeySerializer-ref="stringRedisSerializer"/>
 
+<!-- Jms/ActiveMQ -->
+    <bean id="jmsConnectionFactory"
+          class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="vm://amq-broker" />
 
+    </bean>
+
+    <bean id="pooledConnectionFactory"
+          class="org.apache.activemq.pool.PooledConnectionFactory" init-method="start" destroy-method="stop">
+        <property name="maxConnections" value="8" />
+        <property name="connectionFactory" ref="jmsConnectionFactory" />
+    </bean>
+
+    <bean id="jmsConfig"
+          class="org.apache.camel.component.jms.JmsConfiguration">
+        <property name="connectionFactory" ref="pooledConnectionFactory"/>
+        <property name="concurrentConsumers" value="10"/>
+    </bean>
+
+    <!---->
+    <!-- create a Camel ActiveMQ component to use, using the Spring bean style -->
+    <!-- we use the vm protocol to communicate intra-jvm which is much faster than tcp -->
+    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+        <property name="configuration" ref="jmsConfig"/>
+        <property name="brokerURL" value="vm://amq-broker"/>
+    </bean>
 </beans>

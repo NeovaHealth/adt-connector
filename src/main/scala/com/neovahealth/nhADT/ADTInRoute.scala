@@ -1,7 +1,9 @@
 package com.neovahealth.nhADT
 
+import ca.uhn.hl7v2.DefaultHapiContext
 import ca.uhn.hl7v2.model.Message
 import ca.uhn.hl7v2.util.Terser
+import ca.uhn.hl7v2.util.idgenerator.InMemoryIDGenerator
 import com.neovahealth.nhADT.exceptions.ADTExceptions
 import com.neovahealth.nhADT.utils.{Action, ConfigHelper}
 import com.tactix4.t4openerp.connector.OEConnector
@@ -12,19 +14,18 @@ import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import org.apache.camel.scala.dsl.builder.RouteBuilder
 import org.apache.camel.{Exchange, LoggingLevel}
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scalaz.Scalaz._
+import scala.language.implicitConversions
 
 
 class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging {
 
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+
   implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
 
-  val unknownPatientAction: Action.Value = ConfigHelper.unknownPatientAction
-  val unknownVisitAction: Action.Value = ConfigHelper.unknownVisitAction
-
-
-  val connector = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
+  val session = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
     .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
 
   val updateVisitRoute = "direct:updateOrCreateVisit"
@@ -46,7 +47,6 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   val A31Route = "direct:A31"
   val A05Route = "direct:A05"
   val A28Route = "direct:A28"
-
   val A01Route = "direct:A01"
   val A02Route = "direct:A02"
   val A03Route = "direct:A03"
@@ -55,11 +55,24 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  from("hl7listener") --> "activemq-in" routeId "Listener to activemq"
+  val ctx = new DefaultHapiContext()
+  //the default FileBased ID Generator starts failing with multiple threads
+  ctx.getParserConfiguration().setIdGenerator(new InMemoryIDGenerator())
 
+  from("hl7listener")
+    .setHeader("JMSXGroupID", e => ~getHospitalNumber(new Terser(e.in[Message])))
+    .wireTap("activemq-in")
+    .process(e => {
+      val m = e.in[Message]
+      m.setParser(ctx.getPipeParser)
+      e.in = m
+    })
+    .transform(_.in[Message].generateACK())
+    .routeId("Listener to activemq")
 
-  "activemq-in" ==> {
+  from("activemq-in") ==> {
     unmarshal(hl7)
+    log(LoggingLevel.INFO, "processing ${in.header.CamelHL7TriggerEvent} for ${in.header.JMSXGroupID}")
     idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
       -->(setBasicHeaders)
       multicast.parallel.streaming.stopOnException {
@@ -75,17 +88,11 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
       }
       bean(new RoutingSlipBean())
       -->(msgHistory)
-      transform(_.in[Message].generateACK())
-      marshal(hl7)
     }
   } routeId "Main Route"
 
   detectHistoricalMsg ==> {
     when(implicit e => msgType(e) != "A03" && hasHeader("dischargeDate")) {
-
-      process(e => {
-        println("here")
-      })
       throwException(new ADTHistoricalMessageException("Historical message detected"))
     }
   } routeId "Detect Historical Message"
@@ -95,7 +102,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   } routeId "Detect Duplicates"
 
   detectUnsupportedMsg ==> {
-    when(e => !(ConfigHelper.supportedMsgTypes contains e.in(triggerEventHeader).toString)) throwException new ADTUnsupportedMessageException("Unsupported msg type")
+    when(e => !(ConfigHelper.supportedMsgTypes contains e.in("CamelHL7TriggerEvent").toString)) throwException new ADTUnsupportedMessageException("Unsupported msg type")
   } routeId "Detect Unsupported Msg"
 
   detectUnsupportedWards ==> {
@@ -158,11 +165,8 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
     })
   } routeId "Set Extra Headers"
 
-
-
-
   def handleUnknownVisit(createAction: Exchange => Unit) = (e: Exchange) => {
-    unknownVisitAction match {
+    ConfigHelper.unknownVisitAction match {
       case Action.IGNORE => logger.warn("Visit doesn't exist - ignoring")
       case Action.ERROR  => throw new ADTUnknownVisitException("Unknown visit")
       case Action.CREATE => createAction(e)
@@ -170,12 +174,13 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   }
 
   def handleUnknownPatient(createAction: Exchange => Unit) = (e: Exchange) => {
-    unknownPatientAction match {
+    ConfigHelper.unknownPatientAction match {
       case Action.IGNORE => logger.warn("Patient doesn't exist - ignoring")
       case Action.ERROR  => throw new ADTUnknownVisitException("Unknown patient")
       case Action.CREATE => createAction(e)
     }
   }
+
   from(persistTimestamp) ==> {
     when(e => hasHeader("timestamp")(e)) {
       setHeader(RedisConstants.KEY, simple("${header.visitNameString}"))

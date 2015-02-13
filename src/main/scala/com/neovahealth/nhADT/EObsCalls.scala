@@ -24,8 +24,6 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
   def hasHeader(name:String)(implicit e:Exchange) : Boolean = getHeader[Any](name,e).isDefined
   def setHeaderValue(name:String, o:Any)(implicit e:Exchange) = e.getIn.setHeader(name,o)
 
-  val triggerEventHeader = "CamelHL7TriggerEvent"
-
   def getMapFromFields(m:List[String])(implicit t:Terser): Map[String, String] =
     m.map(f => getMessageValue(f).map(v => f -> v)).flatten.toMap
 
@@ -42,7 +40,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
   def isSupportedWard(e:Exchange): Boolean = getWardIdentifier(getTerser(e)).fold(true)(w =>ConfigHelper.wards.exists(_.findFirstIn(w).isDefined))
 
   def msgType(e:Exchange) = {
-    e.getIn.getHeader(triggerEventHeader, "", classOf[String])
+    e.getIn.getHeader("CamelHL7TriggerEvent", "", classOf[String])
   }
 
   def getTerser(e:Exchange):Terser = e.getIn.getHeader("terser", classOf[Terser])
@@ -67,7 +65,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val ohn = getOldHospitalNumber.toSuccess("Could not locate old hospital number").toValidationNel
     waitAndErr((hn |@| ohn)(
-      connector.callMethod("t4clinical.patient", "patientMerge", _, _)
+      session.callMethod("t4clinical.patient", "patientMerge", _, _)
     ))
   }
 
@@ -80,7 +78,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     waitAndErr((hn |@| wi |@| bn)((i,w,b)  => {
       val args: List[OEType] = List(i, w)
       val bed:Option[List[OEDictionary]] = b.map(z => List(OEDictionary("bed" -> OEString(z))))
-      connector.callMethod("t4clinical.patient", "patientTransfer", (args ++ ~bed): _*)
+      session.callMethod("t4clinical.patient", "patientTransfer", (args ++ ~bed): _*)
     }
     ))
   }
@@ -94,7 +92,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     waitAndErr((hn |@| wi |@| bn)((i, w, b) => {
       val args: List[OEType] = List(i, w)
       val bed: Option[List[OEDictionary]] = b.map(z => List(OEDictionary("bed" -> OEString(z))))
-      connector.callMethod("t4clinical.patient", "cancelTransfer", (args ++ ~bed): _*)
+      session.callMethod("t4clinical.patient", "cancelTransfer", (args ++ ~bed): _*)
     }))
   }
 
@@ -108,7 +106,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val om = getMapFromFields(ConfigHelper.optionalVisitFields).successNel
 
     waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)((i, w, v, vs, o) => {
-      connector.callMethod("t4clinical.patient.visit", "visitNew", i, w, v, vs, OEDictionary(o.mapValues(OEString)))
+      session.callMethod("t4clinical.patient.visit", "visitNew", i, w, v, vs, OEDictionary(o.mapValues(OEString)))
     }))
   }
 
@@ -118,7 +116,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val om = getMapFromFields(ConfigHelper.optionalPatientFields).successNel
     waitAndErr((hn |@| om)( (h,o) => {
-      connector.callMethod("t4clinical.patient", "patientUpdate", h, OEDictionary(o.mapValues(OEString)))
+      session.callMethod("t4clinical.patient", "patientUpdate", h, OEDictionary(o.mapValues(OEString)))
     }))
   }
 
@@ -127,14 +125,14 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     implicit val t = getTerser(e)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val dd = (getMessageValue("discharge_date") | new DateTime().toString(toDateTimeFormat)).successNel
-    waitAndErr((hn |@| dd)( connector.callMethod("t4clinical.patient", "patientDischarge", _,_)))
+    waitAndErr((hn |@| dd)( session.callMethod("t4clinical.patient", "patientDischarge", _,_)))
   }
 
   def cancelPatientDischarge(e: Exchange) = {
     logger.info("calling cancelPatientDischarge")
     implicit val t = getTerser(e)
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    waitAndErr(vi.map(connector.callMethod("t4clinical.patient.visit","cancelDischarge", _)))
+    waitAndErr(vi.map(session.callMethod("t4clinical.patient.visit","cancelDischarge", _)))
   }
   def patientNew(e: Exchange) = {
     logger.info("calling patientNew")
@@ -142,7 +140,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val om = getMapFromFields(ConfigHelper.optionalPatientFields).successNel
     waitAndErr((hn |@| om)((h,o) => {
-      connector.callMethod("t4clinical.patient", "patientNew", h, OEDictionary(o.mapValues(OEString)))
+      session.callMethod("t4clinical.patient", "patientNew", h, OEDictionary(o.mapValues(OEString)))
     }))
   }
 
@@ -151,7 +149,7 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     logger.info("calling cancelVisitNew")
     implicit val t = getTerser(e)
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    waitAndErr(vi.map(connector.callMethod("t4clinical.patient.visit", "cancelVisit", _)))
+    waitAndErr(vi.map(session.callMethod("t4clinical.patient.visit", "cancelVisit", _)))
   }
 
   def visitUpdate(e: Exchange) = {
@@ -164,6 +162,6 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val om = getMapFromFields(ConfigHelper.optionalVisitFields).successNel
 
     waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)((h,w,v,vs,o) =>
-     connector.callMethod("t4clinical.patient.visit", "visitUpdate", h, w, v,vs, OEDictionary(o.mapValues(OEString)))))
+     session.callMethod("t4clinical.patient.visit", "visitUpdate", h, w, v,vs, OEDictionary(o.mapValues(OEString)))))
   }
 }
