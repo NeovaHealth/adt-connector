@@ -56,35 +56,35 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
 
   val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
 
-  @Test
-  def atestA28(){
-    check {
-      forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
-        (msgs.exists(_.msh.msgType == "A08") && msgs.exists(m => m.msh.msgType == "A02") )==> {
-
-          println("The full visit: \n")
-          msgs.map(_.msh.msgType + " ") foreach print
-          println("")
-
-          msgs.foreach(msg =>{
-            println("Sending msg: " + msg.toString.replace('\r','\n'))
-            val result = template.requestBody(URI, msg.toString,classOf[String])
-            assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
-            if(msg.msh.msgType == "A08") {
-               val prev = msgs.takeWhile(_ != msg)
-               prev.reverse.find(m => m.msh.msgType == "A01" || m.msh.msgType == "A02" || m.msh.msgType == "A03").map(m => {
-                 if(msg.evn.evnOccured == m.evn.evnOccured){
-                   checkVisit("A08", msg.pv1)
-                 }
-               })
-            }
-          })
-          true
-
-        }
-      }
-    }
-  }
+//  @Test
+//  def atestA28(){
+//    check {
+//      forAllNoShrink(createVisit) { (msgs: List[ADTMsg]) =>
+//        (msgs.exists(_.msh.msgType == "A08") && msgs.exists(m => m.msh.msgType == "A02") )==> {
+//
+//          println("The full visit: \n")
+//          msgs.map(_.msh.msgType + " ") foreach print
+//          println("")
+//
+//          msgs.foreach(msg =>{
+//            println("Sending msg: " + msg.toString.replace('\r','\n'))
+//            val result = template.requestBody(URI, msg.toString,classOf[String])
+//            assert(result contains s"MSA|AA|${msg.msh.id}", s"Result does not look like a success: $result")
+//            if(msg.msh.msgType == "A08") {
+//               val prev = msgs.takeWhile(_ != msg)
+//               prev.reverse.find(m => m.msh.msgType == "A01" || m.msh.msgType == "A02" || m.msh.msgType == "A03").map(m => {
+//                 if(msg.evn.evnOccured == m.evn.evnOccured){
+//                   checkVisit("A08", msg.pv1)
+//                 }
+//               })
+//            }
+//          })
+//          true
+//
+//        }
+//      }
+//    }
+//  }
 
  def checkVisit(msgType:String, pv1:PV1Segment):Unit = {
     val response = Await.result(tsession.searchAndRead("t4clinical.patient.visit", "name" === pv1.visitID, List("pos_location_parent", "pos_location","consulting_doctor_ids", "visit_start","visit_end")).run,5 seconds)

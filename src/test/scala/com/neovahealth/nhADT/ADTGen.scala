@@ -4,18 +4,191 @@ import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import org.scalacheck.Gen
 
+import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.Random
 import scalaz.Scalaz._
 import scalaz._
 
+
 /**
  * Created by max on 03/06/14.
  */
+
+object adtGen extends ADTGen
+
 trait ADTGen extends VisitGen{
 
-  case class Patient(hospitalNo:String,nhsNumber:Option[String],givenName: Option[String], middleNames: Option[String], familyName: Option[String], title: Option[String], mothersMaidenName: Option[String], dob: Option[DateTime], sex: Option[String], streetAddress: Option[String], city: Option[String], state: Option[String], zip: Option[String], country: Option[String], phone: Option[String]){
+  object Status extends Enumeration{
+    type Status = Value
+    val Unknown,Known,Admitted,Transferred,Discharged,Finished = Value
   }
+
+  case class VisitState(event:Event,pv:Option[PV1Segment], pid:PIDSegment, status:Status.Value)
+
+  val eventLens: Lens[VisitState,Event] = Lens.lensu(
+    get = (_:VisitState).event,
+    set = (vs:VisitState, e:Event) => vs.copy(event = e)
+
+  )
+  val stateLens: Lens[VisitState,Status.Value] = Lens.lensu(
+    get =  (_:VisitState).status,
+    set =  (vs:VisitState,s:Status.Value) => vs.copy(status = s)
+  )
+
+  val consultingDoctorLens: Lens[Option[PV1Segment], Option[Doctor]] = Lens.lensu(
+    get = (_:Option[PV1Segment]).flatMap(_.consultingDoctor),
+    set = (pv1:Option[PV1Segment], d: Option[Doctor]) => pv1.map(_.copy(consultingDoctor = d))
+  )
+
+  val admitDatePV1Lens: Lens[Option[PV1Segment], Option[DateTime]] = Lens.lensu(
+    get = (_: Option[PV1Segment]).flatMap(_.admitDate),
+    set = (pv1: Option[PV1Segment], a: Option[DateTime]) => pv1.map(_.copy(admitDate = a))
+  )
+  val dischargeDatePV1Lens: Lens[Option[PV1Segment], Option[DateTime]] = Lens.lensu(
+    get = (_: Option[PV1Segment]).flatMap(_.dischargeDate),
+    set = (pv1: Option[PV1Segment], dd: Option[DateTime]) => pv1.map(_.copy(dischargeDate = dd))
+  )
+  val wardCodePV1Lens:Lens[Option[PV1Segment], Option[String]] = Lens.lensu(
+    get = (_: Option[PV1Segment]).flatMap(_.wardCode),
+    set = (pv1: Option[PV1Segment], wc: Option[String]) => pv1.map(_.copy(wardCode = wc))
+  )
+
+  val wardNamePV1Lens: Lens[Option[PV1Segment], Option[String]] = Lens.lensu(
+    get = (_: Option[PV1Segment]).flatMap(_.wardName),
+    set = (pv1: Option[PV1Segment], wn: Option[String]) => pv1.map(_.copy(wardName = wn))
+  )
+
+  val pidVisitStateLens: Lens[VisitState, PIDSegment] = Lens.lensu(
+    get = (_:VisitState).pid,
+    set = (s:VisitState,p:PIDSegment) => s.copy(pid = p)
+  )
+
+  val pidPatientLens: Lens[PIDSegment, Patient] = Lens.lensu(
+    get = (_:PIDSegment).p,
+    set = (p:PIDSegment, pa:Patient) => p.copy(p = pa)
+  )
+
+  val patientFamilyNameLens: Lens[Patient, Option[String]] = Lens.lensu(
+    get = (_:Patient).familyName,
+    set = (p:Patient, n:Option[String]) => p.copy(familyName = n)
+  )
+  
+  val pv1VisitStateLens: Lens[VisitState, Option[PV1Segment]] = Lens.lensu(
+    get = (_:VisitState).pv,
+    set = (msg:VisitState, pv1:Option[PV1Segment]) => msg.copy(pv = pv1))
+
+  val eventOccuredLens: Lens[EVNSegment, Option[String]] = Lens.lensu(
+    get = (_:EVNSegment).evnOccured,
+    set = (evn:EVNSegment, s:Option[String]) => evn.copy(evnOccured = s)
+  )
+  val evnMsgLens: Lens[ADTMsg, EVNSegment] = Lens.lensu(
+    get = (_:ADTMsg).evn,
+    set = (msg:ADTMsg, e:EVNSegment) => msg.copy(evn = e)
+  )
+
+  val familyName = pidVisitStateLens >=> pidPatientLens >=> patientFamilyNameLens
+
+  val consultingDoctorL = pv1VisitStateLens >=> consultingDoctorLens
+
+  val eventOccured = evnMsgLens >=> eventOccuredLens
+
+  val admitDate = pv1VisitStateLens >=> admitDatePV1Lens
+
+  val wardCode = pv1VisitStateLens >=> wardCodePV1Lens
+
+  val wardName = pv1VisitStateLens >=> wardNamePV1Lens
+
+  val dischargeDate = pv1VisitStateLens >=> dischargeDatePV1Lens
+  
+  def exclude[A](n:A*)(implicit l:List[A]) : List[A] =  l.filter(a => ! (n contains a))
+
+  implicit val allEvents = Event.AllEvents
+
+  def nextEvent =  {
+    import Status._
+    for {
+      s <- get[VisitState].lift[Gen]
+      _ <- modify[VisitState](s => s.status match {
+        case Unknown => eventLens.set(s,CreatePatientEvent)
+        case Known => eventLens.set(s,Random.shuffle(List(AdmitEvent, UpdatePersonEvent)).headOption | NothingEvent)
+        case Admitted => eventLens.set(s,Random.shuffle(exclude(AdmitEvent, CancelDischargeEvent, CancelTransferEvent, CreatePatientEvent,NothingEvent)).headOption | NothingEvent)
+        case Transferred => eventLens.set(s,Random.shuffle(exclude(AdmitEvent, CancelDischargeEvent, CreatePatientEvent,NothingEvent)).headOption | NothingEvent)
+        case Discharged => eventLens.set(s,CancelDischargeEvent)
+        case Finished => eventLens.set(s,NothingEvent)
+      }).lift[Gen]
+    } yield ()
+  }
+
+
+  def nextState = {
+    for {
+      s <- get[VisitState].lift[Gen]
+      _ <- modify[VisitState](s => s.event match {
+        case CreatePatientEvent => stateLens.set(s,Status.Known)
+        case DischargeEvent => stateLens.set(s,Status.Discharged)
+        case AdmitEvent => stateLens.set(s,Status.Admitted)
+        case TransferEvent => stateLens.set(s,Status.Transferred)
+        case CancelAdmitEvent => stateLens.set(s,Status.Finished)
+        case CancelTransferEvent => stateLens.set(s,Status.Admitted)
+        case CancelDischargeEvent => stateLens.set(s,Status.Admitted)
+        case a => s
+      }).lift[Gen]
+    } yield ()
+  }
+
+
+  def addpv1: State[VisitState,VisitState]= {
+    for {
+      _ <- pv1VisitStateLens := PV1(DateTime.now.some,None).sample
+      s <- get
+    } yield s
+
+  }
+
+  def step =  for {
+      s <- get[VisitState].lift[Gen]
+      _ <- nextEvent
+      _ <- nextState
+      _ <- updatePV1
+      _ <- updatePID
+      n <- get[VisitState].lift[Gen]
+      m <- StateT[Gen,VisitState,ADTMsg](s => createMsg(s).map(s->_))
+    } yield m
+
+  def initState: Gen[VisitState] = for {
+      pid <- PID
+      pv1 <- PV1(None,None)
+      state <- Gen.const(AdmitEvent)
+      ss <- Gen.const(VisitState(state, None, pid,Status.Unknown))
+    } yield ss
+
+  def createVisit : Gen[List[ADTMsg]] = {
+    val list:Gen[List[ADTMsg]] = for {
+      ss <- initState
+      l <- Gen.choose(3,20)
+      x <- step.replicateM(l).eval(ss)
+    } yield x.takeWhile(_.msh.msgType != "XXX")
+
+
+    list.map(l => {
+      l.map(m => {
+        if(m.msh.msgType == "A08") {
+          //grab all msg previous to the a08 and shuffle them
+          val r = Random.shuffle(l.takeWhile(_ != m))
+            //find the first A01/02/03
+            .find(_.msh.msgType |>  List("A01","A02","A03").contains)
+            //set this msgs evnOccured to the found one
+            .map(s => eventOccured.set(m,s.evn.evnOccured))
+          r | m
+        }
+        else m
+      })
+    })
+  }
+
+  case class Patient(hospitalNo:String,nhsNumber:Option[String],givenName: Option[String], middleNames: Option[String], familyName: Option[String], title: Option[String], mothersMaidenName: Option[String], dob: Option[DateTime], sex: Option[String], streetAddress: Option[String], city: Option[String], state: Option[String], zip: Option[String], country: Option[String], phone: Option[String])
+
   case class Doctor(givenName: String, middleNames: String, familyName: String, title: String, id: String) {
     override val toString = s"$title $givenName $familyName".trim.replaceAll("  "," ")
   }
@@ -31,21 +204,18 @@ trait ADTGen extends VisitGen{
     override val toString:String = s"PID|1|^^^^PAS||${p.hospitalNo}^${~p.nhsNumber}|${~p.familyName}^${~p.givenName}^${~p.middleNames}^^${~p.title}|${~p.mothersMaidenName}|${~p.dob.map(_.toString(toDateTimeFormat))}|${~p.sex}|||${~p.streetAddress}^^${~p.city}^${~p.state}^${~p.zip}^${~p.country}^^^^^^||${~p.phone}|||||||||||N"
   }
 
-  case class PV1Segment(wardCode:String,bed:Option[Int],wardName:Option[String],consultingDoctor:Doctor,referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:Option[String],patientType:Option[String],visitID:String,admitDate:Option[DateTime],dischargeDate:Option[DateTime]){
+  case class PV1Segment(wardCode:Option[String],bed:Option[Int],wardName:Option[String],consultingDoctor:Option[Doctor],referringDoctor:Doctor,admittingDoctor:Doctor,hospitalService:Option[String],patientType:Option[String],visitID:String,admitDate:Option[DateTime],dischargeDate:Option[DateTime]){
     override def toString:String =
-    s"PV1|1|I|$wardCode^^${bed.map(_.toString) | ""}^^^^^^${~wardName}|11||||${referringDoctor.id}^${referringDoctor.familyName}^${referringDoctor.givenName}^${referringDoctor.middleNames}^^${referringDoctor.title}|" +
-      s"${consultingDoctor.id}^${consultingDoctor.familyName}^${consultingDoctor.givenName}^${consultingDoctor.middleNames}^^${consultingDoctor.title}|${~hospitalService}|||||||" +
+    s"PV1|1|I|${~wardCode}^^${bed.map(_.toString) | ""}^^^^^^${~wardName}|11||||${referringDoctor.id}^${referringDoctor.familyName}^${referringDoctor.givenName}^${referringDoctor.middleNames}^^${referringDoctor.title}|" +
+      s"${~consultingDoctor.map(_.id)}^${~consultingDoctor.map(_.familyName)}^${~consultingDoctor.map(_.givenName)}^${~consultingDoctor.map(_.middleNames)}^^${~consultingDoctor.map(_.title)}|${~hospitalService}|||||||" +
       s"${admittingDoctor.id}^${admittingDoctor.familyName}^${admittingDoctor.givenName}^${admittingDoctor.middleNames}^^${admittingDoctor.title}|${~patientType}|$visitID|||||||" +
       s"||||||||||||||||||${~admitDate.map(_.toString(toDateTimeFormat))}|${~dischargeDate.map(_.toString(toDateTimeFormat))}"
   }
 
-  case class ADTMsg(msh:MSHSegment,evn:EVNSegment,pid:PIDSegment,pv1:PV1Segment){
+  case class ADTMsg(msh:MSHSegment,evn:EVNSegment,pid:PIDSegment,pv1:Option[PV1Segment]){
     override def toString:String =
-    s"$msh\r$evn\r$pid\r$pv1"
+    s"$msh\r$evn\r$pid\r${~pv1.map(_.toString)}"
   }
-
-
-  case class VisitState(event:Event,pv:PV1Segment, pid:PIDSegment)
 
   val fromDateTimeFormat = DateTimeFormat.forPattern("MM/dd/yyyy")
   val toDateTimeFormat = DateTimeFormat.forPattern("yyyyMMddHHmmss")
@@ -57,218 +227,60 @@ trait ADTGen extends VisitGen{
   val hospitalServices = List("110", "160")
   val patientTypes = List("01")
 
-//  val wards = Map("WARD E8" -> "E8", "WARD E9" -> "E9")
-    val wards = Map("ELIZABETH FRY" -> "EFMB", "ELIZABETH FRY VIRTUAL WARD" -> "EFVW")
+  val wards = Map("WARD A" -> "A", "WARD B" -> "B")
 
-  def modifyPid(pid:PIDSegment):Gen[PIDSegment] = {
-    pid.copy(p = pid.p.copy(givenName = pid.p.givenName.reverse))
-  }
 
-  def modifyPv1(pv1:PV1Segment):Gen[PV1Segment] = {
+  val updatePID:StateT[Gen,VisitState,Unit] =
+  for {
+    _ <- StateT[Gen,VisitState,Unit](s => Gen.frequency(
+      (5, Gen.const(s -> ())),
+      (1, Gen.listOfN(10,Gen.alphaChar).map(n => familyName.set(s,Some(n.mkString)) -> ()))
+    ))
+  } yield ()
+
+  type PV1State[A] = StateT[Gen, PV1Segment, A]
+
+
+  val updatePV1:StateT[Gen,VisitState, Unit] =
     for {
-      np <- PV1(pv1.admitDate,pv1.dischargeDate)
-      cd <- Gen.frequency((5,pv1.consultingDoctor), (1, np.consultingDoctor))
-      wc <- Gen.frequency((5, pv1.wardCode),(1, np.wardCode))
-      a = wardCodePV1Lens.set(pv1,wc)
-      b = consultingDoctorLens.set(a,cd)
-    } yield b
-  }
+      _ <- StateT[Gen,VisitState, Unit](s => Gen.frequency(
+        (5,Gen.const(s -> ())),
+        (1, Gen.option(genDoctor).map((d:Option[Doctor]) => consultingDoctorL.set(s, d) -> ()))
 
-  
-
-  val consultingDoctorLens: Lens[PV1Segment, Doctor] = Lens.lensu(
-    get = (_:PV1Segment).consultingDoctor,
-    set = (pv1:PV1Segment, d: Doctor) => pv1.copy(consultingDoctor = d)
-  )
-
-  val admitDatePV1Lens: Lens[PV1Segment, Option[DateTime]] = Lens.lensu(
-    get = (_: PV1Segment).admitDate,
-    set = (pv1: PV1Segment, a: Option[DateTime]) => pv1.copy(admitDate = a)
-  )
-  val dischargeDatePV1Lens: Lens[PV1Segment, Option[DateTime]] = Lens.lensu(
-    get = (_: PV1Segment).dischargeDate,
-    set = (pv1: PV1Segment, dd: Option[DateTime]) => pv1.copy(dischargeDate = dd)
-  )
-  val wardCodePV1Lens: Lens[PV1Segment, String] = Lens.lensu(
-    get = (_: PV1Segment).wardCode,
-    set = (pv1: PV1Segment, wc: String) => pv1.copy(wardCode = wc)
-  )
-  val wardNamePV1Lens: Lens[PV1Segment, Option[String]] = Lens.lensu(
-    get = (_: PV1Segment).wardName,
-    set = (pv1: PV1Segment, wn: Option[String]) => pv1.copy(wardName = wn)
-  )
-
-  val pidVisitStateLens: Lens[VisitState, PIDSegment] = Lens.lensu(
-    get = (_:VisitState).pid,
-    set = (s:VisitState,p:PIDSegment) => s.copy(pid = p)
-  )
-  
-  val pv1VisitStateLens: Lens[VisitState, PV1Segment] = Lens.lensu(
-    get = (_:VisitState).pv,
-    set = (msg:VisitState, pv1:PV1Segment) => msg.copy(pv = pv1))
-
-  val eventOccuredLens: Lens[EVNSegment, Option[String]] = Lens.lensu(
-    get = (_:EVNSegment).evnOccured,
-    set = (evn:EVNSegment, s:Option[String]) => evn.copy(evnOccured = s)
-  )
-  val evnMsgLens: Lens[ADTMsg, EVNSegment] = Lens.lensu(
-    get = (_:ADTMsg).evn,
-    set = (msg:ADTMsg, e:EVNSegment) => msg.copy(evn = e)
-  )
-
-  val eventOccured = evnMsgLens >=> eventOccuredLens
-
-  val admitDate = pv1VisitStateLens >=> admitDatePV1Lens
-
-  val wardCode = pv1VisitStateLens >=> wardCodePV1Lens
-
-  val wardName = pv1VisitStateLens >=> wardNamePV1Lens
-
-  val dischargeDate = pv1VisitStateLens >=> dischargeDatePV1Lens
+      ))
+      _ <- StateT[Gen,VisitState,Unit](s => Gen.frequency(
+        (5, Gen.const(s -> ())),
+        (1, Gen.option(genWard).map((w:Option[String]) => wardCode.set(s,w) -> ()))
+      ))
+      _ <- StateT[Gen,VisitState,Unit](s =>
+        if(s.event == AdmitEvent && s.pv.isEmpty)
+          PV1(DateTime.now.some,None).map(p => pv1VisitStateLens.set(s,p.some) -> ())
+        else
+          s->())
+    } yield ()
 
 
-  val vs = StateT[Gen,VisitState, ADTMsg]{ s =>
-
-    val result = s.event match {
-
-      case NothingEvent => for {
-        msg <- genMsg("XX",s)
-      } yield s -> msg
-
-      case AdmitEvent => for {
-        ns <- Gen.const(admitDate.set(s, DateTime.now().some))
-        e <- visitGenerator.eval(Admitted)
-        msg <- genMsg("A01",ns)
-      } yield ns.copy(event = e) -> msg
-
-      case CancelAdmitEvent => for {
-        ns <- Gen.const(admitDate.set(s,None))
-        e <- visitGenerator.eval(VisitEnd)
-        msg <- genMsg("A11",ns)
-      } yield ns.copy(event = e) -> msg
-
-      case TransferEvent => for {
-        (wn,wc) <- Gen.oneOf(wards.toSeq)
-        ns <- Gen.const(wardCode.set(s,wc))
-        ns2 <- Gen.const(wardName.set(ns,wn.some))
-        e <- visitGenerator.eval(Admitted)
-        npv <- modifyPv1(ns2.pv)
-        ns3 <- Gen.const(pv1VisitStateLens.set(ns2,npv))
-        msg <- genMsg("A02", ns3)
-      } yield  ns3.copy(event = e) -> msg
-
-      case CancelTransferEvent => for {
-        (wn,wc) <- Gen.oneOf(wards.toSeq)
-        ns <- Gen.const(wardCode.set(s,wc))
-        ns2 <- Gen.const(wardName.set(ns,wn.some))
-        e <- visitGenerator.eval(Admitted)
-        npv <- modifyPv1(ns2.pv)
-        ns3 <- Gen.const(pv1VisitStateLens.set(ns2,npv))
-        msg <- genMsg("A12", ns3)
-      } yield  ns3.copy(event = e) -> msg
-
-      case DischargeEvent => for {
-        ns <- Gen.const(dischargeDate.set(s, DateTime.now().some))
-        msg <- genMsg("A03",ns)
-        e <- visitGenerator.eval(Discharged)
-      } yield ns.copy(event = e) -> msg
-
-      case CancelDischargeEvent => for{
-        ns <- Gen.const(dischargeDate.set(s, None))
-        npv <- modifyPv1(ns.pv)
-        ns2 <- Gen.const(pv1VisitStateLens.set(ns,npv))
-        e <- visitGenerator.eval(Admitted)
-        msg <- genMsg("A13",ns2)
-      } yield ns2.copy(event = e) -> msg
+  def genWard : Gen[String] = Gen.oneOf(wards.keys.toList).flatMap(wards(_))
 
 
-      case UpdatePersonEvent => for {
-        np  <- modifyPid(s.pid)
-        ns  <- Gen.const(pidVisitStateLens.set(s,np))
-        msg <- genMsg("A31", ns)
-        e   <- visitGenerator.eval(Admitted)
-      } yield ns.copy(event = e) -> msg
 
-      case UpdatePatientEvent => for {
-        np  <- modifyPid(s.pid)
-        npv <- modifyPv1(s.pv)
-        ns  <- Gen.const(pidVisitStateLens.set(s,np))
-        ns2 <- Gen.const(pv1VisitStateLens.set(s,npv))
-        msg <- genMsg("A08", ns2)
-        e   <- visitGenerator.eval(Admitted)
-      } yield ns2.copy(event = e) -> msg
 
-      case CreatePatientEvent => for {
-        np <- PID
-        ns <- Gen.const(pidVisitStateLens.set(s,np))
-        msg <- Gen.oneOf(genMsg("A05",ns),genMsg("A28",ns))
-        e <- visitGenerator.eval(PatientCreated)
-      } yield ns.copy(event = e) -> msg
-      //TODO this won't work
-
-      case MergePatientsEvent => for {
-        ns <- Gen.const(s)
-        msg <- genMsg("A40",ns)
-        e <- visitGenerator.eval(Admitted)
-      } yield ns.copy(event = e) -> msg
+  val createMsg: (VisitState) => Gen[ADTMsg] = { (s:VisitState) =>
+   val msgType = s.event match{
+      case NothingEvent => "XXX"
+      case AdmitEvent => "A01"
+      case DischargeEvent => "A03"
+      case TransferEvent =>"A02"
+      case CancelAdmitEvent => "A11"
+      case CancelDischargeEvent =>"A13"
+      case CancelTransferEvent => "A12"
+      case UpdatePatientEvent => "A08"
+      case UpdatePersonEvent => "A31"
+      case CreatePatientEvent => "A28"
+      case MergePatientsEvent => "A40"
     }
-    result
+    genMsg(msgType, s)
   }
-
-  val createVisit: Gen[List[ADTMsg]] = {
-    val list:Gen[List[ADTMsg]] = for {
-       pv1 <- PV1(None,None)
-       pid <- PID
-       state <- Gen.oneOf(AdmitEvent,CancelAdmitEvent,DischargeEvent,CancelDischargeEvent,MergePatientsEvent,UpdatePatientEvent,UpdatePersonEvent,TransferEvent,CancelTransferEvent)
-       ss <- Gen.const(VisitState(state, pv1, pid))
-       x <- vs.replicateM(10).eval(ss)
-     } yield x.filter(_.msh.msgType != "XX")
-
-    list.map(l => {
-      l.map(m => {
-        if(m.msh.msgType == "A08") {
-          //grab all msg previous to the a08 and shuffle them
-          val r = Random.shuffle(l.takeWhile(_ != m))
-            //find the first A01/02/03
-            .find(x => x.msh.msgType == "A01" || x.msh.msgType == "A02" || x.msh.msgType == "A03")
-             .map(s =>{
-              //set this msgs evnOccured to the found one
-              eventOccured.set(m,s.evn.evnOccured)
-          })
-          r.getOrElse(m)
-        }
-        else{
-          m
-        }
-      }).filter(_.msh.msgType != "A40")
-    })
-//    list.map(l => {
-//      //get all a08s
-//      val a08s = l.filter(_.msh.msgType == "A08")
-//      //get all A01/A02/A03
-//      val others = Random.shuffle(l.filter(m => m.msh.msgType == "A01" || m.msh.msgType == "A02" || m.msh.msgType == "A03"))
-//      //for each A08
-//      a08s.flatMap(aoe =>{
-//        val i = l.indexOf(aoe)
-//        //find an A01/A02/A03 that came before it
-//        val j = others.find(o => l.indexOf(o) < i)
-//        //and set the A08's eventOccured date to it
-//        j.map(o => eventOccured.set(aoe,o.evn.evnOccured))
-//      })
-//    })
-  }
-
-
-//  val VisitGen:Gen[List[ADTMsg]] ={
-//    for {
-//      msh <- MSH("","")
-//      evn <- EVN("","",None,None,None,Some(DateTime.now.toString(toDateTimeFormat)))
-//      pv1 <- PV1(None,None)
-//      pid <- PID
-//      msgL <- Gen.listOfN(10,Gen.const(ADTMsg(msh,evn,pid,pv1)))
-//    } yield msgL
-//  }
-
 
   def genMsg(msgType:String, s:VisitState):Gen[ADTMsg] = {
     for {
@@ -325,23 +337,20 @@ trait ADTGen extends VisitGen{
   } yield Doctor(gn,mn,fn,"",id)
 
   def PID: Gen[PIDSegment] = {
-    for {
-      p <- genPatient
-    } yield PIDSegment(p)
+     genPatient.flatMap(PIDSegment(_))
   }
 
   def PV1(admitDate: Option[DateTime], dischargeDate: Option[DateTime]): Gen[PV1Segment] = {
     for {
       wardName <- Gen.oneOf(wards.keys.toList)
-      bed <- Gen.option(Gen.choose(1, 24))
       wardCode = wards(wardName)
-      consultingDoctor <- genDoctor
+      consultingDoctor <- Gen.option(genDoctor)
       referringDoctor <- genDoctor
       admittingDoctor <- genDoctor
       hospitalService <- Gen.option(Gen.oneOf(hospitalServices))
       patientType <- Gen.option(Gen.oneOf(patientTypes))
       visitID <- Gen.listOfN(25, Gen.alphaNumChar).map(_.mkString)
-    } yield PV1Segment(wardCode,None,Some(wardName),consultingDoctor,referringDoctor,admittingDoctor,hospitalService,patientType,visitID,admitDate,dischargeDate)
+    } yield PV1Segment(Some(wardCode),None,Some(wardName),consultingDoctor,referringDoctor,admittingDoctor,hospitalService,patientType,visitID,admitDate,dischargeDate)
   }
 
 }

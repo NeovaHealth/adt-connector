@@ -11,9 +11,9 @@ object TestVars {
   def randomId = Random.shuffle("abcdefghijklmnopqrstuvwxyz1234567890".toList).take(Random.nextInt(30) + 6).mkString
 
   final val patientOneId = randomId
-  val PID1 = "PID|1|^^^^PAS||"+ patientOneId + "^\"\"^^RDD^HOSP~652 639 8685^NSTS01^^NHS^NHS~QD1320147-1^^^RDD^EVO|DUMMY^PATIENT HEIDI^^^Miss||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
+  val PID1 = "PID|1|^^^^PAS||"+ patientOneId + "^\"\"^^RDD^HOSP~652 639 8685^NSTS01^^NHS^NHS~QD1320147-1^^^RDD^EVO|DUMMY^Jones Jimbo^^^Mr||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
   final val patientTwoId = randomId
-  val PID2 = "PID|1|^^^^PAS||" + patientTwoId + "|DUMMY^PATIENT HEIDI^^^Ms||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
+  val PID2 = "PID|1|^^^^PAS||" + patientTwoId + "|Jones^Jimbo^^^Badman||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
 
   val WARD = "E8"
   val WARD2 = "E9"

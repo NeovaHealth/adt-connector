@@ -4,12 +4,12 @@
     <repository>mvn:org.apache.activemq/activemq-karaf/5.9.1/xml/features</repository>
     <feature name="Tactix4 ADT" version="0.1">
         <feature>spring</feature>
-        <feature version="2.13.2">camel-scala</feature>
-        <feature version="2.13.2">camel-hl7</feature>
-		<feature version="2.13.2">camel-mina2</feature>
-		<feature version="2.13.2">camel-spring</feature>
-        <feature version="2.13.2">camel-sql</feature>
-        <feature version="2.13.2">camel-spring-redis</feature>
+        <feature version="2.13.3">camel-scala</feature>
+        <feature version="2.13.3">camel-hl7</feature>
+		<feature version="2.13.3">camel-mina2</feature>
+		<feature version="2.13.3">camel-spring</feature>
+        <feature version="2.13.3">camel-sql</feature>
+        <feature version="2.13.3">camel-spring-redis</feature>
         <feature version="5.9.1">activemq-camel</feature>
         <bundle>mvn:org.springframework.data/spring-data-redis/1.1.1.RELEASE</bundle>
         <bundle>mvn:org.scalaz/scalaz-core_2.10/7.1.0</bundle>

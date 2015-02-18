@@ -70,7 +70,7 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
   @Test
   def fbtestA01{
     log.info("new visit for patientTwo")
-    sendMessageAndExpectError(TestVars.visitNewBroken, "Hospital number: None")
+    sendMessageAndExpectError(TestVars.visitNewBroken, "Could not locate hospital number")
   }
   @Test
   def fctestA08{
