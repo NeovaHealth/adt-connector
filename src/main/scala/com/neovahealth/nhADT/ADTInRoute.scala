@@ -136,16 +136,10 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   }
 
   from(persistTimestamp) ==> {
-    choice {
-      when(getTimestamp(_)) {
-        log(LoggingLevel.WARN, "IN PERSIST TIMESTAMP")
-        setHeader(RedisConstants.KEY, (e: Exchange) => ~getVisitName(e))
-        setHeader(RedisConstants.VALUE, (e: Exchange) => ~getTimestamp(e))
-        to("toRedis")
-      }
-      otherwise {
-        log(LoggingLevel.WARN, "NOT IN PERSIST TIMESTAMP")
-      }
+    when(getTimestamp(_)) {
+      setHeader(RedisConstants.KEY, (e: Exchange) => ~getVisitName(e))
+      setHeader(RedisConstants.VALUE, (e: Exchange) => ~getTimestamp(e))
+      to("toRedis")
     }
   } routeId "Timestamp to redis"
 

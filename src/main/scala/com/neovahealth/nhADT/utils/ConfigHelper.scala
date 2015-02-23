@@ -23,12 +23,15 @@ object ConfigHelper {
 
   lazy val optionalPatientFields: List[String] = config.getStringList("ADT_mappings.optional_patient_fields").toList
   lazy val optionalVisitFields: List[String] = config.getStringList("ADT_mappings.optional_visit_fields").toList
-
   val ruleFile = (allCatch  opt io.Source.fromFile("etc/nh/com.neovahealth.nhADT.rules") orElse {
       allCatch opt io.Source.fromFile("src/test/resources/com.neovahealth.nhADT.rules")
     } getOrElse(throw new Exception("Can not read rules config file"))).getLines.filterNot(_.startsWith("#")).filterNot(_.isEmpty).toList
 
   val config: Config = ConfigFactory.parseFile(f)
+
+  val consultingDoctorFields: List[String] = config.getStringList("ADT_mappings.consulting_doctor_fields").toList
+  val referringDoctorFields: List[String] = config.getStringList("ADT_mappings.referring_doctor_fields").toList
+
 
   val protocol: String = config.getString("openERP.protocol")
   val host: String = config.getString("openERP.hostname")

@@ -1,23 +1,39 @@
 package com.neovahealth.nhADT
 
+import scala.language.implicitConversions
+import scala.language.postfixOps
+import ca.uhn.hl7v2.util.Terser
 import com.neovahealth.nhADT.exceptions.ADTExceptions
 import com.neovahealth.nhADT.utils.ConfigHelper
 import com.tactix4.t4openerp.connector._
-import com.tactix4.t4openerp.connector.transport.{OEDictionary, OEString, OEType}
+import com.tactix4.t4openerp.connector.transport.{OEArray, OEDictionary, OEString, OEType}
 import com.typesafe.scalalogging.slf4j.LazyLogging
 import org.apache.camel.Exchange
 import org.joda.time.DateTime
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scalaz.Scalaz._
+import scala.reflect.ClassTag
 import scalaz._
+import Scalaz._
 
 /**
  * Created by max on 02/06/14.
  */
 trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with LazyLogging {
 
+  val Code = ".*(?i)Code$".r
+  val Title = ".*(?i)Prefix$".r
+  val Given = ".*(?i)GivenName".r
+  val Family = ".*(?i)FamilyName".r
+
+  def convertDoctorFields(x:Map[String,String]):Map[String,String] = x map {
+    case (Code(), c)  => "code" -> c
+    case (Given(), g) => "given_name" -> g
+    case (Family(), f)=> "family_name" -> f
+    case (Title(), t) => "title" -> t
+    case z => z
+  }
 
   def getMapFromFields(m: List[String])(implicit e: Exchange): Map[String, String] =
     m.map(f => getMessageValue(f).map(v => f -> v)).flatten.toMap
@@ -44,34 +60,24 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     logger.info("Calling patientMerge for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val ohn = getOldHospitalNumber.toSuccess("Could not locate old hospital number").toValidationNel
-    waitAndErr((hn |@| ohn)(
-      session.callMethod("t4clinical.patient", "patientMerge", _, _)
+    waitAndErr((hn |@| ohn)( (h,o) =>
+      session.callMethod("nh.eobs.api", "merge", h, "from_identifier" -> o)
     ))
   }
 
   def patientTransfer(implicit e: Exchange): Unit = {
     logger.info("Calling patientTransfer for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
-    val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
-    val bn = getBed.successNel[String]
-    waitAndErr((hn |@| wi |@| bn)((i, w, b) => {
-      val args: List[OEType] = List(i, w)
-      val bed: Option[List[OEDictionary]] = b.map(z => List(OEDictionary("bed" -> OEString(z))))
-      session.callMethod("t4clinical.patient", "patientTransfer", (args ++ ~bed): _*)
-    }
+    val wi = getWardIdentifier.toSuccess("Could not locate location identifier").toValidationNel
+    waitAndErr((hn |@| wi )( (h,l) =>
+      session.callMethod("nh.eobs.api", "transfer", h,"location" -> l)
     ))
   }
 
   def cancelPatientTransfer(implicit e: Exchange) = {
     logger.info("Calling cancelPatientTransfer for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
-    val wi = getWardIdentifier.toSuccess("Could not locate ward identifier").toValidationNel
-    val bn = getBed.successNel[String]
-    waitAndErr((hn |@| wi |@| bn)((i, w, b) => {
-      val args: List[OEType] = List(i, w)
-      val bed: Option[List[OEDictionary]] = b.map(z => List(OEDictionary("bed" -> OEString(z))))
-      session.callMethod("t4clinical.patient", "cancelTransfer", (args ++ ~bed): _*)
-    }))
+    waitAndErr(hn.map(session.callMethod("nh.eobs.api", "cancel_transfer", _)))
   }
 
   def visitNew(implicit e: Exchange): Unit = {
@@ -79,11 +85,12 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    val sdt = (getVisitStartDate | new DateTime().toString(toDateTimeFormat)).successNel
-    val om = getMapFromFields(ConfigHelper.optionalVisitFields).successNel
+    val sdt = (getMessageValue("visit_start_date_time") | new DateTime().toString(toDateTimeFormat)).successNel
+    val cd = (getMapFromFields(ConfigHelper.consultingDoctorFields) ++ Map("type" -> "c")).successNel
+    val rd = (getMapFromFields(ConfigHelper.referringDoctorFields) ++ Map("type" -> "r")).successNel
 
-    waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)((i, w, v, vs, o) => {
-      session.callMethod("t4clinical.patient.visit", "visitNew", i, w, v, vs, OEDictionary(o.mapValues(OEString)))
+    waitAndErr((hn |@| wi |@| vi |@| sdt |@| cd.map(convertDoctorFields) |@| rd.map(convertDoctorFields))((i, w, v, vs, c, r) => {
+      session.callMethod("nh.eobs.api", "admit", i, OEDictionary("location" -> w, "start_date" -> vs, "code" -> v, "doctors" -> OEArray(c,r)))
     }))
   }
 
@@ -91,38 +98,41 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     logger.info("Calling patientUpdate for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val om = getMapFromFields(ConfigHelper.optionalPatientFields).successNel
-    waitAndErr((hn |@| om)((h, o) => {
-      session.callMethod("t4clinical.patient", "patientUpdate", h, OEDictionary(o.mapValues(OEString)))
+    waitAndErr((hn |@| om)( (h,o) => {
+      session.callMethod("nh.eobs.api", "update", h, OEDictionary(o.mapValues(OEString)))
     }))
   }
 
   def patientDischarge(implicit e: Exchange) = {
     logger.info("Calling patientDischarge for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
-    val dd = (getDischargeDate | new DateTime().toString(toDateTimeFormat)).successNel
-    waitAndErr((hn |@| dd)(session.callMethod("t4clinical.patient", "patientDischarge", _, _)))
+    val dd = (getMessageValue("discharge_date") | new DateTime().toString(toDateTimeFormat)).successNel
+    waitAndErr((hn |@| dd)((i,d) =>
+      session.callMethod("nh.eobs.api", "discharge", i,"discharge_date" -> d)))
   }
 
   def cancelPatientDischarge(implicit e: Exchange) = {
-    logger.info("Calling cancelPatientDischarge for patient: " + ~getHospitalNumber)
-    val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    waitAndErr(vi.map(session.callMethod("t4clinical.patient.visit", "cancelDischarge", _)))
+    logger.info("calling cancelPatientDischarge for patient: " + ~getHospitalNumber)
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    waitAndErr(hn.map(session.callMethod("nh.eobs.api","cancel_discharge", _)))
   }
 
   def patientNew(implicit e: Exchange) = {
     logger.info("Calling patientNew for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val om = getMapFromFields(ConfigHelper.optionalPatientFields).successNel
-    waitAndErr((hn |@| om)((h, o) => {
-      session.callMethod("t4clinical.patient", "patientNew", h, OEDictionary(o.mapValues(OEString)))
+    waitAndErr((hn |@| om)((h,o) => {
+      session.callMethod("nh.eobs.api", "register", h, OEDictionary(o.mapValues(OEString)))
     }))
   }
 
 
   def cancelVisitNew(implicit e: Exchange) = {
-    logger.info("Calling cancelVisitNew for patient: " + ~getHospitalNumber)
-    val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    waitAndErr(vi.map(session.callMethod("t4clinical.patient.visit", "cancelVisit", _)))
+    logger.info("calling cancelVisitNew for patient: " + ~getHospitalNumber)
+    implicit val t = getTerser(e)
+    val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
+    waitAndErr(hn.map(session.callMethod("nh.eobs.api", "cancel_admit", _)))
   }
 
   def visitUpdate(implicit e: Exchange) = {
@@ -130,11 +140,13 @@ trait EObsCalls extends ADTProcessing with ADTExceptions with EObsQueries with L
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate ward identifier.").toValidationNel
     val vi = getVisitName.toSuccess("Could not locate visit identifier.").toValidationNel
-    val sdt = (getVisitStartDate | new DateTime().toString(toDateTimeFormat)).successNel
-    val om = getMapFromFields(ConfigHelper.optionalVisitFields).successNel
+    val sdt = (getMessageValue("visit_start_date_time") | new DateTime().toString(toDateTimeFormat)).successNel
+    val cd = (getMapFromFields(ConfigHelper.consultingDoctorFields) ++ Map("type" -> "c")).successNel
+    val rd = (getMapFromFields(ConfigHelper.referringDoctorFields) ++ Map("type" -> "r")).successNel
 
-    waitAndErr((hn |@| wi |@| vi |@| sdt |@| om)((h, w, v, vs, o) =>
-      session.callMethod("t4clinical.patient.visit", "visitUpdate", h, w, v, vs, OEDictionary(o.mapValues(OEString)))))
+    waitAndErr((hn |@| wi |@| vi |@| sdt |@| cd.map(convertDoctorFields) |@| rd.map(convertDoctorFields))((i, w, v, vs, c, r) => {
+      session.callMethod("nh.eobs.api", "admit_update", i, OEDictionary("location" -> w, "start_date" -> vs, "code" -> v, "doctors" -> OEArray(c, r)))
+    }))
 
   }
 }
