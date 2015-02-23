@@ -24,6 +24,10 @@ object ConfigHelper {
   lazy val optionalPatientFields: List[String] = config.getStringList("ADT_mappings.optional_patient_fields").toList
   lazy val optionalVisitFields: List[String] = config.getStringList("ADT_mappings.optional_visit_fields").toList
 
+  val ruleFile = (allCatch  opt io.Source.fromFile("etc/nh/com.neovahealth.nhADT.rules") orElse {
+      allCatch opt io.Source.fromFile("src/test/resources/com.neovahealth.nhADT.rules")
+    } getOrElse(throw new Exception("Can not read rules config file"))).getLines.filterNot(_.startsWith("#")).filterNot(_.isEmpty).toList
+
   val config: Config = ConfigFactory.parseFile(f)
 
   val protocol: String = config.getString("openERP.protocol")
@@ -32,7 +36,8 @@ object ConfigHelper {
   val username: String = config.getString("openERP.username")
   val password: String = config.getString("openERP.password")
   val database: String = config.getString("openERP.database")
-  val wards : List[Regex] = config.getStringList("misc.ward_names").map(_.r).toList
+  val autoAck:Boolean = config.getBoolean("ADT_mappings.auto_ack")
+//  val wards : List[Regex] = config.getStringList("misc.ward_names").map(_.r).toList
   val sexMap: Map[String, String] = config.getObject("ADT_mappings.sex_map").toMap.mapValues(_.unwrapped().asInstanceOf[String])
   val inputDateFormats: List[String] = config.getStringList("misc.valid_date_formats").toList
   val toDateFormat: String = config.getString("openERP.to_date_format")
@@ -53,7 +58,7 @@ object ConfigHelper {
     case fail => throw new Exception(s"Unknown option for misc.unknown_visit_action: $fail")
 
   }
-  val supportedMsgTypes = config.getStringList("misc.supported_msg_types").toSet
+//  val supportedMsgTypes = config.getStringList("misc.supported_msg_types").toSet
 
   val getRecipientLists: Map[String, List[String]] = config.getObject("Recipient_Lists").unwrapped().mapValues(_.asInstanceOf[util.ArrayList[String]].toList).toMap[String,List[String]]
 

@@ -2,31 +2,45 @@ package com.neovahealth.nhADT
 
 import ca.uhn.hl7v2.DefaultHapiContext
 import ca.uhn.hl7v2.model.Message
-import ca.uhn.hl7v2.util.Terser
 import ca.uhn.hl7v2.util.idgenerator.InMemoryIDGenerator
+
 import com.neovahealth.nhADT.exceptions.ADTExceptions
+import com.neovahealth.nhADT.rules.RuleParser
 import com.neovahealth.nhADT.utils.{Action, ConfigHelper}
 import com.tactix4.t4openerp.connector.OEConnector
+
 import com.typesafe.scalalogging.slf4j.LazyLogging
+
 import org.apache.camel.component.redis.RedisConstants
 import org.apache.camel.model.IdempotentConsumerDefinition
+import org.apache.camel.model.dataformat.HL7DataFormat
 import org.apache.camel.scala.dsl.SIdempotentConsumerDefinition
 import org.apache.camel.scala.dsl.builder.RouteBuilder
-import org.apache.camel.{Exchange, LoggingLevel}
+import org.apache.camel.{Exchange, LoggingLevel, Processor}
 
 import scala.concurrent.ExecutionContext
-import scalaz.Scalaz._
-import scala.language.implicitConversions
+import scala.util.control.Exception._
+
+import scalaz.std.string._
+import scalaz.syntax.monoid._
+import scalaz.syntax.std.option._
 
 
-class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging {
+class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling with ADTProcessing with ADTExceptions with LazyLogging with RuleParser{
 
   implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
   implicit def idem2Sidem(i:IdempotentConsumerDefinition):SIdempotentConsumerDefinition = SIdempotentConsumerDefinition(i)(this)
 
-  val session = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
+  lazy val session = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
     .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
+
+  val hl7:HL7DataFormat = new HL7DataFormat()
+  hl7.setValidate(false)
+
+  val ctx = new DefaultHapiContext()
+  //the default FileBased ID Generator starts failing with multiple threads
+  ctx.getParserConfiguration.setIdGenerator(new InMemoryIDGenerator())
 
   val updateVisitRoute = "direct:updateOrCreateVisit"
   val updatePatientRoute = "direct:updateOrCreatePatient"
@@ -36,12 +50,11 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   val detectUnsupportedWards = "direct:detectUnsupportedWards"
   val detectHistoricalMsg = "direct:detectHistoricalMsg"
   val setBasicHeaders = "direct:setBasicHeaders"
-  val setExtraHeaders = "direct:setExtraHeaders"
+  val setConflictHeaders = "direct:setConflictHeaders"
   val detectIdConflict = "direct:idConflictCheck"
   val detectVisitConflict = "direct:visitConflictCheck"
   val persistTimestamp = "direct:persistTimestamp"
   val getTimestamp = "direct:getVisitTimestamp"
-
 
   val A08Route = "direct:A08"
   val A31Route = "direct:A31"
@@ -55,115 +68,56 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   val A13Route = "direct:A13"
   val A40Route = "direct:A40"
 
-  val ctx = new DefaultHapiContext()
-  //the default FileBased ID Generator starts failing with multiple threads
-  ctx.getParserConfiguration().setIdGenerator(new InMemoryIDGenerator())
 
-  from("hl7listener")
-    .setHeader("JMSXGroupID", e => ~getHospitalNumber(new Terser(e.in[Message])))
-    .wireTap("activemq-in")
-    .process(e => {
+  val rules:List[Rule] = ConfigHelper.ruleFile.map(parse(line,_).get)
+
+  def evalExpression(z:Expr)(implicit e:Exchange): Boolean = z.value(getField(_))
+
+  lazy val processRules:Processor = new Processor {
+    override def process(e: Exchange): Unit = {
+      val result = allCatch opt rules.par.collect {
+        case (action, exec, fail) if action != evalExpression(exec)(e) => fail
+      }
+
+      result.map(r => {
+        if(r.nonEmpty) {
+          val c = r.reduce(_ |+| _)
+          throw new ADTRuleException(c.msg)
+        }
+      })
+    }
+  }
+
+  from("hl7listener") ==> {
+    unmarshal(hl7)
+    setHeader("JMSXGroupID", (e: Exchange) => ~getHospitalNumber(e))
+    log(LoggingLevel.INFO, "recieved ${in.header.CamelHL7TriggerEvent} for ${in.header.JMSXGroupID}")
+    process(e => {
       val m = e.in[Message]
       m.setParser(ctx.getPipeParser)
       e.in = m
     })
-    .transform(_.in[Message].generateACK())
-    .routeId("Listener to activemq")
+    choice {
+      when(_ => ConfigHelper.autoAck) {
+        inOnly {
+          to("activemq-in")
+        }
+        transform(_.in[Message].generateACK())
+      }
+      otherwise {
+        to("activemq-in")
+      }
+    }
+  }routeId "Listener to activemq"
 
   from("activemq-in") ==> {
-    unmarshal(hl7)
     log(LoggingLevel.INFO, "processing ${in.header.CamelHL7TriggerEvent} for ${in.header.JMSXGroupID}")
-    idempotentConsumer(_.in("CamelHL7MessageControl")).messageIdRepositoryRef("messageIdRepo").skipDuplicate(false).removeOnFailure(false){
-      -->(setBasicHeaders)
-      multicast.parallel.streaming.stopOnException {
-        -->(detectDuplicates)
-        -->(detectUnsupportedMsg)
-        -->(detectUnsupportedWards)
-      }
-      -->(setExtraHeaders)
-      multicast.parallel.streaming.stopOnException {
-        -->(detectIdConflict)
-        -->(detectVisitConflict)
-        -->(detectHistoricalMsg)
-      }
-      bean(new RoutingSlipBean())
-      -->(msgHistory)
-    }
+    process(processRules)
+    bean(RoutingSlipBean())
+    to(msgHistory)
+    transform(_.in[Message].generateACK())
   } routeId "Main Route"
 
-  detectHistoricalMsg ==> {
-    when(implicit e => msgType(e) != "A03" && hasHeader("dischargeDate")) {
-      throwException(new ADTHistoricalMessageException("Historical message detected"))
-    }
-  } routeId "Detect Historical Message"
-
-  detectDuplicates ==>{
-    when(_.getProperty(Exchange.DUPLICATE_MESSAGE)) throwException new ADTDuplicateMessageException("Duplicate message")
-  } routeId "Detect Duplicates"
-
-  detectUnsupportedMsg ==> {
-    when(e => !(ConfigHelper.supportedMsgTypes contains e.in("CamelHL7TriggerEvent").toString)) throwException new ADTUnsupportedMessageException("Unsupported msg type")
-  } routeId "Detect Unsupported Msg"
-
-  detectUnsupportedWards ==> {
-    when(e => !isSupportedWard(e)) throwException new ADTUnsupportedWardException("Unsupported ward")
-  } routeId "Detect Unsupported Wards"
-
-  detectIdConflict ==> {
-     when(e => {
-        val p1 = getPatientLinkedToHospitalNo(e)
-        val p2 = getPatientLinkedToNHSNo(e)
-        p1.isDefined && p2.isDefined && p1 != p2
-      }) {
-        process( e => throw new ADTConsistencyException("Hospital number: " +e.in("hospitalNo") + " is linked to patient: "+ e.in("patientLinkedToHospitalNo") +
-          " but NHS number: " + e.in("NHSNo") + "is linked to patient: " + e.in("patientLinkedToNHSNo")))
-      }
-  } routeId "Detect Id Conflict"
-
-  detectVisitConflict ==> {
-     //check for conflict with visits
-      when(e => {
-        val pv = getPatientLinkedToVisit(e)
-        val ph = getPatientLinkedToHospitalNo(e)
-        pv.isDefined && pv != ph
-      }){
-        process( e => throw new ADTConsistencyException("Hospital number: " + e.in("hospitalNo") + " is linked to patient: " + e.in("patientLinkedToHospitalNo") + " " +
-          " but visit: " + e.in("visitName") + " is linked to patient: " + e.in("patientLinkedToVisit") + ""))
-      }
-  } routeId "Detect Visit Conflict"
-
- setBasicHeaders ==> {
-   process(implicit e => {
-     val message = e.in[Message]
-     val t = new Terser(message)
-
-     setHeaderValue("hospitalNoString", ~getHospitalNumber(t)) // String
-     setHeaderValue("visitNameString", ~getVisitName(t)) // String
-     setHeaderValue("msgBody",e.getIn.getBody.toString) // String
-     setHeaderValue("origMessage", message) // Message
-     setHeaderValue("terser", t) // terser
-
-     setHeaderValue("hospitalNo", getHospitalNumber(t))// Option[String]
-     setHeaderValue("NHSNo", getNHSNumber(t)) // Option[String]
-     setHeaderValue("visitName", getVisitName(t)) // Option[String]
-     setHeaderValue("dischargeDate", getDischargeDate(t)) // Option[String]
-     setHeaderValue("timestamp", getTimestamp(t)) // Option[String]
-   })
- } routeId "Set Basic Headers"
-
-  setExtraHeaders ==> {
-    process(e => {
-      val hid = getHeader("hospitalNo",e)
-      val nhs = getHeader("NHSNo",e)
-      val visitName = getHeader("visitName",e)
-      val visitId = visitName.flatMap(getVisit)
-
-      setHeaderValue("visitId", visitId)(e)
-      setHeaderValue("patientLinkedToHospitalNo", hid.flatMap(getPatientByHospitalNumber))(e)
-      setHeaderValue("patientLinkedToNHSNo", nhs.flatMap(getPatientByNHSNumber))(e)
-      setHeaderValue("patientLinkedToVisit", visitId.flatMap(getPatientByVisitId))(e)
-    })
-  } routeId "Set Extra Headers"
 
   def handleUnknownVisit(createAction: Exchange => Unit) = (e: Exchange) => {
     ConfigHelper.unknownVisitAction match {
@@ -176,73 +130,68 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   def handleUnknownPatient(createAction: Exchange => Unit) = (e: Exchange) => {
     ConfigHelper.unknownPatientAction match {
       case Action.IGNORE => logger.warn("Patient doesn't exist - ignoring")
-      case Action.ERROR  => throw new ADTUnknownVisitException("Unknown patient")
+      case Action.ERROR  => throw new ADTUnknownPatientException("Unknown patient")
       case Action.CREATE => createAction(e)
     }
   }
 
   from(persistTimestamp) ==> {
-    when(e => hasHeader("timestamp")(e)) {
-      setHeader(RedisConstants.KEY, simple("${header.visitNameString}"))
-      setHeader(RedisConstants.VALUE, e => s"${~getHeader[String]("timestamp",e)}")
-      to("toRedis")
+    choice {
+      when(getTimestamp(_)) {
+        log(LoggingLevel.WARN, "IN PERSIST TIMESTAMP")
+        setHeader(RedisConstants.KEY, (e: Exchange) => ~getVisitName(e))
+        setHeader(RedisConstants.VALUE, (e: Exchange) => ~getTimestamp(e))
+        to("toRedis")
+      }
+      otherwise {
+        log(LoggingLevel.WARN, "NOT IN PERSIST TIMESTAMP")
+      }
     }
   } routeId "Timestamp to redis"
 
   from(getTimestamp) ==> {
-    setHeader(RedisConstants.COMMAND,"GET")
-    setHeader(RedisConstants.KEY,simple("${header.visitNameString}"))
+    setHeader(RedisConstants.COMMAND,(e:Exchange) => constant("GET")(e))
+    setHeader(RedisConstants.KEY,(e:Exchange) => ~getVisitName(e))
     enrich("fromRedis",new AggregateLastModTimestamp)
-    log(LoggingLevel.INFO,"Last Mod Timestamp: ${header.lastModTimestamp} vs This message timestamp: ${header.timestamp}")
+    process(e => getTimestamp(e))
+    log(LoggingLevel.INFO,"Timestamp from redis : ${header.lastModTimestamp}. Timestamp from message: ${header.timestamp}")
   } routeId "Timestamp from redis"
 
   updatePatientRoute ==> {
     choice {
-      when(e => patientExists(e)) {
-        process(e => patientUpdate(e))
+      when(patientExists(_)) {
+        process(patientUpdate(_))
       }
       otherwise {
-        process(handleUnknownPatient(implicit e => {
-          patientNew(e)
-          //update patientLinkedToHospitalNo header
-          val hid = getHeader("hospitalNo",e)
-          setHeaderValue("patientLinkedToHospitalNo",hid.flatMap(getPatientByHospitalNumber))
-        }))
+        process(handleUnknownPatient(patientNew(_)))
       }
     }
   } routeId "Create/Update Patient"
 
   updateVisitRoute ==> {
     choice {
-      when(e => visitExists(e)) {
-        process(e => visitUpdate(e))
+      when(visitExists(_)) {
+        process(visitUpdate(_))
       }
-      when(e => !visitExists(e) && hasHeader("visitName")(e)) {
-        process(handleUnknownVisit(implicit e => {
-          visitNew(e)
-          //update the visitId header
-          val visitName = getHeader("visitName",e)
-          setHeaderValue("visitId", visitName.flatMap(getVisit))
-        }))
+      when(e => getVisitName(e).isDefined && !visitExists(e)) {
+        process(handleUnknownVisit(visitNew(_)))
       }
-      //otherwise there is no visit information
       otherwise {
-        log(LoggingLevel.WARN, "Message has no visit identifier - can not update/create visit")
+        log(LoggingLevel.INFO, "Message has no visit identifier - can not update/create visit")
       }
 
     }
   } routeId "Create/Update Visit"
 
   A01Route ==> {
-    when(e => visitExists(e)) throwException new ADTFieldException("Visit already exists")
-    process(e => visitNew(e))
+    process(visitNew(_))
     -->(persistTimestamp)
   } routeId "A01"
 
 
   A11Route ==> {
-    when(e => visitExists(e)) {
-      process(e => cancelVisitNew(e))
+    when(visitExists(_)) {
+      process(cancelVisitNew(_))
     } otherwise {
       process(handleUnknownVisit( e => {
         visitNew(e)
@@ -253,13 +202,13 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
   A02Route ==> {
     choice {
-      when(visitExists) {
-        process(e => patientTransfer(e))
+      when(visitExists(_)) {
+        process(patientTransfer(_))
       }
       otherwise {
-        process(e => handleUnknownVisit(e => {
-          visitNew(e)
-          patientTransfer(e)
+        process(handleUnknownVisit(implicit e => {
+          visitNew
+          patientTransfer
         }))
       }
     }
@@ -268,12 +217,12 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
 
   A12Route ==> {
-    when(e => visitExists(e)){
-      process(e => cancelPatientTransfer(e))
+    when(visitExists(_)){
+      process(cancelPatientTransfer(_))
     } otherwise {
-      process(e => handleUnknownVisit(e => {
-        visitNew(e)
-        cancelPatientTransfer(e)
+      process(handleUnknownVisit(implicit e => {
+        visitNew
+        cancelPatientTransfer
       }))
 
     }
@@ -281,19 +230,19 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
   A03Route ==> {
     when(e => visitExists(e)) {
-      process(e => patientDischarge(e))
+      process(patientDischarge(_))
     } otherwise {
-      process(e => handleUnknownVisit(e => {
-        visitNew(e)
-        patientDischarge(e)
+      process(handleUnknownVisit(implicit e => {
+        visitNew
+        patientDischarge
       }))
     }
     -->(persistTimestamp)
   } routeId "A03"
 
   A13Route ==> {
-    when(e => visitExists(e)) {
-      process(e => cancelPatientDischarge(e))
+    when(visitExists(_)) {
+      process(cancelPatientDischarge(_))
     } otherwise {
       process(e => handleUnknownVisit( e =>{
         visitNew(e)
@@ -302,27 +251,24 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   } routeId "A13"
 
   A05Route ==> {
-    when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
-    process(e => patientNew(e))
+    process(patientNew(_))
   } routeId "A05"
 
   A28Route ==> {
-    when(e => patientExists(e)) process(e => throw new ADTApplicationException("Patient with hospital number: " + e.in("hospitalNo") + " already exists"))
-    process(e => patientNew(e))
+    process(patientNew(_))
   } routeId "A28"
 
   A40Route ==> {
-    when(e => !patientExists(e) || !mergeTargetExists(e)) throwException new ADTConsistencyException("Patients to merge did not exist")
-    process(e => patientMerge(e))
+    process(patientMerge(_))
   } routeId "A40"
 
   A08Route ==> {
     -->(getTimestamp)
-    when(refersToCurrentAction){
+    when(refersToCurrentAction(_)){
         -->(updatePatientRoute)
         -->(updateVisitRoute)
     } otherwise {
-      log(LoggingLevel.INFO,"Ignoring Historical Message: ${header.timestamp}")
+      log(LoggingLevel.INFO,"Ignoring Historical Message for ${header.JMSXGroupID}")
     }
   } routeId "A08"
 
@@ -330,10 +276,10 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
     -->(updatePatientRoute)
   } routeId "A31"
 
-  def refersToCurrentAction(e:Exchange): Boolean = {
+  def refersToCurrentAction(implicit e:Exchange): Boolean = {
     val r = for {
-      l <- getHeader[String]("lastModTimestamp",e)
-      t <- getHeader[String]("timestamp",e)
+      l <- getHeader[String]("lastModTimestamp")
+      t <- getHeader[String]("timestamp")
     } yield t >= l
 
     r | true

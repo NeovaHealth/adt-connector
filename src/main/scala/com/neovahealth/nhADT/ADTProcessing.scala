@@ -1,13 +1,15 @@
 package com.neovahealth.nhADT
 
+import ca.uhn.hl7v2.model.Message
 import ca.uhn.hl7v2.util.Terser
 import com.neovahealth.nhADT.exceptions.ADTExceptions
 import com.neovahealth.nhADT.utils.ConfigHelper
+import org.apache.camel.Exchange
 import org.joda.time.DateTime
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter, DateTimeFormatterBuilder}
 
+import scala.reflect.ClassTag
 import scala.util.control.Exception._
-import scala.util.matching.Regex
 
 /**
  * @author max@tactix4.com
@@ -22,6 +24,21 @@ trait ADTProcessing extends ADTExceptions{
 
   val fromDateTimeFormat: DateTimeFormatter = new DateTimeFormatterBuilder().append(null, ConfigHelper.inputDateFormats.map(DateTimeFormat.forPattern(_).getParser).toArray).toFormatter
   val toDateTimeFormat = DateTimeFormat.forPattern(ConfigHelper.toDateFormat)
+
+  def getHeader[T:ClassTag](name:String)(implicit e:Exchange):Option[T] = e.getIn.getHeader(name,None,classOf[Option[T]])
+  def setHeader(name:String, o:Any)(implicit e:Exchange) = e.getIn.setHeader(name,o)
+  
+  def getHeaderOrUpdate[T:ClassTag](name:String)(f: => Option[T])(implicit e:Exchange):Option[T] = getHeader[T](name) orElse {
+    val v = f
+    setHeader(name,v)
+    v
+  }
+  
+  def getTerser(implicit e:Exchange):Option[Terser] =
+    getHeaderOrUpdate("terser")(allCatch opt new Terser(e.getIn.getBody(classOf[Message])))
+
+  def getField[T:ClassTag](value:String)(implicit e:Exchange) : Option[T] =
+    getHeaderOrUpdate[T](value)(getMessageValue(value).map(_.asInstanceOf[T]))
 
 
   /** * Convenience method to check a valid date
@@ -44,42 +61,54 @@ trait ADTProcessing extends ADTExceptions{
     }
   }
 
-  def getMsgType(implicit terser:Terser) : Option[String] = getValueFromPath("MSH-9-2")
+  def getMsgType(e:Exchange): Option[String] = e.getIn.getHeader("CamelHL7TriggerEvent", "", classOf[String]) match {
+    case "" => None
+    case anything => Some(anything)
+  }
 
-  def getHospitalNumber(implicit terser:Terser): Option[String] = getMessageValue("other_identifier")
+  def getHospitalNumber(implicit e:Exchange): Option[String] = getField("other_identifier")
 
-  def getOldHospitalNumber(implicit terser:Terser) : Option[String] = getMessageValue("old_other_identifier")
+  def getOldHospitalNumber(implicit e:Exchange) : Option[String] = getField("old_other_identifier")
 
-  def getNHSNumber(implicit terser:Terser): Option[String] =  getMessageValue("patient_identifier")
+  def getNHSNumber(implicit e:Exchange): Option[String] =  getField("patient_identifier")
 
-  def getDischargeDate(implicit terser:Terser) : Option[String] = getMessageValue("discharge_date")
+  def getDischargeDate(implicit e:Exchange) : Option[String] = getField("discharge_date")
 
-  def getTimestamp(implicit terser:Terser) : Option[String] =  getMessageValue("timestamp")
+  def getTimestamp(implicit e:Exchange) : Option[String] =  getField("timestamp")
 
-  def getVisitName(implicit terser:Terser) : Option[String] =  getMessageValue("visit_identifier")
+  def getVisitName(implicit e:Exchange) : Option[String] = getField("visit_identifier")
 
-  def getWardIdentifier(implicit terser:Terser): Option[String] =  getMessageValue("ward_identifier")
+  def getWardIdentifier(implicit e:Exchange): Option[String] =  getField("ward_identifier")
 
-  def getMessageValue(name:String)(implicit terser:Terser):Option[String] = {
+  def getVisitStartDate(implicit e:Exchange) : Option[String] = getField("visit_start_date")
+
+  def getBed(implicit e:Exchange) : Option[String] = getField("bed")
+
+
+  def getPath(name:String)(implicit e:Exchange):Option[String]  =
     for {
-      msgType <- getMsgType(terser)
-      c       <- ConfigHelper.getConfigForType(msgType)
-      path    <- allCatch opt c.getString(name)
+      msgType <- getMsgType(e)
+      c <- ConfigHelper.getConfigForType(msgType)
+      path <- allCatch opt c.getString(name)
+    } yield path
+
+
+  def getMessageValue(name:String)(implicit e:Exchange):Option[String] =
+     for {
+      path    <- getPath(name)
       value   <- getValueFromPath(path)
     } yield if(datesToParse contains name) parseDate(value)
             else if(Sex.findFirstIn(name).isDefined) parseSex(value)
             else value
-  }
 
-  def getValueFromPath(path:String)(implicit terser:Terser):Option[String] = {
-    allCatch opt terser.get(path) flatMap {
-      case null => None
-      case EmptyStringMatcher() => None
-      case string =>  Some(string)
-    }
-
-  }
-
-
+  def getValueFromPath(path:String)(implicit e:Exchange):Option[String] =
+    for {
+      t <- getTerser
+      v <- allCatch opt t.get(path) flatMap {
+        case null => None
+        case EmptyStringMatcher() => None
+        case string => Some(string)
+      }
+    } yield v
 
 }

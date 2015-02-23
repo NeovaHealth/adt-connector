@@ -5,19 +5,11 @@ package com.neovahealth.nhADT.exceptions
  */
 trait ADTExceptions {
 
+  class ADTRuleException(msg:String = null,cause:Throwable = null) extends Exception(msg,cause)
+
   class ADTApplicationException(msg: String, cause: Throwable = null) extends Exception(msg, cause)
 
-  class ADTConsistencyException(msg: String, cause: Throwable = null) extends Exception(msg, cause)
-
   class ADTFieldException(msg: String, cause: Throwable = null) extends Exception(msg, cause)
-
-  class ADTUnsupportedMessageException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)
-
-  class ADTUnsupportedWardException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)
-
-  class ADTDuplicateMessageException(msg: String = null, cause: Throwable = null) extends Exception(msg, cause)
-
-  class ADTHistoricalMessageException(msg: String = null, cause: Throwable = null) extends Exception(msg,cause)
 
   class ADTUnknownPatientException(msg: String = null, cause: Throwable = null) extends Exception(msg,cause)
 

@@ -98,23 +98,19 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
 
   @Test
   def hfail28{
-    sendMessageAndExpectError(TestVars.patientNewADT28No_Identity, "Required field missing")
+    sendMessageAndExpectError(TestVars.patientNewADT28No_Identity, "Could not locate hospital number")
   }
   @Test
   def ifail05{
-    sendMessageAndExpectError(TestVars.patientNewADT05No_Identity, "Required field missing")
+    sendMessageAndExpectError(TestVars.patientNewADT05No_Identity, "Could not locate hospital number")
   }
   @Test
   def jfail08{
-    sendMessageAndExpectError(TestVars.patientUpdateADTNo_Identity_08, "Required field missing")
+    sendMessageAndExpectError(TestVars.patientUpdateADTNo_Identity_08, "Could not locate hospital number")
   }
   @Test
   def kfail31{
-    sendMessageAndExpectError(TestVars.patientUpdateADTNo_Identity_31, "Required field missing")
-  }
-  @Test
-  def lfail40{
-    sendMessageAndExpectError(TestVars.patientMergeADTNo_Identifier, "Patients to merge did not exist")
+    sendMessageAndExpectError(TestVars.patientUpdateADTNo_Identity_31, "Could not locate hospital number")
   }
 
 }

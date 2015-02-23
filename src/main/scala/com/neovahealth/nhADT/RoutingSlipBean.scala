@@ -6,7 +6,7 @@ import org.apache.camel.{Header, RoutingSlip}
 /**
  * Created by max on 06/08/14.
  */
-class RoutingSlipBean {
+case class RoutingSlipBean() {
 
   @RoutingSlip
   def route(@Header("CamelHL7TriggerEvent") msgType:String ): String = {

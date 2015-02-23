@@ -250,7 +250,7 @@ trait ADTGen extends VisitGen{
       ))
       _ <- StateT[Gen,VisitState,Unit](s => Gen.frequency(
         (5, Gen.const(s -> ())),
-        (1, Gen.option(genWard).map((w:Option[String]) => wardCode.set(s,w) -> ()))
+        (1, genWard.map((w:String) => wardCode.set(s,Some(w)) -> ()))
       ))
       _ <- StateT[Gen,VisitState,Unit](s =>
         if(s.event == AdmitEvent && s.pv.isEmpty)
@@ -318,7 +318,7 @@ trait ADTGen extends VisitGen{
       zip <- ps(8)
       country <- ps(9)
       phone <- ps(11)
-      hospitalNum <- Gen.listOfN(10, Gen.alphaNumChar).map(_.mkString)
+      hospitalNum <- Gen.listOfN(20, Gen.alphaNumChar).map(_.mkString)
       nhsNum <- Gen.option(Gen.listOfN(10, Gen.numChar).map(_.mkString))
       //TODO: put title back
     } yield Patient(hospitalNum, nhsNum, gn,mn,Some(fn),None,mm,dob.map(d => DateTime.parse(d,fromDateTimeFormat)),s.flatMap(_.headOption.map(_.toString)),street,city,state,zip,country,phone)
