@@ -47,12 +47,12 @@ class LastModifiedA08Test extends CamelSpringTestSupport with ADTGen{
   val f = new File("src/test/resources/uk.co.neovahealth.nhADT.conf")
   val config: Config = ConfigFactory.parseFile(f)
 
-  val protocol: String = config.getString("openERP.protocol")
-  val host: String = config.getString("openERP.hostname")
-  val port: Int = config.getInt("openERP.port")
-  val username: String = config.getString("openERP.username")
-  val password: String = config.getString("openERP.password")
-  val database: String = config.getString("openERP.database")
+  val protocol: String = config.getString("odoo.protocol")
+  val host: String = config.getString("odoo.hostname")
+  val port: Int = config.getInt("odoo.port")
+  val username: String = config.getString("odoo.username")
+  val password: String = config.getString("odoo.password")
+  val database: String = config.getString("odoo.database")
 
   val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
 

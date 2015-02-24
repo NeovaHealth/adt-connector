@@ -4,11 +4,9 @@ import uk.co.neovahealth.nhADT.utils.ConfigHelper
 
 import scala.language.postfixOps
 import scala.language.implicitConversions
-import ConfigHelper
 import com.tactix4.t4openerp.connector._
-import com.tactix4.t4openerp.connector.transport.OEType
 import com.tactix4.t4openerp.connector.domain.Domain._
-import com.typesafe.scalalogging.slf4j.{StrictLogging, LazyLogging}
+import com.typesafe.scalalogging.slf4j.StrictLogging
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Await}
 import scalaz.std.option.optionSyntax._

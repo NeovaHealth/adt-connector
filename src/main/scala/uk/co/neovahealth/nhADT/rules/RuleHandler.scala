@@ -1,7 +1,8 @@
 package uk.co.neovahealth.nhADT.rules
 
-import org.apache.camel.{Processor, Exchange}
 import uk.co.neovahealth.nhADT.ADTProcessing
+import uk.co.neovahealth.nhADT.utils.ConfigHelper
+import org.apache.camel.{Processor, Exchange}
 import uk.co.neovahealth.nhADT.utils.ConfigHelper
 import scala.util.control.Exception._
 import scalaz.std.string._

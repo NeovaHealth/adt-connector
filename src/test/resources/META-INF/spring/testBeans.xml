@@ -7,7 +7,7 @@
 
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:../../uk.co.neovahealth.nhADT.properties"/>
+          p:location="file:src/test/resources/uk.co.neovahealth.nhADT.properties"/>
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
     <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
@@ -15,7 +15,6 @@
     <bean id="adtInRoute" class="uk.co.neovahealth.nhADT.ADTInRoute"/>
 
     <bean id="odooMock" class="uk.co.neovahealth.nhADT.OdooMock"/>
-
 
     <camel:endpoint id="failMsgHistory" uri="mock:fail"/>
     <camel:endpoint id="msgHistory" uri="mock:success"/>
@@ -25,11 +24,11 @@
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
 
+
     <camel:endpoint id="mockOpenERPServerCommon" uri="jetty:http://localhost:8069/xmlrpc/common"/>
     <camel:endpoint id="mockOpenERPServerObject" uri="jetty:http://localhost:8069/xmlrpc/object"/>
 
     <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=5"/>
-
     <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
     <camel:endpoint id="fromRedis" uri="spring-redis://localhost:6379?redisTemplate=#redisTemplate"/>
 

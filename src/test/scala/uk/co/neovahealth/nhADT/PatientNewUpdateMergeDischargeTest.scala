@@ -27,12 +27,12 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
   val f = new File("src/test/resources/uk.co.neovahealth.nhADT.conf")
   lazy val config: Config = ConfigFactory.parseFile(f)
 
-  lazy val protocol: String = config.getString("openERP.protocol")
-  lazy val host: String = config.getString("openERP.hostname")
-  lazy val port: Int = config.getInt("openERP.port")
-  lazy val username: String = config.getString("openERP.username")
-  lazy val password: String = config.getString("openERP.password")
-  lazy val database: String = config.getString("openERP.database")
+  lazy val protocol: String = config.getString("odoo.protocol")
+  lazy val host: String = config.getString("odoo.hostname")
+  lazy val port: Int = config.getInt("odoo.port")
+  lazy val username: String = config.getString("odoo.username")
+  lazy val password: String = config.getString("odoo.password")
+  lazy val database: String = config.getString("odoo.database")
 
   lazy val tsession = new OEConnector(protocol,host,port ).startSession(username, password, database)
 

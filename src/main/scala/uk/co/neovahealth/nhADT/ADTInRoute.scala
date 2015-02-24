@@ -109,11 +109,12 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
   UpdatePatient ==> {
     process(patientUpdate(_))
-  }
+  } routeId "UpdatePatient"
 
   UpdateVisit ==> {
     process(visitUpdate(_))
-  }
+  } routeId "UpdateVisit"
+
 
   UpdateOrCreatePatient ==> {
     choice {
@@ -144,7 +145,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   Admit ==> {
     process(visitNew(_))
     -->(persistTimestamp)
-  } routeId "A01"
+  } routeId "Admit"
 
 
   CAdmit ==> {
@@ -156,7 +157,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
         cancelVisitNew
       }))
     }
-  } routeId "A11"
+  } routeId "CancelAdmit"
 
   Transfer ==> {
     choice {
@@ -171,7 +172,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
       }
     }
     -->(persistTimestamp)
-  } routeId "A02"
+  } routeId "Transfer"
 
 
   CTransfer ==> {
@@ -184,7 +185,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
       }))
 
     }
-  } routeId "A12"
+  } routeId "CancelTransfer"
 
   Discharge ==> {
     when(e => visitExists(e)) {
@@ -196,7 +197,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
       }))
     }
     -->(persistTimestamp)
-  } routeId "A03"
+  } routeId "Discharge"
 
   CDischarge ==> {
     when(visitExists(_)) {
@@ -206,22 +207,22 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
         visitNew(e)
       }))
     }
-  } routeId "A13"
+  } routeId "CancelDischarge"
 
   Register ==> {
     process(patientNew(_))
-  } routeId "register"
+  } routeId "Register"
 
   Merge ==> {
     process(patientMerge(_))
-  } routeId "merge"
+  } routeId "Merge"
 
   DetectHistorical ==> {
     -->(getTimestamp)
     when(e => !refersToCurrentAction(e)) {
       throwException(new ADTHistoricalMessage("Message refers to an historical event"))
     }
-  }
+  } routeId "DetectHistorical"
 
   def refersToCurrentAction(implicit e:Exchange): Boolean = {
     val r = for {

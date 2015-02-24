@@ -33,18 +33,18 @@ object ConfigHelper {
   val referringDoctorFields: List[String] = config.getStringList("ADT_mappings.referring_doctor_fields").toList
 
 
-  val protocol: String = config.getString("openERP.protocol")
-  val host: String = config.getString("openERP.hostname")
-  val port: Int = config.getInt("openERP.port")
-  val username: String = config.getString("openERP.username")
-  val password: String = config.getString("openERP.password")
-  val database: String = config.getString("openERP.database")
+  val protocol: String = config.getString("odoo.protocol")
+  val host: String = config.getString("odoo.hostname")
+  val port: Int = config.getInt("odoo.port")
+  val username: String = config.getString("odoo.username")
+  val password: String = config.getString("odoo.password")
+  val database: String = config.getString("odoo.database")
   val autoAck:Boolean = config.getBoolean("misc.auto_ack")
   val sexMap: Map[String, String] = config.getObject("ADT_mappings.sex_map").toMap.mapValues(_.unwrapped().asInstanceOf[String])
   val inputDateFormats: List[String] = config.getStringList("misc.valid_date_formats").toList
-  val toDateFormat: String = config.getString("openERP.to_date_format")
+  val toDateFormat: String = config.getString("odoo.to_date_format")
   val datesToParse: Set[String] = config.getStringList("ADT_mappings.dates_to_parse").toSet
-  val timeOutMillis: Long = config.getDuration("openERP.time_out",TimeUnit.MILLISECONDS)
+  val timeOutMillis: Long = config.getDuration("odoo.time_out",TimeUnit.MILLISECONDS)
 
   val historicalMessageAction: Action.Value = config.getString("misc.historic_message_action").toLowerCase match {
     case "ignore" => Action.IGNORE
