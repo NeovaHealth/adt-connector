@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.neovahealth</groupId>
+    <groupId>co.uk.neovahealth</groupId>
     <artifactId>nhadt_2.10</artifactId>
     <packaging>bundle</packaging>
-    <description>Neova Health's Open E-Obs ADT Adaptor</description>
-    <version>0.2.0</version>
-    <name>Open E-Obs ADT Adaptor</name>
+    <description>Neova Health's NHClinical ADT Adaptor</description>
+    <version>0.2.1</version>
+    <name>NHClinical ADT Adaptor</name>
     <organization>
-        <name>com.neovahealth</name>
+        <name>co.uk.neovahealth</name>
     </organization>
 
     <properties>
@@ -316,6 +316,7 @@
                             org.apache.camel.model.dataformat,
                             org.apache.camel.scala,
                             org.apache.camel.scala.dsl,
+                            org.apache.camel.scala.dsl.languages,
                             org.apache.camel.scala.dsl.builder,
                             org.apache.camel.component.sql,
                             org.apache.camel.processor.idempotent.jdbc,
@@ -339,9 +340,14 @@
                             scala.util.matching,
                             scala.collection,
                             scala.collection.generic,
+                            scala.collection.parallel,
+                            scala.collection.parallel.immutable,
+                            scala.io,
                             scala.collection.immutable,
                             scala.collection.mutable,
                             scala.concurrent,
+                            scala.util.parsing.combinator,
+                            scala.util.parsing.input,
                             scala.concurrent.duration,
                             scala.reflect,
                             scala.reflect.api,
@@ -353,9 +359,10 @@
                             scalaz.syntax.std
                         </Import-Package>
                         <Export-Package>
-                            com.neovahealth.nhADT,
-                            com.neovahealth.nhADT.utils,
-                            com.neovahealth.nhADT.exceptions
+                            co.uk.neovahealth.nhADT,
+                            co.uk.neovahealth.nhADT.utils,
+                            co.uk.neovahealth.nhADT.rules,
+                            co.uk.neovahealth.nhADT.exceptions
                         </Export-Package>
 					</instructions>
 				</configuration>

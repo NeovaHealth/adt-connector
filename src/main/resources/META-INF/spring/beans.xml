@@ -11,7 +11,7 @@
     <!--Configuration-->
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:etc/nh/com.neovahealth.nhADT.properties"/>
+          p:location="file:etc/nh/co.uk.neovahealth.nhADT.properties"/>
      <!---->
 
     <!--HL7 Listener-->
@@ -35,10 +35,6 @@
         <property name="dataSource" ref="dataSource"/>
     </bean>
 
-    <bean id="messageIdRepo" class="org.apache.camel.component.redis.processor.idempotent.RedisIdempotentRepository" >
-        <constructor-arg value="IdempotentRep"/>
-    </bean>
-
     <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=${activemq_consumers}"/>
 
     <camel:endpoint id="failMsgHistory" uri="sql:insert into ${fail_msg_store_table} (id, type, hospital_number,visit_id,timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#hospitalNoString,:#visitNameString,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>
@@ -47,7 +43,7 @@
     <!---->
 
     <!--Route injection-->
-    <bean id="adtInRoute" class="com.neovahealth.nhADT.ADTInRoute"/>
+    <bean id="adtInRoute" class="co.uk.neovahealth.nhADT.ADTInRoute"/>
 
     <!-- Redis -->
     <bean id="jedisConnectionFactory"

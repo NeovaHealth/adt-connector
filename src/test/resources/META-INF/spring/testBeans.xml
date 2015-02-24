@@ -1,25 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-       xmlns:util="http://www.springframework.org/schema/util"
        xmlns:camel="http://camel.apache.org/schema/spring" xmlns:p="http://www.springframework.org/schema/p"
-       xsi:schemaLocation="
-		http://www.springframework.org/schema/util  http://www.springframework.org/schema/util/spring-util-3.0.xsd
-	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
-    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
-    ">
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
 
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:src/test/resources/com.neovahealth.nhADT.properties"/>
+          p:location="file:src/test/resources/co.uk.neovahealth.nhADT.properties"/>
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
     <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
 
-    <bean id="adtInRoute" class="com.neovahealth.nhADT.ADTInRoute"/>
-    <bean id="odooMock" class="com.neovahealth.nhADT.OdooMock"/>
+    <bean id="adtInRoute" class="co.uk.neovahealth.nhADT.ADTInRoute"/>
 
-    <bean id="messageIdRepo" class="org.apache.camel.processor.idempotent.MemoryIdempotentRepository"/>
+    <bean id="odooMock" class="co.uk.neovahealth.nhADT.OdooMock"/>
 
 
     <camel:endpoint id="failMsgHistory" uri="mock:fail"/>
@@ -30,12 +25,12 @@
         <camel:routeBuilder ref="adtInRoute"/>
     </camel:camelContext>
 
-
     <camel:endpoint id="mockOpenERPServerCommon" uri="jetty:http://localhost:8069/xmlrpc/common"/>
     <camel:endpoint id="mockOpenERPServerObject" uri="jetty:http://localhost:8069/xmlrpc/object"/>
 
     <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=5"/>
-  <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
+
+    <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
     <camel:endpoint id="fromRedis" uri="spring-redis://localhost:6379?redisTemplate=#redisTemplate"/>
 
     <!-- Redis -->
