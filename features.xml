@@ -29,7 +29,7 @@
         <bundle>mvn:commons-dbcp/commons-dbcp/1.4</bundle>
         <bundle>mvn:commons-pool/commons-pool/1.6</bundle>
         <bundle>mvn:org.apache.servicemix.bundles/org.apache.servicemix.bundles.postgresql/9.3-1100-jdbc41_1</bundle>
-        <bundle>mvn:co.uk.neovahealth/nhadt_2.10/0.2.1</bundle>
+        <bundle>mvn:uk.co.neovahealth/nhadt_2.10/0.2.1</bundle>
    </feature>
 
 </features>

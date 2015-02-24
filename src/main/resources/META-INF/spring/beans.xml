@@ -11,7 +11,7 @@
     <!--Configuration-->
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:etc/nh/co.uk.neovahealth.nhADT.properties"/>
+          p:location="file:etc/nh/uk.co.neovahealth.nhADT.properties"/>
      <!---->
 
     <!--HL7 Listener-->
@@ -43,7 +43,7 @@
     <!---->
 
     <!--Route injection-->
-    <bean id="adtInRoute" class="co.uk.neovahealth.nhADT.ADTInRoute"/>
+    <bean id="adtInRoute" class="uk.co.neovahealth.nhADT.ADTInRoute"/>
 
     <!-- Redis -->
     <bean id="jedisConnectionFactory"

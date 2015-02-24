@@ -7,14 +7,14 @@
 
     <bean id="propertyConfigurer"
           class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
-          p:location="file:src/test/resources/co.uk.neovahealth.nhADT.properties"/>
+          p:location="file:../../uk.co.neovahealth.nhADT.properties"/>
 
     <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
     <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
 
-    <bean id="adtInRoute" class="co.uk.neovahealth.nhADT.ADTInRoute"/>
+    <bean id="adtInRoute" class="uk.co.neovahealth.nhADT.ADTInRoute"/>
 
-    <bean id="odooMock" class="co.uk.neovahealth.nhADT.OdooMock"/>
+    <bean id="odooMock" class="uk.co.neovahealth.nhADT.OdooMock"/>
 
 
     <camel:endpoint id="failMsgHistory" uri="mock:fail"/>
