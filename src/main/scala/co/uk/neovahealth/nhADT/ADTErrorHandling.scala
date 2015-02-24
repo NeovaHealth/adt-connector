@@ -22,19 +22,16 @@ import scalaz.std.string._
 trait ADTErrorHandling extends Preamble with DSL with ADTExceptions with StrictLogging with Languages with ADTProcessing{
 
   handle[ADTHistoricalMessage]{
-    process(e => logger.warn("Error for patient " + ~getHospitalNumber(e)))
-    log(LoggingLevel.WARN,"${exception.message}\n${exception.stacktrace}")
-    setHeader("error", (e:Exchange) => simple("${exception.message}")(e))
-    process(e => ConfigHelper.historicalMessageAction match {
-      case Action.IGNORE => {
-        logger.info("Ignoring historical message")
-        e.in = e.in[Message].generateACK()
+    choice {
+      when(_ => ConfigHelper.historicalMessageAction == Action.IGNORE){
+        process(e => logger.info("Ignoring historical message for patient" + ~getHospitalNumber(e)))
+        transform(_.in[Message].generateACK())
       }
-      case Action.ERROR => {
-        logger.info("Returning error for  historical message")
-        e.in = e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(e.in("error").toString))
+      otherwise{
+        process(e => logger.info("Returning error for historical message for patient" + ~getHospitalNumber(e)))
+        transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception("Historical message")))
       }
-    })
+    }
     to("failMsgHistory")
   }.handled
 
