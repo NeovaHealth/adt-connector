@@ -34,16 +34,6 @@ import scalaz.syntax.std.boolean._
  * Created by max on 06/06/14.
  */
 class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen with Matchers with TripleEqualsSupport with StrictLogging{
-  val config = ConfigFactory.load("uk.co.neovahealth.nhADT.conf")
-
-  val protocol: String = config.getString("openERP.protocol")
-  val host: String = config.getString("openERP.hostname")
-  val port: Int = config.getInt("openERP.port")
-  val username: String = config.getString("openERP.username")
-  val password: String = config.getString("openERP.password")
-  val database: String = config.getString("openERP.database")
-
-  val connector = new OEConnector(protocol, host, port).startSession(username, password, database)
 
 
  def createApplicationContext(): AbstractApplicationContext = {

@@ -25,4 +25,4 @@
 ACCEPT | (msg_type ONEOF [A01,A02,A03,A05,A08,A11,A12,A13,A28,A31,A40]) | ERROR Unsupported message type
 
 # Reject messages that have a discharge date (as historical) - except discharge and cancelDischarge messages
-REJECT | ((discharge_date EXISTS) AND ((msg_type != A03) OR (msg_type != A13))) | IGNORE Ignoring Historical message
+REJECT | ((discharge_date EXISTS) AND ((msg_type != A03) AND (msg_type != A13))) | IGNORE Ignoring Historical message

@@ -15,8 +15,8 @@ object TestVars {
   final val patientTwoId = randomId
   val PID2 = "PID|1|^^^^PAS||" + patientTwoId + "|Jones^Jimbo^^^Badman||19740613000000|F||||||||||||||B^White Irish|||||||\"\"|N"
 
-  val WARD = "E8"
-  val WARD2 = "E9"
+  val WARD = "A"
+  val WARD2 = "B"
 
   val visitID = randomId
   val visitID2 = randomId

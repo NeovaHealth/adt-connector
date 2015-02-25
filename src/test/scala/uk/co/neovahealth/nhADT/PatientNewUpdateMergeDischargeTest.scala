@@ -75,9 +75,9 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
   @Test
   def fctestA08{
     log.info("trying to historically updating patientTwo")
-    sendMessageAndExpectResponse(TestVars.patientUpdateADT_08H, "MSA|AA|")
+    sendMessageAndExpectError(TestVars.patientUpdateADT_08H, "MSA|AA|")
     val result: EitherT[Future, ErrorMessage, Boolean] = for {
-        r <- tsession.searchAndRead("t4clinical.patient", "other_identifier" === TestVars.patientTwoId, List("given_name") )
+        r <- tsession.searchAndRead("nh.clinical.patient", "other_identifier" === TestVars.patientTwoId, List("given_name") )
         h <- (r.headOption \/> "Patient not found").asOER
         n <- (h.get("given_name").flatMap(_.string) \/> "given_name not found").asOER
       } yield !(n contains "BERYL")
