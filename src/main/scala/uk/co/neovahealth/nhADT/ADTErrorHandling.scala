@@ -2,6 +2,7 @@ package uk.co.neovahealth.nhADT
 
 import ca.uhn.hl7v2.model.Message
 import ca.uhn.hl7v2.{AcknowledgmentCode, ErrorCode, HL7Exception}
+import org.apache.camel.model.dataformat.HL7DataFormat
 import uk.co.neovahealth.nhADT.utils.ConfigHelper
 
 import com.typesafe.scalalogging.slf4j.StrictLogging
@@ -21,7 +22,11 @@ import scalaz.std.string._
  */
 trait ADTErrorHandling extends Preamble with DSL with ADTExceptions with StrictLogging with Languages with ADTProcessing{
 
+  val hl7:HL7DataFormat = new HL7DataFormat()
+  hl7.setValidate(false)
+
   handle[ADTHistoricalMessage]{
+    setHeader("exception", (e:Exchange) => simple("${exception.message}")(e))
     choice {
       when(_ => ConfigHelper.historicalMessageAction == Action.IGNORE){
         process(e => logger.info("Ignoring historical message for patient" + ~getHospitalNumber(e)))
@@ -33,29 +38,32 @@ trait ADTErrorHandling extends Preamble with DSL with ADTExceptions with StrictL
       }
     }
     to("failMsgHistory")
+    marshal(hl7)
   }.handled
 
   handle[ADTRuleException] {
     process(e => logger.warn("Error for patient " + ~getHospitalNumber(e)))
     log(LoggingLevel.WARN,"${exception.message}\n${exception.stacktrace}")
-    setHeader("error", (e:Exchange) => simple("${exception.message}")(e))
+    setHeader("exception", (e:Exchange) => simple("${exception.message}")(e))
     choice{
       when(_.in("IGNORE") == false){
         transform(_.in[Message].generateACK())
       }
       otherwise {
-        transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(e.in("error").toString)))
+        transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR, new HL7Exception(e.in("exception").toString)))
       }
     }
     to("failMsgHistory")
+    marshal(hl7)
   }.handled
 
   handle[Exception] {
     process(e => logger.warn("Error for patient " + ~getHospitalNumber(e)))
     log(LoggingLevel.WARN,"${exception.message}\n${exception.stacktrace}")
-    setHeader("error", (e:Exchange) => simple("${exception.message}")(e))
-    transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(e.in("error").toString)))
+    setHeader("exception", (e:Exchange) => simple("${exception.message}")(e))
+    transform(e => e.in[Message].generateACK(AcknowledgmentCode.AR,new HL7Exception(e.in("exception").toString)))
     to("failMsgHistory")
+    marshal(hl7)
   }.handled
 
 }

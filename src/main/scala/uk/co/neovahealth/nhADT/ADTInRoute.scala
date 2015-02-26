@@ -28,8 +28,6 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   lazy val session = new OEConnector(ConfigHelper.protocol, ConfigHelper.host, ConfigHelper.port)
     .startSession(ConfigHelper.username, ConfigHelper.password, ConfigHelper.database)
 
-  val hl7:HL7DataFormat = new HL7DataFormat()
-  hl7.setValidate(false)
 
   val ctx = new DefaultHapiContext()
   //the default FileBased ID Generator starts failing with multiple threads
@@ -59,15 +57,19 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
 
 
 
-   hl7Listener ==> {
+  hl7Listener ==> {
     unmarshal(hl7)
     setHeader("JMSXGroupID", (e: Exchange) => ~getHospitalNumber(e))
+    setHeader("hospitalNoString", (e:Exchange) => e.in("JMSXGroupdID").toString)
+    setHeader("visitNameString", (e:Exchange) => ~getVisitName(e))
+    setHeader("msgBody", (e:Exchange) => e.in[Message].toString)
     log(LoggingLevel.INFO, "received ${in.header.CamelHL7TriggerEvent} for ${in.header.JMSXGroupID}")
     process(e => {
       val m = e.in[Message]
       m.setParser(ctx.getPipeParser)
       e.in = m
     })
+    marshal(hl7)
     choice {
       when(_ => ConfigHelper.autoAck) {
         inOnly {
@@ -82,11 +84,13 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   } routeId "Listener to activemq"
 
   inputQueue ==> {
+    unmarshal(hl7)
     log(LoggingLevel.INFO, "processing ${in.header.CamelHL7TriggerEvent} for ${in.header.JMSXGroupID}")
     process(processRules)
     bean(RoutingSlipBean())
     to(msgHistory)
     transform(_.in[Message].generateACK())
+    marshal(hl7)
   } routeId "Main Route"
 
 

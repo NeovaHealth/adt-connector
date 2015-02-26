@@ -25,7 +25,7 @@
         <joda-time-version>2.3</joda-time-version>
         <joda-convert-version>1.4</joda-convert-version>
         <typesafe-config-version>1.2.1</typesafe-config-version>
-        <activemq-version>5.9.1</activemq-version>
+        <activemq-version>5.10.2</activemq-version>
         <commons-pool-version>1.6</commons-pool-version>
 
 
