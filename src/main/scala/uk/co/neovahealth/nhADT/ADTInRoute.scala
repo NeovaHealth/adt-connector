@@ -60,7 +60,7 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
   hl7Listener ==> {
     unmarshal(hl7)
     setHeader("JMSXGroupID", (e: Exchange) => ~getHospitalNumber(e))
-    setHeader("hospitalNoString", (e:Exchange) => e.in("JMSXGroupdID").toString)
+    setHeader("hospitalNoString", (e:Exchange) => e.in("JMSXGroupID").toString)
     setHeader("visitNameString", (e:Exchange) => ~getVisitName(e))
     setHeader("msgBody", (e:Exchange) => e.in[Message].toString)
     log(LoggingLevel.INFO, "received ${in.header.CamelHL7TriggerEvent} for ${in.header.JMSXGroupID}")
