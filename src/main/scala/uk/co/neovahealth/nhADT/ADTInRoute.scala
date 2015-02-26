@@ -69,15 +69,18 @@ class ADTInRoute() extends RouteBuilder with EObsCalls with ADTErrorHandling wit
       m.setParser(ctx.getPipeParser)
       e.in = m
     })
-    marshal(hl7)
     choice {
       when(_ => ConfigHelper.autoAck) {
         inOnly {
+          marshal(hl7)
           to(inputQueue)
         }
+        unmarshal(hl7)
         transform(_.in[Message].generateACK())
+        marshal(hl7)
       }
       otherwise {
+        marshal(hl7)
         to(inputQueue)
       }
     }
