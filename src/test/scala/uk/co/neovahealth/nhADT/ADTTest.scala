@@ -3,7 +3,7 @@ package uk.co.neovahealth.nhADT
 /**
  * Tests the A28 and A05 patientNew route
  * @author max@tactix4.com
- * Date: 26/09/13
+ *         Date: 26/09/13
  */
 
 
@@ -19,9 +19,9 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     new ClassPathXmlApplicationContext("META-INF/spring/testBeans.xml")
   }
 
-  val URI:String = "mina2:tcp://localhost:31337?sync=true&codec=#hl7codec"
+  val URI: String = "mina2:tcp://localhost:31337?sync=true&codec=#hl7codec"
 
-  override def createRegistry() ={
+  override def createRegistry() = {
 
     val jndi = super.createRegistry()
     val codec = new HL7MLLPCodec()
@@ -30,21 +30,20 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     jndi
   }
 
+  def sendMessageAndExpectResponse(message: String, expectedResult: String) = {
+    val resultEndpoint = getMockEndpoint("msgHistory")
+    val failEndpoint = getMockEndpoint("failMsgHistory")
+    resultEndpoint.setExpectedMessageCount(1)
+    failEndpoint.setExpectedMessageCount(0)
+    resultEndpoint.message(0).body.equals(message) //checks that rabbitmq recieves the original adt message
+    val result = template.sendBody(URI, ExchangePattern.InOut, message).toString
+    println(result)
+    assertMockEndpointsSatisfied()
+    assert(result contains expectedResult)
+    resetMocks()
+  }
 
- def sendMessageAndExpectResponse(message: String, expectedResult: String)= {
-
- val resultEndpoint = getMockEndpoint("msgHistory")
- val failEndpoint = getMockEndpoint("failMsgHistory")
-   resultEndpoint.setExpectedMessageCount(1)
-   failEndpoint.setExpectedMessageCount(0)
-   resultEndpoint.message(0).body.equals(message) //checks that rabbitmq recieves the original adt message
-   val result = template.sendBody(URI, ExchangePattern.InOut, message).toString
-   println(result)
-   assertMockEndpointsSatisfied()
-   assert(result contains expectedResult)
-   resetMocks()
- }
-  def sendMessageAndExpectError(message: String, expectedResult: String)= {
+  def sendMessageAndExpectError(message: String, expectedResult: String) = {
     val resultEndpoint = getMockEndpoint("msgHistory")
     val failEndpoint = getMockEndpoint("failMsgHistory")
     resultEndpoint.setExpectedMessageCount(0)
@@ -57,5 +56,5 @@ class ADTTest extends CamelSpringTestSupport with ShouldMatchers{
     resetMocks()
     failEndpoint.reset()
     resultEndpoint.reset()
-   }
+  }
 }

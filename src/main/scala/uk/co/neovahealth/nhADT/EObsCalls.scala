@@ -66,8 +66,9 @@ trait EObsCalls extends ADTProcessing with EObsQueries with StrictLogging{
     logger.info("Calling patientTransfer for patient: " + ~getHospitalNumber)
     val hn = getHospitalNumber.toSuccess("Could not locate hospital number").toValidationNel
     val wi = getWardIdentifier.toSuccess("Could not locate location identifier").toValidationNel
-    waitAndErr((hn |@| wi )( (h,l) =>
-      session.callMethod("nh.eobs.api", "transfer", h,"location" -> l)
+    val ow = getOriginalWardIdentifier.toSuccess("Could not locate original location identifier").toValidationNel
+    waitAndErr((hn |@| wi |@| ow)( (h,l,o) =>
+      session.callMethod("nh.eobs.api", "transfer", h, "location" -> l, "original_location" -> o)
     ))
   }
 
@@ -123,7 +124,6 @@ trait EObsCalls extends ADTProcessing with EObsQueries with StrictLogging{
       session.callMethod("nh.eobs.api", "register", h, OEDictionary(o.mapValues(OEString)))
     }))
   }
-
 
   def cancelVisitNew(implicit e: Exchange) = {
     logger.info("calling cancelVisitNew for patient: " + ~getHospitalNumber)

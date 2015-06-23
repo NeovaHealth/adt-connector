@@ -73,7 +73,7 @@ object TestVars {
     "EVN|A02|20120122151427||||201482931534\r" +
     PID2 + "\r" +
     "PD1|||Branch Practice, Gooseberry Hill HC, Luton^GPPRC^E81046B|G3403352B^Glaze^M E^^^Dr\r"+
-    s"PV1|1|I|$WARD2^^^^^^^^Ward 05 Isolation|22||^^^^^^^^|^^^^^|G0000001^Dummy^Leigh^^^Dr|C2782056^Ahmad^T^^^Mr|160|||||||C2782056^Ahmad^T^^^Mr|01|$visitID|||||||||||||||||||||||||20120115111800|"
+    s"PV1|1|I|$WARD2^^^^^^^^Ward 05 Isolation|22||^^^^^^^^|Z^^^^^|G0000001^Dummy^Leigh^^^Dr|C2782056^Ahmad^T^^^Mr|160|||||||C2782056^Ahmad^T^^^Mr|01|$visitID|||||||||||||||||||||||||20120115111800|"
 
   val patientDischarge = "MSH|^~\\&|iPM|iIE|T4skr|T4skr|20120122151427||ADT^A03|608741|P|2.4|||AL|AL\r" +
                             "EVN|A03|20120122151427||201482931534|\r" +
