@@ -68,7 +68,7 @@ trait EObsCalls extends ADTProcessing with EObsQueries with StrictLogging{
     val wi = getWardIdentifier.toSuccess("Could not locate location identifier").toValidationNel
     val ow = getOriginalWardIdentifier.toSuccess("Could not locate original location identifier").toValidationNel
     waitAndErr((hn |@| wi |@| ow)( (h,l,o) =>
-      session.callMethod("nh.eobs.api", "transfer", h, "location" -> l, "original_location" -> o)
+      session.callMethod("nh.eobs.api", "transfer", h, Map("location" -> l, "original_location" -> o))
     ))
   }
 
