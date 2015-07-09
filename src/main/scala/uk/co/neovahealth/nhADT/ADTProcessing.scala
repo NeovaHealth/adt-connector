@@ -95,9 +95,9 @@ trait ADTProcessing extends ADTExceptions with StrictLogging{
 
   def getVisitName(implicit e:Exchange) : Option[String] = getField("visit_identifier")
 
-  def getWardIdentifier(implicit e:Exchange): Option[String] =  getField("ward_identifier")
+  def getWardIdentifier(implicit e:Exchange): Option[String] =  getField("location")
 
-  def getOriginalWardIdentifier(implicit e:Exchange): Option[String] = getField("original_ward_identifier")
+  def getOriginalWardIdentifier(implicit e:Exchange): Option[String] = getField("original_location")
 
   def getVisitStartDate(implicit e:Exchange) : Option[String] = getField("visit_start_date")
 

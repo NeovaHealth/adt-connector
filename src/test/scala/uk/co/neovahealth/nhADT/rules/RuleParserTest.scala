@@ -128,7 +128,7 @@ class RuleParserTest extends FunSuite with Checkers{
     }
   }
   test("simple regex test") {
-    val e = """ACCEPT | (ward_identifier ~= "WARD A.*")"""
+    val e = """ACCEPT | (location ~= "WARD A.*")"""
     val p = (parser.getAction <~ "|") ~ parser.getMatches
     parser.parse(p,e) match {
       case parser.Success(x,_) => println(x)
