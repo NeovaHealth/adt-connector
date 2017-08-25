@@ -8,8 +8,7 @@ To build this project use
 To run this project
 
     mvn exec:java
-    
+
 For more help see the Apache Camel documentation
 
     http://camel.apache.org/
-
