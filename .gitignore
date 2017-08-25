@@ -2,6 +2,5 @@
 project/
 .idea_modules/
 *.iml
-target/
 .history
 activemq-data/
