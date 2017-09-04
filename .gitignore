@@ -4,3 +4,5 @@ project/
 *.iml
 .history
 activemq-data/
+target/
+!target/nhadt*.kar
