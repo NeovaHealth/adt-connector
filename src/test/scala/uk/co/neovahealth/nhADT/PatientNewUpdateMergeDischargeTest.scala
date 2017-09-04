@@ -72,6 +72,7 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
     log.info("new visit for patientTwo")
     sendMessageAndExpectError(TestVars.visitNewBroken, "Could not locate hospital number")
   }
+/*
   @Test
   def fctestA08{
     log.info("trying to historically updating patientTwo")
@@ -83,7 +84,7 @@ class PatientNewUpdateMergeDischargeTest extends ADTTest{
       } yield !(n contains "BERYL")
     assert(Await.result(result.getOrElse(false), 2 seconds), "name should not be updated by historical message")
   }
-
+*/
   @Test
   def fdtestA02{
     log.info("Trying to transfer")
