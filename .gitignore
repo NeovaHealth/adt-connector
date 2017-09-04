@@ -6,4 +6,4 @@ project/
 activemq-data/
 target/
 !target/nhadt*.kar
-id_file/
+id_file
