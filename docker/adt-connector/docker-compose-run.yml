@@ -1,0 +1,29 @@
+version: "3"
+services:
+  adt-connector:
+    build: .
+    ports:
+      - 1099:1099
+      - 8101:8101
+      - 44444:44444
+      - 8888:8888
+    volumes:
+      - "/home/liveobs/BJSS_liveobs_adt_connector/target:/deploy"
+      - "/home/liveobs/BJSS_liveobs_adt_config:/opt/karaf/etc/nh"
+    links:
+      - db-adt
+    # Environment variables based on the values in setupPGSQLForAdt.sql
+    environment:
+      - USER=nhadt
+      - PASSWORD=nhadt
+      - HOST=db-adt
+
+  db-adt:
+    image: postgres:9.3
+    volumes:
+      - "/home/liveobs/BJSS_liveobs_adt_connector/setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
+
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
