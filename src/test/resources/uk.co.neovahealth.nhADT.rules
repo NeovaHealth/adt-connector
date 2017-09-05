@@ -1,0 +1,28 @@
+# Rules take the form of:
+# ACTION | EXPRESSION | ERROR
+#
+# ACTION can be either ACCEPT or REJECT
+#
+# EXPRESSION can use any field_name (defined in .conf file) and can use the following:
+#   EXISTS
+#   >,>=,<,<=,==,!=,~=
+#   ONEOF [list,of,values]
+#
+# EXPRESSIONS can be logically combined using:
+#   AND
+#   OR
+#   NOT
+#
+# Each EXPRESSION MUST be wrapped in parentheses to aid parsing (yes my parser is lame)
+#
+# The error section is made up of two parts, the error command, and the message.
+# The error command can be either ERROR or IGNORE
+# The message is taken to the the rest of the line
+#
+# See the output of RuleParserTest.check_arb_rules for further examples
+
+# Only accept messages we can process
+ACCEPT | (msg_type ONEOF [A01,A02,A03,A05,A08,A11,A12,A13,A28,A31,A40]) | ERROR Unsupported message type
+
+# Reject messages that have a discharge date (as historical) - except discharge and cancelDischarge messages
+REJECT | ((discharge_date EXISTS) AND ((msg_type != A03) AND (msg_type != A13))) | IGNORE Ignoring Historical message

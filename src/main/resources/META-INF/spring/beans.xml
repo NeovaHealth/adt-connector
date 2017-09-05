@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:camel="http://camel.apache.org/schema/spring"
+        xmlns:p="http://www.springframework.org/schema/p"
+        xsi:schemaLocation="
+	    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+
+    <!--Configuration-->
+    <bean id="propertyConfigurer"
+          class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
+          p:location="file:etc/nh/uk.co.neovahealth.nhADT.properties"/>
+     <!---->
+
+    <!--HL7 Listener-->
+    <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
+    <!---->
+
+    <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
+    <camel:endpoint id="fromRedis" uri="spring-redis://localhost:6379?redisTemplate=#redisTemplate"/>
+
+
+    <!--SQL -->
+    <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+        <property name="driverClassName" value="org.postgresql.Driver"/>
+        <property name="url" value="jdbc:postgresql://${sql_host}:${sql_port}/${sql_database_name}"/>
+        <property name="username" value="${sql_database_username}"/>
+        <property name="password" value="${sql_database_password}"/>
+    </bean>
+
+    <bean id="sql" class="org.apache.camel.component.sql.SqlComponent">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=${activemq_consumers}"/>
+
+    <camel:endpoint id="failMsgHistory" uri="sql:insert into ${fail_msg_store_table} (id, type, hospital_number,visit_id,timestamp, exception, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#hospitalNoString,:#visitNameString,:#CamelHL7Timestamp,:#exception,:#msgBody)"/>
+
+    <camel:endpoint id="msgHistory" uri="sql:insert into ${msg_store_table} (id, type, hospital_number,visit_id,timestamp, data) values (:#CamelHL7MessageControl,:#CamelHL7TriggerEvent,:#hospitalNoString,:#visitNameString,:#CamelHL7Timestamp,:#msgBody)"/>
+    <!---->
+
+    <!--Route injection-->
+    <bean id="adtInRoute" class="uk.co.neovahealth.nhADT.ADTInRoute"/>
+
+    <!-- Redis -->
+    <bean id="jedisConnectionFactory"
+          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" />
+
+    <bean id="stringRedisSerializer"
+          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+
+    <bean id="redisTemplate"
+          class="org.springframework.data.redis.core.RedisTemplate"
+          p:connectionFactory-ref="jedisConnectionFactory"
+          p:keySerializer-ref="stringRedisSerializer"
+          p:valueSerializer-ref="stringRedisSerializer"
+          p:hashKeySerializer-ref="stringRedisSerializer"/>
+
+
+
+<!-- Jms/ActiveMQ -->
+    <bean id="jmsConnectionFactory"
+          class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="vm://amq-broker" />
+
+    </bean>
+
+    <bean id="pooledConnectionFactory"
+          class="org.apache.activemq.pool.PooledConnectionFactory" init-method="start" destroy-method="stop">
+        <property name="maxConnections" value="8" />
+        <property name="connectionFactory" ref="jmsConnectionFactory" />
+    </bean>
+
+    <bean id="jmsConfig"
+          class="org.apache.camel.component.jms.JmsConfiguration">
+        <property name="connectionFactory" ref="pooledConnectionFactory"/>
+        <property name="concurrentConsumers" value="10"/>
+    </bean>
+
+    <!---->
+    <!-- create a Camel ActiveMQ component to use, using the Spring bean style -->
+    <!-- we use the vm protocol to communicate intra-jvm which is much faster than tcp -->
+    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+        <property name="configuration" ref="jmsConfig"/>
+        <property name="brokerURL" value="vm://amq-broker"/>
+    </bean>
+
+    <!--Sets the jmx object name to use 'localhost' rather than the actual hostname -->
+    <bean id="naming" class="org.apache.camel.management.DefaultManagementNamingStrategy">
+        <property name="hostName" value="localhost"/>
+        <property name="domainName" value="org.apache.camel"/>
+    </bean>
+
+    <!--Context-->
+    <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
+        <camel:routeBuilder ref="adtInRoute"/>
+    </camel:camelContext>
+    <!---->
+
+</beans>

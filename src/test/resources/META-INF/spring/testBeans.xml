@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:camel="http://camel.apache.org/schema/spring" xmlns:p="http://www.springframework.org/schema/p"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <bean id="propertyConfigurer"
+          class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer"
+          p:location="file:src/test/resources/uk.co.neovahealth.nhADT.properties"/>
+
+    <bean id="hl7codec" class="org.apache.camel.component.hl7.HL7MLLPCodec"/>
+    <camel:endpoint id="hl7listener" uri="mina2:tcp://${adt_listen_address}:${adt_listen_port}?sync=true&amp;codec=#hl7codec"/>
+
+    <bean id="adtInRoute" class="uk.co.neovahealth.nhADT.ADTInRoute"/>
+
+    <bean id="odooMock" class="uk.co.neovahealth.nhADT.OdooMock"/>
+
+    <camel:endpoint id="failMsgHistory" uri="mock:fail"/>
+    <camel:endpoint id="msgHistory" uri="mock:success"/>
+    <!--Context-->
+    <camel:camelContext id="t4adtContext" managementNamePattern="#name#">
+        <camel:routeBuilder ref="odooMock"/>
+        <camel:routeBuilder ref="adtInRoute"/>
+    </camel:camelContext>
+
+
+    <camel:endpoint id="mockOpenERPServerCommon" uri="jetty:http://localhost:8069/xmlrpc/common"/>
+    <camel:endpoint id="mockOpenERPServerObject" uri="jetty:http://localhost:8069/xmlrpc/object"/>
+
+    <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=5"/>
+    <camel:endpoint id="toRedis" uri="spring-redis://localhost:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
+    <camel:endpoint id="fromRedis" uri="spring-redis://localhost:6379?redisTemplate=#redisTemplate"/>
+
+    <!-- Redis -->
+    <bean id="jedisConnectionFactory"
+          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" />
+
+    <bean id="stringRedisSerializer"
+          class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
+
+    <bean id="redisTemplate"
+          class="org.springframework.data.redis.core.RedisTemplate"
+          p:connectionFactory-ref="jedisConnectionFactory"
+          p:keySerializer-ref="stringRedisSerializer"
+          p:valueSerializer-ref="stringRedisSerializer"
+          p:hashKeySerializer-ref="stringRedisSerializer"/>
+
+<!-- Jms/ActiveMQ -->
+    <bean id="jmsConnectionFactory"
+          class="org.apache.activemq.ActiveMQConnectionFactory">
+        <property name="brokerURL" value="vm://amq-broker" />
+
+    </bean>
+
+    <bean id="pooledConnectionFactory"
+          class="org.apache.activemq.pool.PooledConnectionFactory" init-method="start" destroy-method="stop">
+        <property name="maxConnections" value="8" />
+        <property name="connectionFactory" ref="jmsConnectionFactory" />
+    </bean>
+
+    <bean id="jmsConfig"
+          class="org.apache.camel.component.jms.JmsConfiguration">
+        <property name="connectionFactory" ref="pooledConnectionFactory"/>
+        <property name="concurrentConsumers" value="10"/>
+    </bean>
+
+    <!---->
+    <!-- create a Camel ActiveMQ component to use, using the Spring bean style -->
+    <!-- we use the vm protocol to communicate intra-jvm which is much faster than tcp -->
+    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+        <property name="configuration" ref="jmsConfig"/>
+        <property name="brokerURL" value="vm://amq-broker"/>
+    </bean>
+</beans>

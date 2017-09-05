@@ -1,0 +1,9 @@
+.idea/
+project/
+.idea_modules/
+*.iml
+.history
+activemq-data/
+target/
+!target/nhadt*.kar
+id_file
