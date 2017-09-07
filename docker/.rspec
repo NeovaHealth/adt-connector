@@ -1,0 +1,4 @@
+-r rspec_junit_formatter
+--format RspecJunitFormatter
+--out rspec.xml
+--format documentation
