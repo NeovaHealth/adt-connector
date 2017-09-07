@@ -21,7 +21,7 @@ login:
 	@`aws ecr get-login --no-include-email --region "${REGION}"`
 
 build: clean login
-	docker build -f docker/Dockerfile --pull --no-cache -t ${registry}/adtconnector:${VERSION} ..
+	docker build -f Dockerfile --pull --no-cache -t ${registry}/adtconnector:${VERSION} ..
 	docker tag ${registry}/adtconnector:${VERSION} adtconnector:${VERSION}
 	@cd ..
 
