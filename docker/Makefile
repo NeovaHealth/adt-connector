@@ -1,30 +1,41 @@
 #!/usr/bin/make
 
-create_addons_dir:
-	make -C ${folder} $@
+REGION = $(shell echo ${registry} | awk -F. '{print $$4}')
+VERSION = $(shell echo $${GO_PIPELINE_LABEL:-1}-$${GO_STAGE_COUNTER:-1})
 
-prebuild:
-	make -C ${folder} $@
+all: build test publish
 
-build:
-	make -C ${folder} $@
+clean:
+	@echo -n "Checking for registry setting ... "
+	@test -n "${registry}" || (echo "no registry setting" && exit 1)
+	@echo OK
+	docker rmi ${registry}/adtconnector:${VERSION} || true
+	docker rmi ${registry}/adtconnector:latest || true
+	docker rmi adtconnector:${VERSION} || true
+
+login:
+	@echo -n "Checking for registry setting ... "
+	@test -n "${registry}" || (echo "no registry setting" && exit 1)
+	@echo OK
+	@echo -n "Logging into ECR..."
+	@`aws ecr get-login --no-include-email --region "${REGION}"`
+
+build: clean login
+	docker build -f docker/Dockerfile --pull --no-cache -t ${registry}/adtconnector:${VERSION} ..
+	docker tag ${registry}/adtconnector:${VERSION} adtconnector:${VERSION}
+	@cd ..
 
 test:
-	make -C ${folder} $@
+	@bundle install
+	@bundle exec rake spec
+	@rm -rf vendor
 
-publish:
-	make -C ${folder} $@
+publish: login
+	@echo -n "Checking for registry setting ... "
+	@test -n "${registry}" || (echo "no registry setting" && exit 1)
+	@echo OK
+	@docker tag ${registry}/adtconnector:${VERSION} ${registry}/adtconnector:latest
+	@docker push ${registry}/adtconnector:${VERSION}
+	@docker push ${registry}/adtconnector:latest
 
-create_client_db:
-	make -C ${folder} $@
-
-run_unit_tests:
-	make -C ${folder} $@
-
-get_sql_dump:
-	make -C ${folder} $@
-
-run:
-	make -C ${folder} $@
-
-.PHONY: create_addons_dir prebuild build test publish create_client_db run_unit_tests get_sql_dump
+.PHONY: clean login build test publish

@@ -1,0 +1,5 @@
+#!/bin/bash
+# The Makefile relies on environment variables given to it by GOCD.
+# Run `source local-env-vars` once and then the Makefile can be run locally.
+export registry=298801546701.dkr.ecr.eu-west-1.amazonaws.com
+export VERSION=development
