@@ -33,9 +33,11 @@ server-test:
 integration-test:
 	docker-compose -f docker-compose-integration-test.yml run -d db-adt
 	mvn -f ../pom.xml test
+
+integration-test-clean:
 	docker-compose -f docker-compose-integration-test.yml rm --stop --force
 
-test: server-test integration-test
+test: server-test integration-test integration-test-clean
 
 publish: login
 	@echo -n "Checking for registry setting ... "
