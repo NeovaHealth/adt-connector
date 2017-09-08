@@ -25,10 +25,17 @@ build: clean login
 	docker tag ${registry}/adtconnector:${VERSION} adtconnector:${VERSION}
 	@cd ..
 
-test:
+server-test:
 	@bundle install
 	@bundle exec rake spec
 	@rm -rf vendor
+
+integration-test:
+	docker-compose -f docker-compose-integration-test.yml run -d db-adt
+	mvn -f ../pom.xml test
+	docker-compose -f docker-compose-integration-test.yml rm --stop --force
+
+test: server-test integration-test
 
 publish: login
 	@echo -n "Checking for registry setting ... "
