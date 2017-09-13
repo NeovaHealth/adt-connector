@@ -1,5 +1,5 @@
 #!/usr/bin/make
-
+IP = $(shell ip r l | awk '/default/ {print $3}')
 REGION = $(shell echo ${registry} | awk -F. '{print $$4}')
 VERSION = $(shell echo $${GO_PIPELINE_LABEL:-1}-$${GO_STAGE_COUNTER:-1})
 
@@ -31,7 +31,8 @@ server-test:
 	@rm -rf vendor
 
 integration-test:
-	docker-compose -f docker-compose-integration-test.yml run -d db-adt
+	@docker-compose -f docker-compose-integration-test.yml run -d db-adt
+	sed -i 's/\(redis_host\)=.*/\1=${IP}/' ../src/test/resources/uk.co.neovahealth.nhADT.properties
 	mvn -f ../pom.xml test
 
 integration-test-clean:
