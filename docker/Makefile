@@ -1,5 +1,5 @@
 #!/usr/bin/make
-IP = $(shell ip r l | awk '/default/ {print $3}')
+IP = $(shell ip r l | awk '/default/ {print $$3}')
 REGION = $(shell echo ${registry} | awk -F. '{print $$4}')
 VERSION = $(shell echo $${GO_PIPELINE_LABEL:-1}-$${GO_STAGE_COUNTER:-1})
 
