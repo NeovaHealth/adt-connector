@@ -46,7 +46,7 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
 
     val jndi = super.createRegistry()
     val codec = new HL7MLLPCodec()
-    codec.setCharset("iso-8859-1")
+    codec.setCharset("utf-8")
     jndi.bind("hl7codec", codec)
     jndi
   }
