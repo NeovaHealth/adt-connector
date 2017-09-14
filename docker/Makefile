@@ -32,8 +32,7 @@ server-test:
 
 integration-test:
 	@docker-compose -f docker-compose-integration-test.yml run -d db-adt
-	# Replace redis host in properties file so this even when Redis is not hosted locally.
-	sed -i 's/\(redis_host\)=.*/\1=${IP}/' ../src/test/resources/uk.co.neovahealth.nhADT.properties
+	./set-redis-host-if-on-gocd
 	mvn -f ../pom.xml test
 
 integration-test-clean:

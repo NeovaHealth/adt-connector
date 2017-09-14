@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [[ -z "${GO_ENVIRONMENT_NAME}" ]]; then
+    echo "No GO_ENVIRONMENT_NAME variable found. Assuming that the environment is localhost. Leaving Redis host property as 'localhost'."
+else
+    echo "GO_ENVIRONMENT_NAME variable found. Assuming that the environment is a GoCD agent running in a Docker container."
+    echo "The Redis container required to be up for the integration tests will be remote rather than local."
+    echo "Overwriting the Redis host property in src/test/resources/uk.co.neovahealth.nhADT.properties to point to Docker gateway."
+    DOCKER_GATEWAY_IP=$(ip r l | awk '/default/ {print $3}')
+    echo "Docker gateway IP is $DOCKER_GATEWAY_IP"
+    sed -i "s/\(spring\.redis\.host=\).*/\1$DOCKER_GATEWAY_IP/" ../src/test/resources/uk.co.neovahealth.nhADT.properties
+fi
