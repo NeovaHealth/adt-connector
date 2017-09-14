@@ -29,12 +29,14 @@
     <camel:endpoint id="mockOpenERPServerObject" uri="jetty:http://localhost:8069/xmlrpc/object"/>
 
     <camel:endpoint id="activemq-in" uri="activemq:queue:in?username=${activemq_username}&amp;password=${activemq_password}&amp;concurrentConsumers=5"/>
-    <camel:endpoint id="toRedis" uri="spring-redis://${redis_host}:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
-    <camel:endpoint id="fromRedis" uri="spring-redis://${redis_host}:6379?redisTemplate=#redisTemplate"/>
+    <camel:endpoint id="toRedis" uri="spring-redis://${spring.redis.host}:6379?command=SET&amp;redisTemplate=#redisTemplate"/>
+    <camel:endpoint id="fromRedis" uri="spring-redis://${spring.redis.host}:6379?redisTemplate=#redisTemplate"/>
 
     <!-- Redis -->
     <bean id="jedisConnectionFactory"
-          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory" />
+          class="org.springframework.data.redis.connection.jedis.JedisConnectionFactory"
+          p:host-name="${spring.redis.host}"
+          p:port="${spring.redis.port}"/>
 
     <bean id="stringRedisSerializer"
           class="org.springframework.data.redis.serializer.StringRedisSerializer"/>
