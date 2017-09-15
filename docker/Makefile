@@ -32,7 +32,7 @@ server-test:
 
 integration-test:
 	@docker-compose -f docker-compose-integration-test.yml run -d db-adt
-	./set-redis-host-if-on-gocd
+	# ./set-redis-host-if-on-gocd
 	mvn -f ../pom.xml test
 
 integration-test-clean:
