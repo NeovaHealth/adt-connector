@@ -1,7 +1,7 @@
 #!/usr/bin/make
 IP = $(shell ip r l | awk '/default/ {print $$3}')
 REGION = $(shell echo ${registry} | awk -F. '{print $$4}')
-VERSION = $(shell print-docker-tag)
+VERSION = $(shell ./print-docker-tag)
 
 all: build test publish
 
