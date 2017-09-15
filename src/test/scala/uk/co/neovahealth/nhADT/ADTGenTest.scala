@@ -44,13 +44,10 @@ class ADTGenTest extends CamelSpringTestSupport with PropertyChecks with ADTGen 
 
   override def createRegistry() ={
 
-    println("got to just before create registry")
     val jndi = super.createRegistry()
-    println("got to just after create registry")
     val codec = new HL7MLLPCodec()
-    codec.setCharset("utf-8")
+    codec.setCharset("iso-8859-1")
     jndi.bind("hl7codec", codec)
-    println("got to just before jndi call")
     jndi
   }
 
