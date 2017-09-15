@@ -1,7 +1,7 @@
 #!/usr/bin/make
 IP = $(shell ip r l | awk '/default/ {print $$3}')
 REGION = $(shell echo ${registry} | awk -F. '{print $$4}')
-VERSION = $(shell echo $${GO_PIPELINE_LABEL:-1}-$${GO_STAGE_COUNTER:-1})
+VERSION = $(shell print-docker-tag)
 
 all: build test publish
 
@@ -41,7 +41,7 @@ integration-test-clean:
 
 test: server-test integration-test integration-test-clean
 
-publish: login
+publish: clean login build test
 	@echo -n "Checking for registry setting ... "
 	@test -n "${registry}" || (echo "no registry setting" && exit 1)
 	@echo OK

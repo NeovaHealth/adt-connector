@@ -1,0 +1,10 @@
+#!/bin/bash
+if [[ -z "${GO_ENVIRONMENT_NAME}" ]]; then
+    echo "local-build"
+else
+    application_name=adtconnector
+    version_name=$GO_SCM_ADT_CONNECTOR_GITHUB_PR_BRANCH
+    build_number=_$GO_PIPELINE_COUNTER
+    docker_tag=$application_name:$version_name$build_number
+    echo $docker_tag
+fi
