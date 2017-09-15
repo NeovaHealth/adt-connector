@@ -33,7 +33,7 @@ server-test:
 integration-test:
 	@docker-compose -f docker-compose-integration-test.yml run -d db-adt
 	# ./set-redis-host-if-on-gocd
-	mvn -f ../pom.xml test
+	mvn -f ../pom.xml -Dsurefire.useFile=false test
 
 integration-test-clean:
 	docker-compose -f docker-compose-integration-test.yml rm --stop --force
