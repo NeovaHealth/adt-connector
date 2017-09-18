@@ -2,6 +2,7 @@
 if [[ -z "${GO_ENVIRONMENT_NAME}" ]]; then
     echo "local-build"
 else
+    # Remove `bjss:` prefix.
     version=$(echo $GO_SCM_ADT_CONNECTOR_GITHUB_PR_BRANCH | sed 's/bjss://')
     build_number=_$GO_PIPELINE_COUNTER
     docker_tag=$version$build_number
