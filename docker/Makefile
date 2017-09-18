@@ -27,7 +27,7 @@ build: clean login
 
 server-test:
 	@bundle install
-	@bundle exec rake spec
+	@VERSION=${VERSION} bundle exec rake spec
 	@rm -rf vendor
 
 integration-test:
