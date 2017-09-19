@@ -1,15 +1,11 @@
 version: "2"
 services:
   adt-connector:
-    build: .
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
     ports:
-      - 1099:1099
-      - 8101:8101
-      - 44444:44444
       - 8888:8888
-    volumes:
-      - "/home/liveobs/BJSS_liveobs_adt_connector/target:/deploy"
-      - "/home/liveobs/BJSS_liveobs_adt_config:/opt/karaf/etc/nh"
     links:
       - db-adt
     # Environment variables based on the values in setupPGSQLForAdt.sql
