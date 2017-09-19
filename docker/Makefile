@@ -49,4 +49,7 @@ publish: clean login build test
 	@docker push ${registry}/adtconnector:${VERSION}
 	@docker push ${registry}/adtconnector:latest
 
+run:
+	docker-compose -f docker-compose-run.yml up --build -d
+
 .PHONY: clean login build test publish
