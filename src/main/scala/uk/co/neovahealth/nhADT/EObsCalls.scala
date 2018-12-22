@@ -2,7 +2,7 @@ package uk.co.neovahealth.nhADT
 
 import com.tactix4.t4openerp.connector._
 import com.tactix4.t4openerp.connector.transport.{OEArray, OEDictionary, OEString}
-import com.typesafe.scalalogging.slf4j.{StrictLogging, LazyLogging}
+import com.typesafe.scalalogging.slf4j.{LazyLogging, Logger, StrictLogging}
 import org.apache.camel.Exchange
 import org.joda.time.DateTime
 import uk.co.neovahealth.nhADT.exceptions.ADTExceptions

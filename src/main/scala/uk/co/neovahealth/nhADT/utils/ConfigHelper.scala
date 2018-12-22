@@ -40,6 +40,7 @@ object ConfigHelper {
   val password: String = config.getString("odoo.password")
   val database: String = config.getString("odoo.database")
   val autoAck:Boolean = config.getBoolean("misc.auto_ack")
+  val wardMap: Map[String,String] = config.getObject("ADT_mappings.ward_map").toMap.mapValues(_.unwrapped().asInstanceOf[Int].toString).withDefault(ward ⇒ ward)
   val sexMap: Map[String, String] = config.getObject("ADT_mappings.sex_map").toMap.mapValues(_.unwrapped().asInstanceOf[String])
   val inputDateFormats: List[String] = config.getStringList("misc.valid_date_formats").toList
   val toDateFormat: String = config.getString("odoo.to_date_format")
