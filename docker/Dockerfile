@@ -1,4 +1,4 @@
-FROM keks/karaf:3.0.4
+FROM openeobs/karaf:3.0.4
 
 # Docker build context is in the root of the repository.
 COPY karafetc/nh/* /opt/karaf/etc/nh/
