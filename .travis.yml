@@ -15,9 +15,9 @@ addons:
     update: true
 
 script:
-- mvn install
-- cd docker
-- make run
+# - mvn install
+- make -C docker build
+- make -C docker test
 
 # after_script:
 # - docker images
