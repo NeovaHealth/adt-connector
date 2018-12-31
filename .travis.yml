@@ -1,0 +1,37 @@
+sudo: required
+
+jdk:
+  - oraclejdk8
+
+services:
+- docker
+
+
+before_install:
+  - sudo apt-get install -y maven
+
+addons:
+  apt:
+    update: true
+
+script:
+- mvn install
+- cd docker
+- make run
+
+# after_script:
+# - docker images
+
+# before_deploy:
+# - docker login $REGISTRY_URL -u "$REGISTRY_USER" -p "$REGISTRY_PASS"
+# - docker tag adt-connector
+
+# deploy:
+#   provider: script
+#   script: docker push "${REGISTRY_URL}"/adt-connector:${DEMOGRAPHICS_VER}
+#   on:
+#     branch: master
+
+# notifications:
+#   slack:
+#     secure: FI+vENP17DcXDm/x72wfKsxdh5n+yP0CPUjDAgpTUYgdlsxM0EnAacJGghlE2yw5G6NSJ99E6oAlydFPGdKaY4XZKpSO+irTYhSgTeRf+njGdQz/9wTA+FMBGLBZjpiX4uCg0dR1HlyR2FcDd1MQ259+nMfFobVjzArJZxhuIrEeK5lUdZ1CxguM51OnWYCTKD3rh3Tf/PWfyGWTDPrjODkDEqmatAc4fgCls3B6nAA7hyiiFEwSiDn02E6D36VYPKhN9nO4E8BUnBC9dcu/DXu56a6kHMRFLmSM9Atvy1dtX+mVzhn1CNAirokhqbQQ9uH5ffVOglLl0CuqgbqL+sUGKNDMOrEgvsP0mSD6AsCCLCYZCXOATPRwPcovPpebLiQl5D4EZoB4XxonRfKdALVpXYcprnMeCZYAwut+yObXE6S+dAJhxrJMqJTJZqoca+H7f+m5jBNGM/SIaYC/RZy8kK/WFfXxz5e6K5TJYJjfX9whRsb1GK9mZ5/kkG48ycW/lRqlGzePo475ikSdKdaHOE2C5pVMfov8r/sALzeTqXmmVNjPmhkhp1AqNJx7y1kbev5qXX7QyrLHZXDiBsQQ+kRpW0nNPjrZcBXWlMK9hK9LcpJswPxDVv0C4dReob8UL3SNsWGxBsN1sTNj9nUxikhsKA+WVYROhUUq9E8=
