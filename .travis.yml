@@ -16,8 +16,8 @@ addons:
 
 script:
 # - mvn install
-- make -C docker build
-- make -C docker test
+- registry=openeobs make -C docker build
+- registry=openeobs make -C docker test
 
 # after_script:
 # - docker images
