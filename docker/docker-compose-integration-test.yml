@@ -3,7 +3,7 @@ services:
   db-adt:
     image: postgres:9.3
     volumes:
-      - "/home/liveobs/BJSS_liveobs_adt_connector/setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
+      - "/home/openeobs/adt-connector/setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
     links:
       - redis
 
