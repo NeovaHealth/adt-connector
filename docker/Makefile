@@ -52,4 +52,7 @@ publish: clean login build test
 run:
 	docker-compose -f docker-compose-run.yml up --build -d
 
+destroy:
+	docker-compose -f docker-compose-run.yml down -v
+
 .PHONY: clean login build test publish
