@@ -1,0 +1,19 @@
+######################
+# Project Specific
+######################
+.git
+.idea/
+project/
+.idea_modules/
+*.iml
+.history
+activemq-data/
+target/
+!target/nhadt*.kar
+id_file
+rspec.xml
+src
+terraform
+docker/.bundle
+docker/spec
+docker/.rspec
