@@ -236,7 +236,7 @@
         <repository>
             <id>springframeworkmilestonerepo</id>
             <name>springframework milestone repo</name>
-            <url>http://repo.springsource.org/milestone/</url>
+            <url>https://repo.springsource.org/milestone/</url>
             <layout>default</layout>
         </repository>
 	</repositories>
