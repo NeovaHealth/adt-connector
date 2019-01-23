@@ -8,14 +8,16 @@ services:
 
 
 before_install:
-  - sudo apt-get install -y maven
+  - sudo apt-get install -y maven build-essential
 
 addons:
   apt:
     update: true
 
 script:
+- registry=openeobs make -C docker integration-test
 - mvn install
+- registry=openeobs make -C docker integration-test-clean
 - registry=openeobs make -C docker build
 - registry=openeobs make -C docker test
 
