@@ -15,7 +15,7 @@ addons:
     update: true
 
 script:
-# - mvn install
+- mvn install
 - registry=openeobs make -C docker build
 - registry=openeobs make -C docker test
 
