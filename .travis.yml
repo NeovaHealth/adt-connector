@@ -21,8 +21,8 @@ addons:
     update: true
 
 script:
-- registry=openeobs make -C docker integration-test
-- registry=openeobs make -C docker integration-test-clean
+# - registry=openeobs make -C docker integration-test
+# - registry=openeobs make -C docker integration-test-clean
 - mvn install -DskipTests
 - registry=openeobs make -C docker build
 - registry=openeobs make -C docker test
