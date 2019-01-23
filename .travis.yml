@@ -4,11 +4,12 @@ jdk:
   - oraclejdk8
 
 services:
-- docker
+  - docker
 
+language: java
 
-before_install:
-  - sudo apt-get install -y maven
+# before_install:
+#   - sudo apt-get install -y maven
 
 addons:
   apt:
