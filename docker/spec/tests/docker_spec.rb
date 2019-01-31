@@ -24,7 +24,7 @@ describe "ADT Connector Docker image" do
   end
 
   # ADT connector KAR file in the deploy directory.
-  describe file('/deploy/nhadt_2.10-0.2.4.kar') do
+  describe file('/deploy/nhadt_2.10-0.2.5.kar') do
     it { should exist }
   end
 
@@ -46,5 +46,5 @@ describe "ADT Connector Docker image" do
   describe command('ps -Af | grep "[o]rg.apache.karaf.main.Main" | wc -l') do
     its(:stdout) { should match /1/ }
   end
-  
+
 end

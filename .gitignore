@@ -8,3 +8,4 @@ target/
 !target/nhadt*.kar
 id_file
 rspec.xml
+docker/vendor

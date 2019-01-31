@@ -18,7 +18,7 @@ login:
 	@test -n "${registry}" || (echo "no registry setting" && exit 1)
 	@echo OK
 	@echo -n "Logging into ECR..."
-	@`aws ecr get-login --no-include-email --region "${REGION}"`
+	# @`aws ecr get-login --no-include-email --region "${REGION}"`
 
 build: clean login
 	docker build -f Dockerfile --pull --no-cache -t ${registry}/adtconnector:${VERSION} ..
@@ -51,5 +51,8 @@ publish: clean login build test
 
 run:
 	docker-compose -f docker-compose-run.yml up --build -d
+
+destroy:
+	docker-compose -f docker-compose-run.yml down -v
 
 .PHONY: clean login build test publish

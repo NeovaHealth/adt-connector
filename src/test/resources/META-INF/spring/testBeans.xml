@@ -16,6 +16,7 @@
 
     <bean id="odooMock" class="uk.co.neovahealth.nhADT.OdooMock"/>
 
+    <camel:endpoint id="odooMockEndpoint" uri="mock:odoo"/>
     <camel:endpoint id="failMsgHistory" uri="mock:fail"/>
     <camel:endpoint id="msgHistory" uri="mock:success"/>
     <!--Context-->

@@ -1,6 +1,7 @@
 version: "2"
 services:
   adt-connector:
+    container_name: adt-connector
     build:
       context: ..
       dockerfile: ./docker/Dockerfile
@@ -15,11 +16,21 @@ services:
       - HOST=db-adt
 
   db-adt:
+    container_name: db-adt
     image: postgres:9.3
     volumes:
-      - "/home/liveobs/BJSS_liveobs_adt_connector/setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
+      - "../setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
+    links:
+      - redis
+
+  redis:
+    image: redis
+    container_name: redis-adt
+    ports:
+      - "6379:6379"
 
   adminer:
+    container_name: adminer-adt
     image: adminer
     ports:
       - 8080:8080

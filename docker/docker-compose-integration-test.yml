@@ -3,11 +3,12 @@ services:
   db-adt:
     image: postgres:9.3
     volumes:
-      - "/home/liveobs/BJSS_liveobs_adt_connector/setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
+      - "../setupPGSQLForAdt.sql:/docker-entrypoint-initdb.d/setupPGSQLForAdt.sql"
     links:
       - redis
 
   redis:
     image: redis
+    container_name: redis-adt
     ports:
       - "6379:6379"

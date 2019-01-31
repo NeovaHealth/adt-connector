@@ -32,7 +32,7 @@ class OdooMock extends RouteBuilder {
   val response = "<methodResponse><params><param><value><int>1</int></value></param></params></methodResponse>"
   "mockOpenERPServerObject" ==> {
     transform(_.in[String])
-    to("log:mockOdooObject")
+    to("mock:odooTestMock")
     transform(response)
 //    process((exchange: Exchange) => {
 //
